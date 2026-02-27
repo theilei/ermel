@@ -22,7 +22,7 @@ const products = [
 
 const stats = [
   { value: '500+', label: 'Projects Completed' },
-  { value: '12+', label: 'Years Experience' },
+  { value: '7+', label: 'Years Experience' },
   { value: '98%', label: 'Client Satisfaction' },
   { value: '48hr', label: 'Quote Turnaround' },
 ];
@@ -117,8 +117,8 @@ export default function Home() {
               textTransform: 'uppercase',
             }}
           >
-            CRAFTING GLASS &<br />
-            <span style={{ color: '#ff6666' }}>ALUMINUM</span> SOLUTIONS
+            Built to last. <br />
+            <span style={{ color: '#ff6666' }}>Beyond the blast.</span>
           </h1>
           <p
             style={{
@@ -157,6 +157,7 @@ export default function Home() {
                 border: '2px solid rgba(255,255,255,0.2)',
               }}
             >
+              Request A Quote <ArrowRight size={18} />
               <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Get a Free Quote <ArrowRight size={18} />
               </span>
