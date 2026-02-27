@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import logoImage from '../../../logo/Ermel\'s Logo.jpg';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -25,10 +26,13 @@ export function Header() {
   return (
     <header
       style={{
-        backgroundColor: '#15263c',
+        backgroundColor: scrolled ? 'rgba(21, 38, 60, 0.85)' : '#15263c',
+        backdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
         boxShadow: scrolled ? '0 2px 20px rgba(0,0,0,0.3)' : 'none',
         transition: 'all 0.3s ease',
         padding: scrolled ? '0' : '0',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none',
       }}
       className="fixed top-0 left-0 right-0 z-50"
     >
@@ -38,34 +42,29 @@ export function Header() {
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
-          <div
-            className="flex items-center justify-center rounded-lg flex-shrink-0"
+          <img
+            src={logoImage}
+            alt="Ermel Glass & Aluminum Works"
             style={{
-              width: scrolled ? '36px' : '44px',
-              height: scrolled ? '36px' : '44px',
-              background: 'linear-gradient(135deg, #7a0000, #b30000)',
+              width: scrolled ? '40px' : '50px',
+              height: scrolled ? '40px' : '50px',
+              aspectRatio: '1 / 1',
+              borderRadius: '6px',
+              objectFit: 'cover',
+              objectPosition: 'center',
               transition: 'all 0.3s ease',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
-          >
-            <svg
-              viewBox="0 0 32 32"
-              fill="none"
-              style={{ width: scrolled ? '22px' : '28px', height: scrolled ? '22px' : '28px', transition: 'all 0.3s ease' }}
-            >
-              <rect x="4" y="4" width="24" height="24" rx="2" stroke="white" strokeWidth="2.5" fill="none" />
-              <line x1="4" y1="14" x2="28" y2="14" stroke="white" strokeWidth="1.5" />
-              <line x1="14" y1="4" x2="14" y2="28" stroke="white" strokeWidth="1.5" />
-              <circle cx="9" cy="9" r="2" fill="white" fillOpacity="0.6" />
-            </svg>
-          </div>
-          <div className="hidden sm:block">
+          />
+          <div className="hidden sm:flex flex-col justify-center">
             <div
               style={{
                 fontFamily: 'var(--font-heading)',
                 color: 'white',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                lineHeight: 1,
+                lineHeight: 1.1,
                 fontSize: scrolled ? '15px' : '18px',
                 transition: 'all 0.3s ease',
               }}
@@ -81,6 +80,8 @@ export function Header() {
                 fontWeight: 500,
                 textTransform: 'uppercase',
                 transition: 'all 0.3s ease',
+                lineHeight: 1.2,
+                marginTop: '2px',
               }}
             >
               & Aluminum Works
@@ -153,6 +154,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <Link
             to="/quote"
+            className="door-opening-btn"
             style={{
               fontFamily: 'var(--font-heading)',
               background: 'linear-gradient(135deg, #7a0000, #a50000)',
@@ -164,22 +166,27 @@ export function Header() {
               borderRadius: '8px',
               textDecoration: 'none',
               textTransform: 'uppercase',
-              transition: 'all 0.3s ease',
+              transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
               boxShadow: '0 2px 12px rgba(122,0,0,0.4)',
               whiteSpace: 'nowrap',
+              position: 'relative',
+              overflow: 'hidden',
+              border: '2px solid rgba(255,255,255,0.2)',
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget;
-              el.style.transform = 'translateY(-1px)';
-              el.style.boxShadow = '0 4px 20px rgba(122,0,0,0.55)';
+              el.style.transform = 'scale(1.05) translateY(-2px)';
+              el.style.boxShadow = '0 6px 25px rgba(122,0,0,0.65)';
+              el.style.borderColor = 'rgba(255,255,255,0.4)';
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget;
-              el.style.transform = 'translateY(0)';
+              el.style.transform = 'scale(1) translateY(0)';
               el.style.boxShadow = '0 2px 12px rgba(122,0,0,0.4)';
+              el.style.borderColor = 'rgba(255,255,255,0.2)';
             }}
           >
-            Request a Quote
+            <span style={{ position: 'relative', zIndex: 1 }}>Request a Quote</span>
           </Link>
 
           <button
