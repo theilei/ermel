@@ -159,7 +159,6 @@ export default function Home() {
             >
               Request A Quote <ArrowRight size={18} />
               <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Get a Free Quote <ArrowRight size={18} />
               </span>
             </Link>
             <a
