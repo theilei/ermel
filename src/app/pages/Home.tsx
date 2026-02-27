@@ -20,7 +20,7 @@ const products = [
 
 const stats = [
   { value: '500+', label: 'Projects Completed' },
-  { value: '12+', label: 'Years Experience' },
+  { value: '7+', label: 'Years Experience' },
   { value: '98%', label: 'Client Satisfaction' },
   { value: '48hr', label: 'Quote Turnaround' },
 ];
