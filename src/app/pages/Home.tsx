@@ -80,8 +80,8 @@ export default function Home() {
               textTransform: 'uppercase',
             }}
           >
-            CRAFTING GLASS &<br />
-            <span style={{ color: '#ff6666' }}>ALUMINUM</span> SOLUTIONS
+            Built to last. <br />
+            <span style={{ color: '#ff6666' }}>Beyond the blast.</span>
           </h1>
           <p
             style={{
@@ -116,7 +116,7 @@ export default function Home() {
                 transition: 'all 0.2s',
               }}
             >
-              Get a Free Quote <ArrowRight size={18} />
+              Request A Quote <ArrowRight size={18} />
             </Link>
             <a
               href="#projects"
