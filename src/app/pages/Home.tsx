@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
-import { ArrowRight, Shield, Clock, Award, ChevronRight, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
+import { ArrowRight, Shield, Clock, Award, ChevronRight, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame, Facebook, Instagram, Linkedin, Youtube } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { useEffect } from 'react';
+import logoImage from '../../../logo/Ermel\'s Logo.jpg';
 
 const GLASS_INSTALLATION_IMG = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
 const PARTITION_IMG = 'https://images.unsplash.com/photo-1770993151375-0dee97eda931?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjBnbGFzcyUyMHBhcnRpdGlvbiUyMGludGVyaW9yfGVufDF8fHx8MTc3MTk5MzMwMHww&ixlib=rb-4.1.0&q=80&w=1080';
@@ -42,8 +44,43 @@ const projects = [
 ];
 
 export default function Home() {
+  useEffect(() => {
+    // Add door opening animation CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes doorOpen {
+        0% { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
+        50% { transform: perspective(1000px) rotateY(-15deg); opacity: 0.8; }
+        100% { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
+      }
+      
+      .door-opening-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+      }
+      
+      .door-opening-btn:hover::before {
+        left: 100%;
+      }
+      
+      .door-opening-btn:active {
+        animation: doorOpen 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
-    <div style={{ backgroundColor: '#fafafa', fontFamily: 'var(--font-body)' }}>
+    <div style={{ backgroundColor: '#fafafa', fontFamily: 'var(--font-body)' }}>)
       {/* Hero */}
       <section
         className="relative flex items-center justify-center overflow-hidden"
@@ -98,6 +135,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/quote"
+              className="door-opening-btn"
               style={{
                 fontFamily: 'var(--font-heading)',
                 background: 'linear-gradient(135deg, #7a0000, #a50000)',
@@ -113,10 +151,15 @@ export default function Home() {
                 alignItems: 'center',
                 gap: '8px',
                 boxShadow: '0 4px 20px rgba(122,0,0,0.5)',
-                transition: 'all 0.2s',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                border: '2px solid rgba(255,255,255,0.2)',
               }}
             >
-              Get a Free Quote <ArrowRight size={18} />
+              <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Get a Free Quote <ArrowRight size={18} />
+              </span>
             </Link>
             <a
               href="#projects"
@@ -319,6 +362,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/quote"
+              className="door-opening-btn"
               style={{
                 fontFamily: 'var(--font-heading)',
                 background: 'linear-gradient(135deg, #7a0000, #a50000)',
@@ -334,9 +378,15 @@ export default function Home() {
                 alignItems: 'center',
                 gap: '8px',
                 boxShadow: '0 4px 20px rgba(122,0,0,0.5)',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                border: '2px solid rgba(255,255,255,0.2)',
               }}
             >
-              Request a Quote <ArrowRight size={18} />
+              <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Request a Quote <ArrowRight size={18} />
+              </span>
             </Link>
             <Link
               to="/dashboard"
@@ -360,17 +410,77 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer style={{ backgroundColor: '#0f1e30', paddingTop: '40px', paddingBottom: '24px' }}>
+      <footer style={{ backgroundColor: '#0f1e30', paddingTop: '50px', paddingBottom: '24px' }}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 pb-10" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '22px', fontWeight: 800, letterSpacing: '0.04em', marginBottom: '8px' }}>
-                ERMEL GLASS
+              {/* Enlarged Logo */}
+              <div className="flex items-center gap-4 mb-4">
+                <img
+                  src={logoImage}
+                  alt="Ermel Glass & Aluminum Works"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    aspectRatio: '1 / 1',
+                    borderRadius: '8px',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 20px rgba(122,0,0,0.4)',
+                  }}
+                />
+                <div>
+                  <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '22px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: 1 }}>
+                    ERMEL GLASS
+                  </div>
+                  <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.12em', marginTop: '4px' }}>& ALUMINUM WORKS</div>
+                </div>
               </div>
-              <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.12em', marginBottom: '16px' }}>& ALUMINUM WORKS</div>
-              <p style={{ color: '#9ab0c4', fontSize: '14px', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+              <p style={{ color: '#9ab0c4', fontSize: '14px', lineHeight: 1.6, fontFamily: 'var(--font-body)', marginBottom: '20px' }}>
                 Professional glass and aluminum fabrication and installation services serving residential and commercial clients across the Philippines.
               </p>
+              {/* Social Media Icons */}
+              <div className="flex items-center gap-3">
+                {[
+                  { icon: Facebook, href: '#', label: 'Facebook' },
+                  { icon: Instagram, href: '#', label: 'Instagram' },
+                  { icon: Linkedin, href: '#', label: 'LinkedIn' },
+                  { icon: Youtube, href: '#', label: 'YouTube' },
+                ].map((social) => (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    aria-label={social.label}
+                    className="group"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(122,0,0,0.2)',
+                      border: '1px solid rgba(122,0,0,0.3)',
+                      transition: 'all 0.3s',
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget;
+                      el.style.backgroundColor = 'rgba(122,0,0,0.4)';
+                      el.style.borderColor = '#7a0000';
+                      el.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget;
+                      el.style.backgroundColor = 'rgba(122,0,0,0.2)';
+                      el.style.borderColor = 'rgba(122,0,0,0.3)';
+                      el.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <social.icon size={18} color="#ff8888" />
+                  </a>
+                ))}
+              </div>
             </div>
             <div>
               <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '16px', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '16px', textTransform: 'uppercase' }}>
