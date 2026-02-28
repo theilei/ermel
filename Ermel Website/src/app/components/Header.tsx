@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Menu, X, ChevronDown } from 'lucide-react';
-import logoImg from 'figma:asset/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
+import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -47,12 +47,15 @@ export function Header() {
               transition: 'all 0.3s ease',
             }}
           >
-            <div style={{ fontSize: '24px', fontWeight: 'bold' }}>ERMEL LOGO</div>
+            <img 
+              src={logoImg} 
+              alt="ERMEL LOGO"
+              style={{
                 height: '100%', 
                 objectFit: 'contain',
                 transition: 'all 0.3s ease',
-      
-            /
+              }}
+            />
           </div>
           <div className="hidden sm:block">
             <div
@@ -219,35 +222,7 @@ export function Header() {
               {link.label}
             </a>
           ))}
-          <Link
-            to="/admin"
-            style={{
-              fontFamily: 'var(--font-heading)',
-              color: '#54667d',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              fontSize: '13px',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              transition: 'all 0.2s',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-              border: '1px solid rgba(84,102,125,0.3)',
-              marginLeft: '4px',
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget;
-              el.style.color = '#8ba5c2';
-              el.style.borderColor = 'rgba(84,102,125,0.6)';
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.style.color = '#54667d';
-              el.style.borderColor = 'rgba(84,102,125,0.3)';
-            }}
-          >
-            Admin
-          </Link>
+
         </nav>
 
         {/* CTA + Mobile toggle */}
@@ -376,40 +351,7 @@ export function Header() {
               {link.label}
             </a>
           ))}
-          <Link
-            to="/admin"
-            style={{
-              fontFamily: 'var(--font-heading)',
-              color: '#54667d',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              fontSize: '14px',
-              padding: '12px 0',
-              display: 'block',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-            }}
-            onClick={() => setMenuOpen(false)}
-          >
-            Admin Portal
-          </Link>
-          <Link
-            to="/dashboard"
-            style={{
-              fontFamily: 'var(--font-heading)',
-              color: '#54667d',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              fontSize: '14px',
-              padding: '8px 0',
-              display: 'block',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-            }}
-            onClick={() => setMenuOpen(false)}
-          >
-            My Projects
-          </Link>
+
         </div>
       )}
     </header>

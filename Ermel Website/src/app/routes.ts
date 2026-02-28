@@ -14,7 +14,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: 'quote', Component: QuotationModule },
-      { path: 'admin', Component: AdminDashboard },
+      { path: 'ermel-mgmt-2026', Component: AdminDashboard },
       { path: 'dashboard', Component: CustomerDashboard },
       { path: 'products/glass', Component: GlassProducts },
       { path: 'products/aluminum', Component: AluminumProducts },
