@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Menu, X, ChevronDown } from 'lucide-react';
-import logoImg from 'figma:asset/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
+import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -47,12 +47,15 @@ export function Header() {
               transition: 'all 0.3s ease',
             }}
           >
-            <div style={{ fontSize: '24px', fontWeight: 'bold' }}>ERMEL LOGO</div>
+            <img 
+              src={logoImg} 
+              alt="ERMEL LOGO"
+              style={{
                 height: '100%', 
                 objectFit: 'contain',
                 transition: 'all 0.3s ease',
-      
-            /
+              }}
+            />
           </div>
           <div className="hidden sm:block">
             <div
