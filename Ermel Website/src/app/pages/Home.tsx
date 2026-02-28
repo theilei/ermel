@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { ArrowRight, Shield, Clock, Award, ChevronRight, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
@@ -42,6 +42,7 @@ const projects = [
 ];
 
 export default function Home() {
+  const navigate = useNavigate();
   return (
     <div style={{ backgroundColor: '#fafafa', fontFamily: 'var(--font-body)' }}>
       {/* Hero */}
@@ -162,7 +163,7 @@ export default function Home() {
       </section>
 
       {/* Products */}
-      <section id="services" className="py-20 px-6">
+      <section id="products" className="py-20 px-6" style={{ scrollMarginTop: '80px' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -215,7 +216,7 @@ export default function Home() {
       </section>
 
       {/* Featured Projects */}
-      <section id="projects" className="py-20 px-6" style={{ backgroundColor: '#f0f2f5' }}>
+      <section id="projects" className="py-20 px-6" style={{ backgroundColor: '#f0f2f5', scrollMarginTop: '80px' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -264,7 +265,7 @@ export default function Home() {
       </section>
 
       {/* Why Choose Us */}
-      <section id="services" className="py-20 px-6" style={{ backgroundColor: '#15263c' }}>
+      <section id="services" className="py-20 px-6" style={{ backgroundColor: '#15263c', scrollMarginTop: '80px' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div style={{ color: '#ff8888', fontFamily: 'var(--font-heading)', fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -381,16 +382,78 @@ export default function Home() {
               <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '16px', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '16px', textTransform: 'uppercase' }}>
                 Quick Links
               </div>
-              {['Products', 'Services', 'Projects', 'Request a Quote', 'Track My Order'].map((link) => (
-                <div key={link} style={{ marginBottom: '8px' }}>
-                  <a
-                    href="#"
-                    style={{ color: '#9ab0c4', fontSize: '14px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-body)' }}
-                  >
-                    <ChevronRight size={12} color="#7a0000" /> {link}
-                  </a>
-                </div>
-              ))}
+              {([
+                { label: 'Products', href: '/#products' },
+                { label: 'Services', href: '/#services' },
+                { label: 'Projects', href: '/#projects' },
+                { label: 'Request a Quote', href: '/quote' },
+                { label: 'Track My Order', href: '/dashboard' },
+              ] as const).map((link) => {
+                const isHash = link.href.startsWith('/#');
+                return (
+                  <div key={link.label} style={{ marginBottom: '8px' }}>
+                    {isHash ? (
+                      <a
+                        href={link.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const id = link.href.split('#')[1];
+                          const el = document.getElementById(id);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            window.history.replaceState(null, '', link.href);
+                          }
+                        }}
+                        className="footer-quick-link"
+                        style={{
+                          color: '#9ab0c4',
+                          fontSize: '14px',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontFamily: 'var(--font-body)',
+                          cursor: 'pointer',
+                          transition: 'color 0.2s ease',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.color = '#9ab0c4';
+                        }}
+                      >
+                        <ChevronRight size={12} color="#7a0000" /> <span style={{ borderBottom: '1px solid transparent', transition: 'border-color 0.2s ease' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'white'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}>{link.label}</span>
+                      </a>
+                    ) : (
+                      <Link
+                        to={link.href}
+                        className="footer-quick-link"
+                        style={{
+                          color: '#9ab0c4',
+                          fontSize: '14px',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontFamily: 'var(--font-body)',
+                          cursor: 'pointer',
+                          transition: 'color 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.color = '#9ab0c4';
+                        }}
+                      >
+                        <ChevronRight size={12} color="#7a0000" /> <span style={{ borderBottom: '1px solid transparent', transition: 'border-color 0.2s ease' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'white'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}>{link.label}</span>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div>
               <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '16px', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '16px', textTransform: 'uppercase' }}>
