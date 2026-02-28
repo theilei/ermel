@@ -65,11 +65,11 @@ export function Header() {
                 fontWeight: 800,
                 letterSpacing: '0.04em',
                 lineHeight: 1.1,
-                fontSize: scrolled ? '15px' : '18px',
+                fontSize: scrolled ? '18px' : '24px',
                 transition: 'all 0.3s ease',
               }}
             >
-              ERMEL GLASS
+              ERMEL
             </div>
             <div
               style={{
@@ -84,7 +84,7 @@ export function Header() {
                 marginTop: '2px',
               }}
             >
-              & Aluminum Works
+              Glass & Aluminum Works
             </div>
           </div>
         </Link>
