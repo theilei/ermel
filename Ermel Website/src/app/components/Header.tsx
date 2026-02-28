@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
@@ -9,6 +9,29 @@ export function Header() {
   const [productsOpen, setProductsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Close delay ref — prevents flicker when mouse briefly leaves the wrapper
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openDropdown = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setProductsOpen(true);
+  }, []);
+
+  const closeDropdown = useCallback(() => {
+    closeTimerRef.current = setTimeout(() => {
+      setProductsOpen(false);
+      closeTimerRef.current = null;
+    }, 80);            // 80 ms grace period
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -92,19 +115,19 @@ export function Header() {
           {/* Products Dropdown */}
           <div
             className="relative"
-            onMouseEnter={() => setProductsOpen(true)}
-            onMouseLeave={() => setProductsOpen(false)}
+            onMouseEnter={openDropdown}
+            onMouseLeave={closeDropdown}
           >
             <button
               style={{
                 fontFamily: 'var(--font-heading)',
-                color: '#d9d9d9',
+                color: productsOpen ? 'white' : '#d9d9d9',
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 fontSize: '15px',
                 padding: '8px 16px',
                 borderRadius: '6px',
-                transition: 'all 0.2s',
+                transition: 'color 0.2s, background-color 0.2s',
                 textTransform: 'uppercase',
                 backgroundColor: productsOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
                 border: 'none',
@@ -120,79 +143,82 @@ export function Header() {
                 (e.currentTarget as HTMLElement).style.color = productsOpen ? 'white' : '#d9d9d9';
               }}
             >
-              Products <ChevronDown size={14} />
+              Products
+              <ChevronDown
+                size={14}
+                style={{
+                  transition: 'transform 0.2s ease',
+                  transform: productsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              />
             </button>
-            {productsOpen && (
+
+            {/*
+              Dropdown panel — always mounted, toggled via opacity/visibility/
+              pointer-events so the DOM node stays in the wrapper and cannot
+              create a hover gap.
+
+              The outer shell has transparent padding-top to bridge the
+              physical space between the trigger button and the visible menu.
+            */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                paddingTop: '6px',          // bridge — transparent, but captures hover
+                zIndex: 999,
+                pointerEvents: productsOpen ? 'auto' : 'none',
+              }}
+            >
               <div
                 style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '0',
-                  marginTop: '8px',
                   backgroundColor: '#0f1e30',
                   borderRadius: '8px',
                   boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
                   minWidth: '180px',
                   overflow: 'hidden',
                   border: '1px solid rgba(255,255,255,0.1)',
+                  opacity: productsOpen ? 1 : 0,
+                  transform: productsOpen ? 'translateY(0)' : 'translateY(-6px)',
+                  transition: 'opacity 0.18s ease, transform 0.18s ease',
                 }}
               >
-                <Link
-                  to="/products/glass"
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    color: '#d9d9d9',
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    fontSize: '14px',
-                    padding: '12px 16px',
-                    display: 'block',
-                    textDecoration: 'none',
-                    textTransform: 'uppercase',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget;
-                    el.style.backgroundColor = 'rgba(122,0,0,0.2)';
-                    el.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget;
-                    el.style.backgroundColor = 'transparent';
-                    el.style.color = '#d9d9d9';
-                  }}
-                >
-                  Glass
-                </Link>
-                <Link
-                  to="/products/aluminum"
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    color: '#d9d9d9',
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    fontSize: '14px',
-                    padding: '12px 16px',
-                    display: 'block',
-                    textDecoration: 'none',
-                    textTransform: 'uppercase',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget;
-                    el.style.backgroundColor = 'rgba(122,0,0,0.2)';
-                    el.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget;
-                    el.style.backgroundColor = 'transparent';
-                    el.style.color = '#d9d9d9';
-                  }}
-                >
-                  Aluminum
-                </Link>
+                {[
+                  { label: 'Glass', to: '/products/glass' },
+                  { label: 'Aluminum', to: '/products/aluminum' },
+                ].map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    style={{
+                      fontFamily: 'var(--font-heading)',
+                      color: '#d9d9d9',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      fontSize: '14px',
+                      padding: '12px 16px',
+                      display: 'block',
+                      textDecoration: 'none',
+                      textTransform: 'uppercase',
+                      transition: 'background-color 0.15s, color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget;
+                      el.style.backgroundColor = 'rgba(122,0,0,0.2)';
+                      el.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget;
+                      el.style.backgroundColor = 'transparent';
+                      el.style.color = '#d9d9d9';
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               </div>
-            )}
+            </div>
           </div>
           {navLinks.map((link) => (
             <a
