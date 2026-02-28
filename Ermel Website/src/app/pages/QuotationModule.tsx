@@ -786,28 +786,46 @@ export default function QuotationModule() {
                 FRAME MATERIAL
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {FRAME_MATERIALS.map((f) => (
-                  <div
-                    key={f.id}
-                    onClick={() => setFrameMaterial(f.id)}
-                    className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200"
-                    style={{
-                      border: frameMaterial === f.id ? '2px solid #15263c' : '2px solid #d9d9d9',
-                      borderRadius: '8px',
-                      backgroundColor: frameMaterial === f.id ? '#15263c' : 'white',
-                      minHeight: '60px',
-                    }}
-                  >
-                    <div className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: frameMaterial === f.id ? 'rgba(255,255,255,0.15)' : '#f0f2f5' }}>
-                      <div className="w-5 h-5 rounded border-2" style={{ borderColor: frameMaterial === f.id ? '#9ab0c4' : '#54667d' }} />
+                {FRAME_MATERIALS.map((f) => {
+                  const isSelected = frameMaterial === f.id;
+                  return (
+                    <div
+                      key={f.id}
+                      onClick={() => setFrameMaterial(f.id)}
+                      className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200"
+                      style={{
+                        border: isSelected ? '2px solid #15263c' : '2px solid #d9d9d9',
+                        borderRadius: '8px',
+                        backgroundColor: isSelected ? '#15263c' : 'white',
+                        minHeight: '60px',
+                      }}
+                    >
+                      {/* Left square checkbox indicator */}
+                      <div
+                        className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center"
+                        style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.15)' : '#f0f2f5' }}
+                      >
+                        <div
+                          className="w-5 h-5 rounded flex items-center justify-center"
+                          style={{
+                            borderWidth: '2px',
+                            borderStyle: 'solid',
+                            borderColor: isSelected ? 'white' : '#54667d',
+                            backgroundColor: isSelected ? 'white' : 'transparent',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {isSelected && <Check size={14} color="#15263c" strokeWidth={3} />}
+                        </div>
+                      </div>
+                      {/* Label + description */}
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: isSelected ? 'white' : '#15263c', textTransform: 'uppercase' }}>{f.label}</div>
+                        <div style={{ fontSize: '12px', color: isSelected ? '#9ab0c4' : '#54667d', fontFamily: 'var(--font-body)' }}>{f.desc}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: frameMaterial === f.id ? 'white' : '#15263c', textTransform: 'uppercase' }}>{f.label}</div>
-                      <div style={{ fontSize: '12px', color: frameMaterial === f.id ? '#9ab0c4' : '#54667d', fontFamily: 'var(--font-body)' }}>{f.desc}</div>
-                    </div>
-                    {frameMaterial === f.id && <Check size={16} color="white" strokeWidth={2.5} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

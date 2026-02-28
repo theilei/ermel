@@ -61,7 +61,27 @@ export function Header() {
         style={{ height: scrolled ? '60px' : '76px', transition: 'height 0.3s ease' }}
       >
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
+        <Link
+          to="/"
+          aria-label="ERMEL — Go to homepage"
+          className="flex items-center gap-3 flex-shrink-0 group"
+          style={{ cursor: 'pointer', textDecoration: 'none' }}
+          onClick={(e) => {
+            // If already on homepage (with or without hash), prevent default
+            // Link behaviour (which would no-op) and scroll to top manually.
+            if (location.pathname === '/') {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              // Clear any hash without a full reload
+              if (window.location.hash) {
+                window.history.replaceState(null, '', '/');
+              }
+            } else {
+              // Navigating from another page — scroll to top after route change
+              window.scrollTo({ top: 0 });
+            }
+          }}
+        >
           <div
             className="flex items-center justify-center rounded-lg flex-shrink-0"
             style={{
