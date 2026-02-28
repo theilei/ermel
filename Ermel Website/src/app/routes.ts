@@ -4,6 +4,8 @@ import Home from './pages/Home';
 import QuotationModule from './pages/QuotationModule';
 import AdminDashboard from './pages/AdminDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
+import GlassProducts from './pages/GlassProducts';
+import AluminumProducts from './pages/AluminumProducts';
 
 export const router = createBrowserRouter([
   {
@@ -14,6 +16,8 @@ export const router = createBrowserRouter([
       { path: 'quote', Component: QuotationModule },
       { path: 'admin', Component: AdminDashboard },
       { path: 'dashboard', Component: CustomerDashboard },
+      { path: 'products/glass', Component: GlassProducts },
+      { path: 'products/aluminum', Component: AluminumProducts },
     ],
   },
 ]);
