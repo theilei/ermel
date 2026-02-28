@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Menu, X, ChevronDown } from 'lucide-react';
-import logoImg from 'figma:asset/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
