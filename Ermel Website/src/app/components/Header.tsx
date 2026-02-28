@@ -47,12 +47,9 @@ export function Header() {
               transition: 'all 0.3s ease',
             }}
           >
-            <div style={{ fontSize: '24px', fontWeight: 'bold' }}>ERMEL LOGO</div>
-                height: '100%', 
-                objectFit: 'contain',
-                transition: 'all 0.3s ease',
+           <div style={{ fontSize: '24px', fontWeight: 'bold' }}>ERMEL LOGO</div>
       
-            /
+  
           </div>
           <div className="hidden sm:block">
             <div
