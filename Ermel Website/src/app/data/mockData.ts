@@ -19,6 +19,19 @@ export interface Order {
   notes?: string;
   paid: boolean;
   paymentUploaded?: boolean;
+  // New fields for enhanced quotation system
+  projectCategoryOther?: string | null;
+  glassTypeOther?: string | null;
+  colorOther?: string | null;
+  widthM?: number;
+  heightM?: number;
+  widthCm?: number;
+  heightCm?: number;
+  widthFt?: number;
+  heightFt?: number;
+  phoneHash?: string;
+  address?: string;
+  measurementUnit?: 'cm' | 'm' | 'ft';
 }
 
 export const MOCK_ORDERS: Order[] = [
