@@ -62,10 +62,10 @@ export default function Home() {
         <div className="relative z-10 max-w-6xl mx-auto px-6 py-20 text-center">
           <div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
-            style={{ background: 'rgba(122,0,0,0.3)', border: '1px solid rgba(122,0,0,0.5)' }}
+            style={{ background: 'rgba(46,139,87,0.25)', border: '1px solid rgba(46,139,87,0.5)' }}
           >
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#ff4444' }} />
-            <span style={{ color: '#ffcccc', fontFamily: 'var(--font-body)', fontSize: '13px', letterSpacing: '0.1em' }}>
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#2E8B57' }} />
+            <span style={{ color: '#eaffea', fontFamily: 'var(--font-body)', fontSize: '13px', letterSpacing: '0.1em' }}>
               NOW ACCEPTING ONLINE QUOTE REQUESTS
             </span>
           </div>
@@ -97,52 +97,7 @@ export default function Home() {
             From storefronts to glass partitions — we fabricate and install custom aluminum and glass work built to your exact specifications.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/quote"
-              style={{
-                fontFamily: 'var(--font-heading)',
-                background: 'linear-gradient(135deg, #7a0000, #a50000)',
-                color: 'white',
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                fontSize: '17px',
-                padding: '14px 36px',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 20px rgba(122,0,0,0.5)',
-                transition: 'all 0.2s',
-              }}
-            >
-              Request A Quote <ArrowRight size={18} />
-            </Link>
-            <a
-              href="#projects"
-              style={{
-                fontFamily: 'var(--font-heading)',
-                color: 'white',
-                border: '2px solid rgba(255,255,255,0.4)',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                fontSize: '16px',
-                padding: '14px 32px',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-                transition: 'all 0.2s',
-              }}
-            >
-              View Projects
-            </a>
           </div>
-        </div>
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60">
-          <span style={{ color: 'white', fontSize: '11px', letterSpacing: '0.15em', fontFamily: 'var(--font-body)' }}>SCROLL</span>
-          <div className="w-0.5 h-8 bg-white/40 rounded-full" />
         </div>
       </section>
 
@@ -162,8 +117,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Products */}
-      <section id="products" className="py-20 px-6" style={{ scrollMarginTop: '80px' }}>
+      {/* Services */}
+      <section id="services" className="py-20 px-6" style={{ scrollMarginTop: '80px' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -383,7 +338,7 @@ export default function Home() {
                 Quick Links
               </div>
               {([
-                { label: 'Products', href: '/#products' },
+                { label: 'Products', href: '/#products', subtext: [{ label: 'Glass', href: '/products/glass' }, { label: 'Aluminum', href: '/products/aluminum' }] },
                 { label: 'Services', href: '/#services' },
                 { label: 'Projects', href: '/#projects' },
                 { label: 'Request a Quote', href: '/quote' },
@@ -451,6 +406,27 @@ export default function Home() {
                         <ChevronRight size={12} color="#7a0000" /> <span style={{ borderBottom: '1px solid transparent', transition: 'border-color 0.2s ease' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'white'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}>{link.label}</span>
                       </Link>
                     )}
+
+                    {link.subtext && (
+                    <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '24px', marginTop: '4px', gap: '4px' }}>
+                      {link.subtext.map((sub) => (
+                        <Link
+                          key={sub.label}
+                          to={sub.href}
+                          style={{
+                            color: '#718096', // Slightly dimmer than the main link
+                            fontSize: '12px',
+                            textDecoration: 'none',
+                            transition: 'color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'white')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = '#718096')}
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                   </div>
                 );
               })}
@@ -460,13 +436,16 @@ export default function Home() {
                 Contact Us
               </div>
               {[
-                { icon: Phone, text: '+63 917 123 4567' },
+                { icon: Phone, text: '+63 938 602 0346' },
                 { icon: Mail, text: 'info@ermelglass.com' },
-                { icon: MapPin, text: '123 Fabrication St., Cebu City, Philippines' },
+                { icon: MapPin, text: '1528 Nicolas Zamora St., Tondo, City of Manila, 1012 Metro Manila, Philippines', subtext: 'Opens at 8:00 AM - 7:00 PM' },
               ].map((c) => (
                 <div key={c.text} className="flex items-start gap-3 mb-3">
                   <c.icon size={15} color="#7a0000" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span style={{ color: '#9ab0c4', fontSize: '14px', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{c.text}</span>
+                  <div>
+                    <span style={{ color: '#9ab0c4', fontSize: '14px', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{c.text}</span>
+                    {c.subtext && <div style={{ color: '#54667d', fontSize: '12.5px', fontFamily: 'var(--font-body)', marginTop: '2px' }}>{c.subtext}</div>}
+                  </div>
                 </div>
               ))}
             </div>
