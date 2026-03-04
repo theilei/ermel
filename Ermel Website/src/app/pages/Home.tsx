@@ -460,6 +460,9 @@ export default function Home() {
                 { label: 'Track My Order', href: '/dashboard' },
               ] as const).map((link) => {
                 const isHash = link.href.startsWith('/#');
+                
+                const isProducts = link.label === 'Products';
+
                 return (
                   <div key={link.label} style={{ marginBottom: '8px' }}>
                     {isHash ? (
@@ -483,7 +486,7 @@ export default function Home() {
                           alignItems: 'center',
                           gap: '6px',
                           fontFamily: 'var(--font-body)',
-                          cursor: 'pointer',
+                          cursor: isProducts ? 'default' : 'pointer',
                           transition: 'color 0.2s ease',
                           position: 'relative',
                         }}
