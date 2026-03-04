@@ -1,7 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-// 1. IMPORT useEffect for the keyboard listener
 import React, { useState, useEffect } from 'react'; 
-// 2. IMPORT ChevronLeft for the back button
 import { ArrowRight, Shield, Clock, Award, ChevronRight, ChevronLeft, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
@@ -55,8 +53,7 @@ const projects = [
 
 export default function Home() {
   const navigate = useNavigate();
-  
-  // STATE: Track the index of the selected project instead of the object
+
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   // NAVIGATION FUNCTIONS
@@ -229,13 +226,11 @@ export default function Home() {
             <div className="w-16 h-1 mx-auto mt-4 rounded" style={{ backgroundColor: '#7a0000' }} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* UPDATED: We now pass the 'index' into the map function */}
             {projects.map((p, index) => (
               <div
                 key={p.label}
                 className="relative overflow-hidden group rounded-xl cursor-pointer"
                 style={{ borderRadius: '8px', aspectRatio: '4/3' }}
-                // UPDATED: Set the state to the index of the clicked item
                 onClick={() => setSelectedIndex(index)}
               >
                 <ImageWithFallback
