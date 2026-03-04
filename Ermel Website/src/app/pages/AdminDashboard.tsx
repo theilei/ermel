@@ -1,667 +1,451 @@
 import { useState } from 'react';
-import { useDrag, useDrop, DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import {
-  Bell, Upload, RefreshCw, CheckCircle, AlertTriangle, X, Edit2, Save,
-  Clock, Package, Hammer, Calendar, Activity, ChevronDown,
-  PhilippinePeso,
-} from 'lucide-react';
+import { TrendingUp, AlertTriangle, DollarSign, Package, Calendar, Edit2, Save, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ACTIVITY_FEED, KANBAN_COLUMNS, Order, OrderStatus } from '../data/mockData';
 
-const DRAG_TYPE = 'ORDER_CARD';
+// Mock forecast data - 3-month moving average
+const FORECAST_DATA = [
+  { month: 'Dec 2025', revenue: 485000, confirmed: 325000, pending: 160000 },
+  { month: 'Jan 2026', revenue: 520000, confirmed: 360000, pending: 160000 },
+  { month: 'Feb 2026', revenue: 495000, confirmed: 345000, pending: 150000 },
+  { month: 'Mar 2026', revenue: 580000, confirmed: 420000, pending: 160000 },
+  { month: 'Apr 2026 (Forecast)', revenue: 612000, confirmed: 0, pending: 0, isForecast: true },
+];
 
-function ActivityIcon({ type }: { type: string }) {
-  const icons: Record<string, any> = {
-    new_inquiry: Bell,
-    payment_upload: Upload,
-    status_update: RefreshCw,
-    approved: CheckCircle,
-  };
-  const Icon = icons[type] || Bell;
-  const colors: Record<string, string> = {
-    new_inquiry: '#7a0000',
-    payment_upload: '#1a5c1a',
-    status_update: '#15263c',
-    approved: '#005c7a',
-  };
-  return (
-    <div
-      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-      style={{ backgroundColor: `${colors[type] || '#54667d'}22`, border: `1px solid ${colors[type] || '#54667d'}44` }}
-    >
-      <Icon size={14} color={colors[type] || '#54667d'} />
-    </div>
-  );
+// Pending quotes for price approval
+const INITIAL_QUOTES = [
+  { id: 'EGA-2026-015', customer: 'Maria Santos', project: 'Storefront Glass', dimensions: '240cm × 180cm', estimatedCost: 45000, status: 'pending' },
+  { id: 'EGA-2026-016', customer: 'Jose Reyes', project: 'Sliding Window', dimensions: '180cm × 120cm', estimatedCost: 28000, status: 'pending' },
+  { id: 'EGA-2026-017', customer: 'Ana Cruz', project: 'Glass Partition', dimensions: '300cm × 250cm', estimatedCost: 62000, status: 'pending' },
+  { id: 'EGA-2026-018', customer: 'Roberto Lim', project: 'Glass Door', dimensions: '100cm × 220cm', estimatedCost: 38000, status: 'pending' },
+  { id: 'EGA-2026-019', customer: 'Linda Garcia', project: 'Office Divider', dimensions: '400cm × 280cm', estimatedCost: 85000, status: 'pending' },
+];
+
+interface MetricCardProps {
+  label: string;
+  value: string | number;
+  icon: any;
+  color: string;
+  bg: string;
+  trend?: string;
 }
 
-function KanbanCard({ order, onClick }: { order: Order; onClick: () => void }) {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: DRAG_TYPE,
-    item: { id: order.id },
-    collect: (monitor) => ({ isDragging: monitor.isDragging() }),
-  }));
-
-  const statusBadge: Record<string, { color: string; bg: string }> = {
-    inquiry: { color: '#7a0000', bg: '#fff0f0' },
-    quotation: { color: '#7a5200', bg: '#fff8e1' },
-    ordering: { color: '#005c7a', bg: '#e0f4ff' },
-    fabrication: { color: '#15263c', bg: '#e8ecf0' },
-    installation: { color: '#1a5c1a', bg: '#e8f5e9' },
-  };
-
-  const badge = statusBadge[order.status] || statusBadge.inquiry;
-
+function MetricCard({ label, value, icon: Icon, color, bg, trend }: MetricCardProps) {
   return (
     <div
-      ref={drag as any}
-      onClick={onClick}
-      style={{
-        backgroundColor: 'white',
-        border: '1px solid #e0e4ea',
-        borderRadius: '8px',
-        padding: '12px',
-        marginBottom: '8px',
-        cursor: 'grab',
-        opacity: isDragging ? 0.4 : 1,
-        transition: 'all 0.15s',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget;
-        el.style.boxShadow = '0 4px 16px rgba(21,38,60,0.14)';
-        el.style.transform = 'translateY(-1px)';
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget;
-        el.style.boxShadow = '0 1px 6px rgba(0,0,0,0.06)';
-        el.style.transform = 'translateY(0)';
-      }}
+      className="p-5"
+      style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}
     >
-      <div className="flex items-start justify-between mb-2">
-        <span style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em' }}>
-          {order.id}
-        </span>
-        {order.paid && (
-          <span className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#e8f5e9', color: '#1a5c1a', fontSize: '10px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
-            PAID
-          </span>
-        )}
-      </div>
-      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-        {order.customer}
-      </div>
-      <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '6px', fontFamily: 'var(--font-body)' }}>
-        {order.project} · {order.glassType}
-      </div>
-      <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px', fontFamily: 'var(--font-body)' }}>
-        {order.dimensions}
-      </div>
-      <div className="flex items-center justify-between">
-        <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700 }}>
-          ₱{(order.approvedCost ?? order.estimatedCost).toLocaleString()}
-        </span>
-        <span style={{ fontSize: '11px', color: '#aaa', fontFamily: 'var(--font-body)' }}>
-          {order.scheduledDate || order.createdDate}
-        </span>
-      </div>
-      {order.paymentUploaded && (
-        <div className="mt-2 flex items-center gap-1" style={{ color: '#1a5c1a', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '0.05em' }}>
-          <CheckCircle size={11} /> PROOF UPLOADED
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-11 h-11 flex items-center justify-center" style={{ backgroundColor: bg, borderRadius: '8px' }}>
+          <Icon size={20} color={color} />
         </div>
-      )}
-    </div>
-  );
-}
-
-function KanbanColumn({
-  column,
-  orders,
-  onDrop,
-  onCardClick,
-}: {
-  column: { id: OrderStatus; label: string; color: string };
-  orders: Order[];
-  onDrop: (id: string, targetStatus: OrderStatus) => void;
-  onCardClick: (order: Order) => void;
-}) {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: DRAG_TYPE,
-    drop: (item: { id: string }) => onDrop(item.id, column.id),
-    collect: (monitor) => ({ isOver: monitor.isOver() }),
-  }));
-
-  return (
-    <div
-      ref={drop as any}
-      style={{
-        minWidth: '240px',
-        width: '240px',
-        flexShrink: 0,
-        backgroundColor: isOver ? '#eef2f7' : '#f5f7fa',
-        borderRadius: '10px',
-        padding: '12px',
-        border: `2px solid ${isOver ? column.color : '#e0e4ea'}`,
-        transition: 'all 0.2s',
-      }}
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: column.color }} />
-        <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {column.label}
-        </span>
-        <span
-          className="ml-auto px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: column.color, color: 'white', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}
-        >
-          {orders.length}
-        </span>
-      </div>
-      <div>
-        {orders.map((o) => (
-          <KanbanCard key={o.id} order={o} onClick={() => onCardClick(o)} />
-        ))}
-        {orders.length === 0 && (
-          <div
-            className="text-center py-8 rounded-lg border-dashed border-2"
-            style={{ borderColor: '#d9d9d9', color: '#bbb', fontSize: '13px', fontFamily: 'var(--font-body)' }}
-          >
-            No items
+        {trend && (
+          <div className="flex items-center gap-1">
+            <TrendingUp size={14} color={color} />
+            <span style={{ color, fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
+              {trend}
+            </span>
           </div>
         )}
       </div>
+      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '28px', fontWeight: 800, lineHeight: 1 }}>
+        {value}
+      </div>
+      <div style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '8px' }}>
+        {label}
+      </div>
     </div>
   );
 }
 
-function ProjectModal({ order, onClose, onApprovePrice, onStatusChange }: {
-  order: Order;
-  onClose: () => void;
-  onApprovePrice: (id: string, price: number) => void;
-  onStatusChange: (id: string, status: OrderStatus, date?: string) => void;
-}) {
-  const [editPrice, setEditPrice] = useState(false);
-  const [priceInput, setPriceInput] = useState(String(order.approvedCost ?? order.estimatedCost));
-  const [schedDate, setSchedDate] = useState(order.scheduledDate || '');
-  const [priceApproved, setPriceApproved] = useState(!!order.approvedCost);
-
-  const handleSavePrice = () => {
-    const p = parseFloat(priceInput);
-    if (!isNaN(p) && p > 0) {
-      onApprovePrice(order.id, p);
-      setPriceApproved(true);
-      setEditPrice(false);
-    }
-  };
+function SalesForecastChart() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const maxValue = Math.max(...FORECAST_DATA.map(d => d.revenue));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-    >
-      <div
-        className="w-full max-w-2xl rounded-2xl overflow-hidden"
-        style={{ backgroundColor: 'white', maxHeight: '90vh', overflowY: 'auto' }}
-      >
-        {/* Modal header */}
-        <div
-          className="px-6 py-4 flex items-center justify-between"
-          style={{ backgroundColor: '#15263c' }}
-        >
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#9ab0c4', fontSize: '12px', letterSpacing: '0.12em' }}>
-              PROJECT DETAILS
-            </div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '20px', fontWeight: 800 }}>
-              {order.id}
-            </div>
+    <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Projected Income for Next Month
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-          >
-            <X size={18} color="white" />
-          </button>
+          <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '4px' }}>
+            Based on 3-month moving average and historical material costs
+          </div>
         </div>
+        <div className="px-4 py-2 flex items-center gap-2" style={{ backgroundColor: '#e8f5e9', border: '1px solid #1a5c1a44', borderRadius: '8px' }}>
+          <TrendingUp size={16} color="#1a5c1a" />
+          <span style={{ fontFamily: 'var(--font-heading)', color: '#1a5c1a', fontSize: '13px', fontWeight: 700 }}>+18% Growth</span>
+        </div>
+      </div>
 
-        <div className="p-6 space-y-6">
-          {/* Client info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>CLIENT</div>
-              <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700 }}>{order.customer}</div>
-              <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>{order.email}</div>
-              <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>{order.phone}</div>
-            </div>
-            <div>
-              <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>SPECIFICATION</div>
-              <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700 }}>{order.project}</div>
-              <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>{order.glassType} · {order.material}</div>
-              <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>{order.dimensions}</div>
-            </div>
-          </div>
+      <div className="relative" style={{ height: '280px' }}>
+        <div className="absolute inset-0 flex items-end justify-between gap-4 px-2">
+          {FORECAST_DATA.map((data, idx) => {
+            const heightPercent = (data.revenue / maxValue) * 100;
+            const isHovered = hoveredIndex === idx;
+            const isForecast = data.isForecast;
 
-          {order.notes && (
-            <div className="p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
-              <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.08em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>NOTES</div>
-              <div style={{ color: '#15263c', fontSize: '14px', fontFamily: 'var(--font-body)' }}>{order.notes}</div>
-            </div>
-          )}
-
-          {/* Price Approval */}
-          <div className="p-5 rounded-xl" style={{ backgroundColor: '#f5f7fa', border: '2px solid #e0e4ea' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                PRICE APPROVAL
-              </div>
-              {/* Toggle */}
-              <div className="flex items-center gap-3">
-                <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>
-                  {priceApproved ? 'Approved' : 'Pending'}
-                </span>
-                <button
-                  onClick={() => setPriceApproved(!priceApproved)}
-                  className="relative w-12 h-6 rounded-full transition-all duration-200"
-                  style={{ backgroundColor: priceApproved ? '#1a5c1a' : '#d9d9d9' }}
-                >
+            return (
+              <div
+                key={data.month}
+                className="flex-1 flex flex-col items-center gap-2"
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                {/* Tooltip */}
+                {isHovered && (
                   <div
-                    className="absolute top-1 w-4 h-4 rounded-full transition-all duration-200"
-                    style={{ backgroundColor: 'white', left: priceApproved ? '28px' : '4px' }}
-                  />
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <div style={{ color: '#54667d', fontSize: '12px', letterSpacing: '0.06em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>
-                  ESTIMATED
-                </div>
-                <div style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '20px', fontWeight: 700 }}>
-                  ₱{order.estimatedCost.toLocaleString()}
-                </div>
-              </div>
-              <div className="flex-1">
-                <div style={{ color: '#7a0000', fontSize: '12px', letterSpacing: '0.06em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>
-                  APPROVED PRICE
-                </div>
-                {editPrice ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={priceInput}
-                      onChange={(e) => setPriceInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg outline-none"
-                      style={{ border: '2px solid #15263c', borderRadius: '6px', fontFamily: 'var(--font-heading)', fontSize: '18px', fontWeight: 700, color: '#15263c' }}
-                      autoFocus
-                    />
-                    <button onClick={handleSavePrice} className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#1a5c1a' }}>
-                      <Save size={15} color="white" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '24px', fontWeight: 800 }}>
-                      ₱{(order.approvedCost ?? order.estimatedCost).toLocaleString()}
+                    className="absolute px-3 py-2 rounded shadow-lg z-10"
+                    style={{
+                      backgroundColor: '#15263c',
+                      bottom: `${heightPercent + 5}%`,
+                      transform: 'translateX(-50%)',
+                      left: '50%',
+                      minWidth: '140px',
+                    }}
+                  >
+                    <div style={{ color: 'white', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700, marginBottom: '4px' }}>
+                      {data.month}
                     </div>
-                    <button onClick={() => setEditPrice(true)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#f0f2f5' }}>
-                      <Edit2 size={13} color="#54667d" />
-                    </button>
+                    <div style={{ color: '#9ab0c4', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
+                      Total: ₱{(data.revenue / 1000).toFixed(0)}k
+                    </div>
+                    {!isForecast && (
+                      <>
+                        <div style={{ color: '#4ade80', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
+                          Confirmed: ₱{(data.confirmed / 1000).toFixed(0)}k
+                        </div>
+                        <div style={{ color: '#fbbf24', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
+                          Pending: ₱{(data.pending / 1000).toFixed(0)}k
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
-              </div>
-            </div>
-            {priceApproved && (
-              <div className="mt-3 flex items-center gap-2 p-3 rounded-lg" style={{ backgroundColor: '#e8f5e9', border: '1px solid #1a5c1a44' }}>
-                <CheckCircle size={14} color="#1a5c1a" />
-                <span style={{ color: '#1a5c1a', fontSize: '13px', fontFamily: 'var(--font-body)' }}>
-                  Price approved. Customer will be notified and payment QR will be activated.
-                </span>
-              </div>
-            )}
-          </div>
 
-          {/* Schedule */}
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '15px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
-              SCHEDULED DATE
-            </div>
-            <input
-              type="date"
-              value={schedDate}
-              onChange={(e) => setSchedDate(e.target.value)}
-              className="px-4 py-3 rounded-lg outline-none"
-              style={{
-                border: '2px solid #d9d9d9',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontFamily: 'var(--font-body)',
-                backgroundColor: 'white',
-                color: '#15263c',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#15263c')}
-              onBlur={(e) => (e.target.style.borderColor = '#d9d9d9')}
+                {/* Bar */}
+                <div
+                  className="w-full rounded-t transition-all duration-200"
+                  style={{
+                    height: `${heightPercent}%`,
+                    backgroundColor: isForecast ? '#7a0000' : (isHovered ? '#15263c' : '#54667d'),
+                    opacity: isForecast ? 0.6 : 1,
+                    border: isForecast ? '2px dashed #7a0000' : 'none',
+                    cursor: 'pointer',
+                  }}
+                />
+
+                {/* Label */}
+                <div className="text-center mt-2">
+                  <div style={{ color: '#54667d', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {data.month}
+                  </div>
+                  <div style={{ color: isForecast ? '#7a0000' : '#15263c', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
+                    ₱{(data.revenue / 1000).toFixed(0)}k
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FabricationCapacityGauge() {
+  const capacity = 76; // 76%
+  const booked = 420;
+  const maxCapacity = 320;
+  const isOverbooked = booked > maxCapacity;
+
+  const circumference = 2 * Math.PI * 90;
+  const strokeDashoffset = circumference - (capacity / 100) * circumference;
+
+  return (
+    <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
+      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+        Fabrication Capacity
+      </div>
+      <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)', marginBottom: '24px' }}>
+        Current month workload
+      </div>
+
+      <div className="flex flex-col items-center">
+        <div className="relative" style={{ width: '200px', height: '200px' }}>
+          <svg className="transform -rotate-90" width="200" height="200">
+            {/* Background circle */}
+            <circle
+              cx="100"
+              cy="100"
+              r="90"
+              stroke="#e0e4ea"
+              strokeWidth="16"
+              fill="none"
             />
-          </div>
-
-          {/* Status move */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={onClose}
-              style={{
-                fontFamily: 'var(--font-heading)',
-                background: 'transparent',
-                color: '#54667d',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                fontSize: '14px',
-                padding: '11px',
-                borderRadius: '8px',
-                border: '2px solid #d9d9d9',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-              }}
-            >
-              Close
-            </button>
-            <button
-              onClick={() => { onStatusChange(order.id, order.status, schedDate); onClose(); }}
-              style={{
-                fontFamily: 'var(--font-heading)',
-                background: 'linear-gradient(135deg, #15263c, #1e3655)',
-                color: 'white',
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                fontSize: '14px',
-                padding: '11px',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-              }}
-            >
-              Save Changes
-            </button>
+            {/* Progress circle */}
+            <circle
+              cx="100"
+              cy="100"
+              r="90"
+              stroke={isOverbooked ? '#7a0000' : '#1a5c1a'}
+              strokeWidth="16"
+              fill="none"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div style={{ fontFamily: 'var(--font-heading)', color: isOverbooked ? '#7a0000' : '#15263c', fontSize: '48px', fontWeight: 800, lineHeight: 1 }}>
+              {capacity}%
+            </div>
+            <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600, marginTop: '4px' }}>
+              CAPACITY
+            </div>
           </div>
         </div>
+
+        <div className="mt-6 w-full space-y-2">
+          <div className="flex justify-between items-center">
+            <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>Booked Hours</span>
+            <span style={{ color: '#15263c', fontSize: '14px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{booked} hrs</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>Max Capacity</span>
+            <span style={{ color: '#15263c', fontSize: '14px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{maxCapacity} hrs</span>
+          </div>
+          {isOverbooked && (
+            <div className="flex items-start gap-2 mt-3 p-3" style={{ backgroundColor: '#fff0f0', borderRadius: '8px', border: '1px solid #7a000044' }}>
+              <AlertTriangle size={16} color="#7a0000" className="flex-shrink-0 mt-0.5" />
+              <div>
+                <div style={{ color: '#7a0000', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
+                  Overbooked by {booked - maxCapacity} hours
+                </div>
+                <div style={{ color: '#7a0000', fontSize: '11px', fontFamily: 'var(--font-body)', marginTop: '2px' }}>
+                  Consider extending deadlines or adding resources
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PriceApprovalTable() {
+  const [quotes, setQuotes] = useState(INITIAL_QUOTES);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedCost, setEditedCost] = useState<number>(0);
+
+  const handleEdit = (id: string, cost: number) => {
+    setEditingId(id);
+    setEditedCost(cost);
+  };
+
+  const handleSave = (id: string) => {
+    setQuotes(quotes.map(q => q.id === id ? { ...q, estimatedCost: editedCost } : q));
+    setEditingId(null);
+  };
+
+  const handleApprove = (id: string) => {
+    setQuotes(quotes.filter(q => q.id !== id));
+  };
+
+  return (
+    <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Price Approval Queue
+          </div>
+          <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '4px' }}>
+            {quotes.length} pending quotations awaiting review
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e0e4ea' }}>
+              <th className="text-left py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Quote ID
+              </th>
+              <th className="text-left py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Customer
+              </th>
+              <th className="text-left py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Project
+              </th>
+              <th className="text-left py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Dimensions
+              </th>
+              <th className="text-right py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Estimated Cost
+              </th>
+              <th className="text-center py-3 px-4" style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {quotes.map((quote) => {
+              const isEditing = editingId === quote.id;
+              
+              return (
+                <tr key={quote.id} style={{ borderBottom: '1px solid #e0e4ea' }}>
+                  <td className="py-4 px-4">
+                    <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 700 }}>
+                      {quote.id}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '14px' }}>
+                      {quote.customer}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '13px' }}>
+                      {quote.project}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '13px' }}>
+                      {quote.dimensions}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedCost}
+                        onChange={(e) => setEditedCost(Number(e.target.value))}
+                        className="px-2 py-1 border rounded"
+                        style={{ width: '100px', fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 700, textAlign: 'right' }}
+                      />
+                    ) : (
+                      <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700 }}>
+                        ₱{quote.estimatedCost.toLocaleString()}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={() => handleSave(quote.id)}
+                            className="px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                            style={{ backgroundColor: '#1a5c1a', color: 'white', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600 }}
+                          >
+                            <Save size={14} />
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                            style={{ backgroundColor: '#54667d', color: 'white', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600 }}
+                          >
+                            <X size={14} />
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(quote.id, quote.estimatedCost)}
+                            className="px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                            style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', color: '#15263c', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600 }}
+                          >
+                            <Edit2 size={14} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleApprove(quote.id)}
+                            className="px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                            style={{ backgroundColor: '#1a5c1a', color: 'white', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600 }}
+                          >
+                            Approve
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
 export default function AdminDashboard() {
-  const { orders, updateOrderStatus, updateOrderCost } = useApp();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [conflictAlert, setConflictAlert] = useState<{ orderId: string; targetStatus: OrderStatus; conflictWith: Order } | null>(null);
-  const [activityOpen, setActivityOpen] = useState(true);
+  const { orders } = useApp();
+
+  // Calculate metrics
+  const totalInquiries = orders.filter(o => o.status === 'inquiry').length;
+  const activeInstallations = orders.filter(o => o.status === 'installation').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.approvedCost || o.estimatedCost), 0);
+  const predictedRevenue = Math.round(totalRevenue * 1.18); // 18% growth projection
 
   const metrics = [
     {
       label: 'Pending Inquiries',
-      value: orders.filter((o) => o.status === 'inquiry').length,
-      icon: Bell,
+      value: totalInquiries,
+      icon: Package,
       color: '#7a0000',
       bg: '#fff0f0',
+      trend: '+12%',
     },
     {
-      label: 'Active Projects',
-      value: orders.filter((o) => o.status !== 'installation').length,
-      icon: Package,
-      color: '#005c7a',
-      bg: '#e0f4ff',
-    },
-    {
-      label: 'Upcoming Installs',
-      value: orders.filter((o) => o.status === 'installation').length,
+      label: 'Active Installations',
+      value: activeInstallations,
       icon: Calendar,
       color: '#1a5c1a',
       bg: '#e8f5e9',
     },
     {
-      label: 'Awaiting Payment',
-      value: orders.filter((o) => !!o.approvedCost && !o.paid).length,
-      icon: PhilippinePeso,
-      color: '#7a5200',
-      bg: '#fff8e1',
+      label: 'Predicted Revenue',
+      value: `₱${Math.round(predictedRevenue / 1000)}k`,
+      icon: DollarSign,
+      color: '#005c7a',
+      bg: '#e0f4ff',
+      trend: '+18%',
     },
   ];
 
-  const handleDrop = (orderId: string, targetStatus: OrderStatus) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
-    if (order.status === targetStatus) return;
-
-    if (targetStatus === 'installation') {
-      const scheduled = order.scheduledDate;
-      if (scheduled) {
-        const conflict = orders.find(
-          (o) => o.id !== orderId && o.status === 'installation' && o.scheduledDate === scheduled
-        );
-        if (conflict) {
-          setConflictAlert({ orderId, targetStatus, conflictWith: conflict });
-          return;
-        }
-      }
-    }
-    updateOrderStatus(orderId, targetStatus);
-  };
-
-  const forceMove = () => {
-    if (conflictAlert) {
-      updateOrderStatus(conflictAlert.orderId, conflictAlert.targetStatus);
-      setConflictAlert(null);
-    }
-  };
-
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', paddingTop: '76px', fontFamily: 'var(--font-body)' }}>
-        {/* Conflict Alert */}
-        {conflictAlert && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{ backgroundColor: 'white' }}>
-              <div className="px-6 py-4 flex items-center gap-3" style={{ backgroundColor: '#7a0000' }}>
-                <AlertTriangle size={22} color="white" />
-                <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '18px', fontWeight: 800, textTransform: 'uppercase' }}>
-                  SCHEDULING CONFLICT
-                </div>
-              </div>
-              <div className="p-6">
-                <p style={{ color: '#15263c', fontSize: '15px', lineHeight: 1.6, marginBottom: '16px', fontFamily: 'var(--font-body)' }}>
-                  The scheduled date for this project conflicts with{' '}
-                  <strong>{conflictAlert.conflictWith.customer}</strong> ({conflictAlert.conflictWith.id}), which is already booked for installation on the same date.
-                </p>
-                <div className="p-3 rounded-lg mb-6" style={{ backgroundColor: '#fff0f0', border: '1px solid #ffaaaa' }}>
-                  <div style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em' }}>
-                    CONFLICTING DATE: {conflictAlert.conflictWith.scheduledDate}
-                  </div>
-                  <div style={{ color: '#7a0000', fontSize: '13px', fontFamily: 'var(--font-body)' }}>
-                    {conflictAlert.conflictWith.customer} · {conflictAlert.conflictWith.project}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setConflictAlert(null)}
-                    style={{
-                      flex: 1,
-                      fontFamily: 'var(--font-heading)',
-                      background: 'transparent',
-                      color: '#54667d',
-                      fontWeight: 600,
-                      fontSize: '14px',
-                      padding: '11px',
-                      borderRadius: '8px',
-                      border: '2px solid #d9d9d9',
-                      cursor: 'pointer',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={forceMove}
-                    style={{
-                      flex: 1,
-                      fontFamily: 'var(--font-heading)',
-                      background: 'linear-gradient(135deg, #7a0000, #a50000)',
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '14px',
-                      padding: '11px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Override & Move
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+    <div style={{ backgroundColor: '#fafafa', minHeight: '100%', fontFamily: 'var(--font-body)' }}>
+      <div className="max-w-screen-2xl mx-auto px-6 py-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          {metrics.map((m) => (
+            <MetricCard key={m.label} {...m} />
+          ))}
+        </div>
 
-        {/* Project modal */}
-        {selectedOrder && (
-          <ProjectModal
-            order={selectedOrder}
-            onClose={() => setSelectedOrder(null)}
-            onApprovePrice={updateOrderCost}
-            onStatusChange={updateOrderStatus}
-          />
-        )}
-
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-8">
-          {/* Page header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '12px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '4px' }}>
-                ADMIN PORTAL
-              </div>
-              <h1 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, textTransform: 'uppercase', lineHeight: 1.1 }}>
-                ORDER MANAGEMENT
-              </h1>
-            </div>
-            <div
-              className="px-4 py-2 rounded-lg flex items-center gap-2"
-              style={{ backgroundColor: 'white', border: '1px solid #e0e4ea' }}
-            >
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#1a5c1a' }} />
-              <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>Live Dashboard</span>
-            </div>
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          {/* Left: Sales Forecast (2/3) */}
+          <div className="lg:col-span-2">
+            <SalesForecastChart />
           </div>
 
-          {/* Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {metrics.map((m) => (
-              <div
-                key={m.label}
-                className="rounded-xl p-5"
-                style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{ backgroundColor: m.bg }}>
-                    <m.icon size={20} color={m.color} />
-                  </div>
-                  <span style={{ fontFamily: 'var(--font-heading)', color: m.color, fontSize: '32px', fontWeight: 800, lineHeight: 1 }}>
-                    {m.value}
-                  </span>
-                </div>
-                <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {m.label}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Main content: Kanban + Activity */}
-          <div className="flex gap-6">
-            {/* Kanban */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  KANBAN BOARD
-                </h2>
-                <span style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>
-                  Drag cards to update status · Click to view details
-                </span>
-              </div>
-              <div className="overflow-x-auto pb-4">
-                <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
-                  {KANBAN_COLUMNS.map((col) => (
-                    <KanbanColumn
-                      key={col.id}
-                      column={col}
-                      orders={orders.filter((o) => o.status === col.id)}
-                      onDrop={handleDrop}
-                      onCardClick={setSelectedOrder}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Activity Feed */}
-            <div style={{ width: '280px', flexShrink: 0 }}>
-              <div
-                className="rounded-xl overflow-hidden"
-                style={{ backgroundColor: 'white', border: '1px solid #e0e4ea' }}
-              >
-                <button
-                  className="w-full px-5 py-4 flex items-center justify-between"
-                  style={{ backgroundColor: '#15263c' }}
-                  onClick={() => setActivityOpen(!activityOpen)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Activity size={16} color="#9ab0c4" />
-                    <span style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      ACTIVITY FEED
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: '#7a0000', color: 'white', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}
-                    >
-                      {ACTIVITY_FEED.length}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      color="white"
-                      style={{ transform: activityOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}
-                    />
-                  </div>
-                </button>
-                {activityOpen && (
-                  <div style={{ maxHeight: '520px', overflowY: 'auto' }}>
-                    {ACTIVITY_FEED.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        className="px-4 py-3 flex gap-3"
-                        style={{ borderBottom: idx < ACTIVITY_FEED.length - 1 ? '1px solid #f0f2f5' : 'none' }}
-                      >
-                        <ActivityIcon type={item.type} />
-                        <div className="flex-1 min-w-0">
-                          <div style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '13px', lineHeight: 1.4, marginBottom: '2px' }}>
-                            {item.message}
-                          </div>
-                          <div style={{ color: '#54667d', fontSize: '11px', fontFamily: 'var(--font-body)', marginBottom: '2px' }}>
-                            {item.detail}
-                          </div>
-                          <div style={{ color: '#aaa', fontSize: '11px', fontFamily: 'var(--font-body)' }}>
-                            {item.time}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Right: Fabrication Capacity (1/3) */}
+          <div>
+            <FabricationCapacityGauge />
           </div>
         </div>
+
+        {/* Price Approval Table */}
+        <PriceApprovalTable />
       </div>
-    </DndProvider>
+    </div>
   );
 }
