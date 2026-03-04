@@ -1,13 +1,25 @@
 import { Link, useNavigate } from 'react-router';
-import { ArrowRight, Shield, Clock, Award, ChevronRight, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
+// 1. IMPORT useEffect for the keyboard listener
+import React, { useState, useEffect } from 'react'; 
+// 2. IMPORT ChevronLeft for the back button
+import { ArrowRight, Shield, Clock, Award, ChevronRight, ChevronLeft, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
+import completekitchen from '../../assets/kitchen_cabinet.png';
+import cabinetunder from '../../assets/cabinet_under.png';
+import slidingwindow from '../../assets/sliding_window.png';
+import frenchtype from '../../assets/french_type.png';
+import swingdoor from '../../assets/swing_door.png';
+import doubleswing from '../../assets/double_swing.png';
+
 const GLASS_INSTALLATION_IMG = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
-const PARTITION_IMG = 'https://images.unsplash.com/photo-1770993151375-0dee97eda931?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjBnbGFzcyUyMHBhcnRpdGlvbiUyMGludGVyaW9yfGVufDF8fHx8MTc3MTk5MzMwMHww&ixlib=rb-4.1.0&q=80&w=1080';
-const STOREFRONT_IMG = 'https://images.unsplash.com/photo-1655258104134-35ea5ef8647c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbHVtaW51bSUyMHN0b3JlZnJvbnQlMjBkb29yJTIwZmFjYWRlJTIwY29tbWVyY2lhbHxlbnwxfHx8fDE3NzE5OTMzMDN8MA&ixlib=rb-4.1.0&q=80&w=1080';
-const SLIDING_DOOR_IMG = 'https://images.unsplash.com/photo-1759709583846-d788ccb313ae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHNsaWRpbmclMjBkb29yJTIwcmVzaWRlbnRpYWwlMjBob21lfGVufDF8fHx8MTc3MTk5MzMwM3ww&ixlib=rb-4.1.0&q=80&w=1080';
-const AWNING_IMG = 'https://images.unsplash.com/photo-1766521076678-b124ae61690a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMGF3bmluZyUyMHdpbmRvdyUyMGFyY2hpdGVjdHVyZSUyMGJ1aWxkaW5nfGVufDF8fHx8MTc3MTk5MzMzN3ww&ixlib=rb-4.1.0&q=80&w=1080';
-const BRONZE_IMG = 'https://images.unsplash.com/photo-1762077713566-2a8f205c12df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxicm9uemUlMjB0aW50ZWQlMjBnbGFzcyUyMHdpbmRvdyUyMGJ1aWxkaW5nJTIwZXh0ZXJpb3J8ZW58MXx8fHwxNzcxOTkzMzM4fDA&ixlib=rb-4.1.0&q=80&w=1080';
+
+const KITCHEN_CABINET_IMG = completekitchen;
+const CABINET_IMG = cabinetunder;
+const SLIDING_WINDOW_IMG = slidingwindow;
+const FRENCH_TYPE_IMG = frenchtype;
+const SWING_DOOR_IMG = swingdoor;
+const DOUBLE_SWING_IMG = doubleswing;
 
 const products = [
   { icon: Building2, label: 'Storefront Systems', desc: 'Full aluminum storefront solutions for commercial properties with custom sizing.' },
@@ -33,16 +45,50 @@ const whyUs = [
 ];
 
 const projects = [
-  { img: STOREFRONT_IMG, label: 'Commercial Storefront', loc: 'Cebu City' },
-  { img: PARTITION_IMG, label: 'Office Glass Partition', loc: 'Makati CBD' },
-  { img: SLIDING_DOOR_IMG, label: 'Residential Sliding Door', loc: 'Quezon City' },
-  { img: AWNING_IMG, label: 'Awning Window Installation', loc: 'Davao City' },
-  { img: BRONZE_IMG, label: 'Bronze Tinted Windows', loc: 'Mandaluyong' },
-  { img: GLASS_INSTALLATION_IMG, label: 'Window Replacement Project', loc: 'Pasig City' },
+  { img: KITCHEN_CABINET_IMG, label: 'Complete Modular Kitchen Cabinet System', loc: 'Manila City' },
+  { img: CABINET_IMG, label: 'Under-Counter Base Cabinetry', loc: 'Makati CBD' },
+  { img: SLIDING_WINDOW_IMG, label: 'Sliding Window with Integrated Grilles', loc: 'Quezon City' },
+  { img: FRENCH_TYPE_IMG, label: 'French-Style Sliding Glass Partition', loc: 'Bulacan Province' },
+  { img: SWING_DOOR_IMG, label: 'Single Swing Door with Transom', loc: 'Mandaluyong' },
+  { img: DOUBLE_SWING_IMG, label: 'Double Swing Security Door', loc: 'Pasig City' },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
+  
+  // STATE: Track the index of the selected project instead of the object
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  // NAVIGATION FUNCTIONS
+  const handleNext = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIndex((prev) => (prev === null ? null : (prev + 1) % projects.length));
+  };
+
+  const handlePrev = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIndex((prev) => (prev === null ? null : (prev - 1 + projects.length) % projects.length));
+  };
+
+  const closeGallery = () => setSelectedIndex(null);
+
+  // KEYBOARD LISTENER: Escape to close, arrows to navigate
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedIndex === null) return;
+      if (e.key === 'Escape') closeGallery();
+      if (e.key === 'ArrowRight') handleNext();
+      if (e.key === 'ArrowLeft') handlePrev();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    // Cleanup listener when component unmounts or state changes
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIndex]);
+
+  // Derive the active project from the index
+  const activeProject = selectedIndex !== null ? projects[selectedIndex] : null;
+
   return (
     <div style={{ backgroundColor: '#fafafa', fontFamily: 'var(--font-body)' }}>
       {/* Hero */}
@@ -133,7 +179,7 @@ export default function Home() {
             {products.map((p) => (
               <div
                 key={p.label}
-                className="group p-6 rounded-xl border transition-all duration-200 cursor-pointer"
+                className="group p-6 rounded-xl border transition-all duration-200 cursor-default"
                 style={{
                   backgroundColor: 'white',
                   border: '1px solid #d9d9d9',
@@ -183,11 +229,14 @@ export default function Home() {
             <div className="w-16 h-1 mx-auto mt-4 rounded" style={{ backgroundColor: '#7a0000' }} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => (
+            {/* UPDATED: We now pass the 'index' into the map function */}
+            {projects.map((p, index) => (
               <div
                 key={p.label}
                 className="relative overflow-hidden group rounded-xl cursor-pointer"
                 style={{ borderRadius: '8px', aspectRatio: '4/3' }}
+                // UPDATED: Set the state to the index of the clicked item
+                onClick={() => setSelectedIndex(index)}
               >
                 <ImageWithFallback
                   src={p.img}
@@ -217,6 +266,72 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* MODAL / CAROUSEL OVERLAY */}
+        {activeProject && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm transition-opacity"
+            onClick={closeGallery} 
+          >
+            {/* Previous Button */}
+            <button 
+              onClick={handlePrev}
+              className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-colors z-50 group"
+              style={{ backgroundColor: 'rgba(21,38,60,0.8)', border: '1px solid rgba(255,255,255,0.2)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7a0000')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(21,38,60,0.8)')}
+            >
+              <ChevronLeft size={28} color="white" className="group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+
+            <div 
+              className="relative max-w-5xl w-full flex flex-col items-center px-12 sm:px-0"
+              onClick={(e) => e.stopPropagation()} 
+            >
+              {/* Close Button */}
+              <button 
+                className="absolute -top-12 right-0 sm:-right-8 w-10 h-10 flex items-center justify-center rounded-full transition-colors z-50"
+                style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                onClick={closeGallery}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7a0000')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+              >
+                <span className="text-2xl text-white pb-1">&times;</span>
+              </button>
+
+              {/* Enlarged Image */}
+              <img 
+                src={activeProject.img} 
+                alt={activeProject.label} 
+                className="w-full max-h-[75vh] object-contain rounded-md shadow-2xl"
+              />
+
+              {/* Details & Counter under the image */}
+              <div className="mt-5 text-center w-full flex flex-col items-center">
+                <div style={{ color: '#ff6666', fontSize: '12px', letterSpacing: '0.1em', fontFamily: 'var(--font-heading)', marginBottom: '4px' }}>
+                  PROJECT {selectedIndex !== null ? selectedIndex + 1 : 0} OF {projects.length}
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase' }}>
+                  {activeProject.label}
+                </h3>
+                <div style={{ color: '#d9d9d9', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
+                  <MapPin size={16} /> {activeProject.loc}
+                </div>
+              </div>
+            </div>
+
+            {/* Next Button */}
+            <button 
+              onClick={handleNext}
+              className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-colors z-50 group"
+              style={{ backgroundColor: 'rgba(21,38,60,0.8)', border: '1px solid rgba(255,255,255,0.2)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7a0000')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(21,38,60,0.8)')}
+            >
+              <ChevronRight size={28} color="white" className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Why Choose Us */}
@@ -414,7 +529,7 @@ export default function Home() {
                           key={sub.label}
                           to={sub.href}
                           style={{
-                            color: '#718096', // Slightly dimmer than the main link
+                            color: '#718096',
                             fontSize: '12px',
                             textDecoration: 'none',
                             transition: 'color 0.2s ease',
