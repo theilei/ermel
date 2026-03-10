@@ -1,3 +1,5 @@
+import Footer from '../components/Footer';
+
 export default function GlassProducts() {
   const glassTypes = [
     { name: 'Tempered Glass-Clear', desc: 'Heat-treated safety glass that shatters into small granular pieces when broken.' },
@@ -211,7 +213,7 @@ export default function GlassProducts() {
         </div>
       </section>
 
-      
+      <Footer />
     </div>
   );
 }

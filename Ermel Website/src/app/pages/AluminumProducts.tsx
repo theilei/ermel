@@ -1,3 +1,5 @@
+import Footer from '../components/Footer';
+
 export default function AluminumProducts() {
   const standardColors = [
     { name: 'Anodized Cashmere Black', color: '#2a2a2a' },
@@ -148,6 +150,7 @@ export default function AluminumProducts() {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
