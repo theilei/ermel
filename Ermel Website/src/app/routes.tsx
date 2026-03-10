@@ -11,6 +11,9 @@ import AluminumProducts from './pages/AluminumProducts';
 import QuotationApproval from './pages/admin/QuotationApproval';
 import QuoteDetails from './pages/admin/QuoteDetails';
 import InstallationQueue from './pages/admin/InstallationQueue';
+import OrderLogs from './pages/admin/OrderLogs';
+import MaterialProcurement from './pages/admin/MaterialProcurement';
+import AdminSettings from './pages/admin/AdminSettings';
 
 export const router = createBrowserRouter([
   {
@@ -34,9 +37,9 @@ export const router = createBrowserRouter([
       { path: 'quotations', Component: QuotationApproval },
       { path: 'quotations/:id', Component: QuoteDetails },
       { path: 'queue', Component: InstallationQueue },
-      { path: 'logs', element: <div style={{ padding: '2rem' }}>Order Logs - Coming Soon</div> },
-      { path: 'procurement', element: <div style={{ padding: '2rem' }}>Material Procurement - Coming Soon</div> },
-      { path: 'settings', element: <div style={{ padding: '2rem' }}>Settings - Coming Soon</div> },
+      { path: 'logs', Component: OrderLogs },
+      { path: 'procurement', Component: MaterialProcurement },
+      { path: 'settings', Component: AdminSettings },
     ],
   },
 ]);
