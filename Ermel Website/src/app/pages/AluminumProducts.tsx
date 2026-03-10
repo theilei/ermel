@@ -81,40 +81,8 @@ export default function AluminumProducts() {
         </div>
       </section>
 
-      {/* Standard Colors */}
-      <section className="py-16 px-6" style={{ backgroundColor: '#f0f2f5' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px' }}>
-              Standard Colors
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-12">
-            {standardColors.map((c) => (
-              <div
-                key={c.name}
-                className="p-5 rounded-lg"
-                style={{
-                  backgroundColor: 'white',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ width: '50px', height: '50px', backgroundColor: c.color, borderRadius: '6px', border: '1px solid #d9d9d9', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>
-                  {c.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Powder Coated Colors */}
-      <section className="py-16 px-6" style={{ backgroundColor: 'white' }}>
+      <section className="py-16 px-6" style={{ backgroundColor: '#f0f2f5' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px' }}>
@@ -150,7 +118,7 @@ export default function AluminumProducts() {
       </section>
 
       {/* Aluminum Applications */}
-      <section className="py-16 px-6" style={{ backgroundColor: '#f0f2f5' }}>
+      <section className="py-16 px-6" style={{ backgroundColor: 'white' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px' }}>
