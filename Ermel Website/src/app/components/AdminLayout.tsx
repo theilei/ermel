@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import {
   Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight
 } from 'lucide-react';
+import { useQuotes } from '../context/QuoteContext';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -10,6 +11,9 @@ export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notifications, setNotifications] = useState(3);
   const [adminUser, setAdminUser] = useState('');
+  const { quotes } = useQuotes();
+
+  const pendingCount = quotes.filter((q) => q.status === 'pending' || q.status === 'draft').length;
 
   useEffect(() => {
     // Check authentication
@@ -39,7 +43,7 @@ export default function AdminLayout() {
     {
       title: 'Operations',
       items: [
-        { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: 5 },
+        { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: pendingCount || undefined },
         { id: 'queue', label: 'Installation Queue', icon: Trello, path: '/admin/queue', category: 'operations' },
       ]
     },

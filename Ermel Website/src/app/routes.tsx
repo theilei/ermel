@@ -8,6 +8,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
 import GlassProducts from './pages/GlassProducts';
 import AluminumProducts from './pages/AluminumProducts';
+import QuotationApproval from './pages/admin/QuotationApproval';
+import QuoteDetails from './pages/admin/QuoteDetails';
+import InstallationQueue from './pages/admin/InstallationQueue';
 
 export const router = createBrowserRouter([
   {
@@ -28,8 +31,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: AdminDashboard },
       { path: 'dashboard', Component: AdminDashboard },
-      { path: 'quotations', element: <div style={{ padding: '2rem' }}>Quotation Approval - Coming Soon</div> },
-      { path: 'queue', element: <div style={{ padding: '2rem' }}>Installation Queue - Coming Soon</div> },
+      { path: 'quotations', Component: QuotationApproval },
+      { path: 'quotations/:id', Component: QuoteDetails },
+      { path: 'queue', Component: InstallationQueue },
       { path: 'logs', element: <div style={{ padding: '2rem' }}>Order Logs - Coming Soon</div> },
       { path: 'procurement', element: <div style={{ padding: '2rem' }}>Material Procurement - Coming Soon</div> },
       { path: 'settings', element: <div style={{ padding: '2rem' }}>Settings - Coming Soon</div> },

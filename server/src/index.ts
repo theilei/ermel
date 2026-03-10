@@ -3,6 +3,7 @@
 // ============================================================
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import rateLimit from 'express-rate-limit';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
@@ -19,6 +20,8 @@ import {
   isValidOther,
   sanitizeOther,
 } from './validation';
+import adminRoutes from './routes/adminRoutes';
+import customerRoutes from './routes/customerRoutes';
 
 dotenv.config();
 
@@ -31,8 +34,24 @@ const pool = new Pool({
 });
 
 // ---- Middleware ----
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'ermel-dev-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// ---- Mount route modules ----
+app.use('/api/admin', adminRoutes);
+app.use('/api/customer', customerRoutes);
 
 // ---- Rate limiter: 5 submissions per IP per hour ----
 const quoteLimiter = rateLimit({
