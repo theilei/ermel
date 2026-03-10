@@ -314,7 +314,7 @@ export default function About() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: Phone, label: 'Phone', value: '+63 938 602 0346', sub: 'Mon – Sat, 8AM – 7PM' },
+              { icon: Phone, label: 'Phone', value: '+63 938 602 0346', sub: 'Mon – Sun, 8:00 AM – 7:00 PM' },
               { icon: Mail, label: 'Email', value: 'info@ermelglass.com', sub: 'We reply within 24 hours' },
               { icon: MapPin, label: 'Address', value: '1528 Nicolas Zamora St.', sub: 'Tondo, City of Manila, 1012' },
             ].map((c) => (
