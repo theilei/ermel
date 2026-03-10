@@ -42,6 +42,7 @@ export function Header() {
   const navLinks = [
     { label: 'Services', href: '/#services' },
     { label: 'Projects', href: '/#projects' },
+    { label: 'About', href: '/about', isRoute: true },
   ];
 
   const isActive = (href: string) => location.pathname === href.split('#')[0];
@@ -240,34 +241,64 @@ export function Header() {
               </div>
             </div>
           </div>
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              style={{
-                fontFamily: 'var(--font-heading)',
-                color: '#d9d9d9',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                fontSize: '15px',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                transition: 'all 0.2s',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-              }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.color = 'white';
-                (e.target as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.color = '#d9d9d9';
-                (e.target as HTMLElement).style.backgroundColor = 'transparent';
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.isRoute ? (
+              <Link
+                key={link.label}
+                to={link.href}
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: location.pathname === link.href ? 'white' : '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '15px',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                  backgroundColor: location.pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = 'white';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = location.pathname === link.href ? 'white' : '#d9d9d9';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = location.pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent';
+                }}
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <a
+                key={link.label}
+                href={link.href}
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '15px',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLElement).style.color = 'white';
+                  (e.target as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.color = '#d9d9d9';
+                  (e.target as HTMLElement).style.backgroundColor = 'transparent';
+                }}
+              >
+                {link.label}
+              </a>
+            )
+          )}
 
         </nav>
 
@@ -376,27 +407,49 @@ export function Header() {
               </Link>
             </div>
           </div>
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              style={{
-                fontFamily: 'var(--font-heading)',
-                color: '#d9d9d9',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                fontSize: '16px',
-                padding: '12px 0',
-                display: 'block',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-              }}
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.isRoute ? (
+              <Link
+                key={link.label}
+                to={link.href}
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '16px',
+                  padding: '12px 0',
+                  display: 'block',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <a
+                key={link.label}
+                href={link.href}
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '16px',
+                  padding: '12px 0',
+                  display: 'block',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </a>
+            )
+          )}
 
         </div>
       )}

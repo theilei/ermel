@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router';
 import React, { useState, useEffect } from 'react'; 
-import { ArrowRight, Shield, Clock, Award, ChevronRight, ChevronLeft, Phone, Mail, MapPin, CheckCircle2, Wrench, Layers, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
+import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail, MapPin, Wrench, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 import completekitchen from '../../assets/kitchen_cabinet.png';
@@ -33,13 +33,6 @@ const stats = [
   { value: '7+', label: 'Years Experience' },
   { value: '98%', label: 'Client Satisfaction' },
   { value: '48hr', label: 'Quote Turnaround' },
-];
-
-const whyUs = [
-  { icon: Shield, title: 'Quality Guaranteed', desc: 'We use only premium-grade aluminum profiles and certified tempered glass meeting Philippine standards.' },
-  { icon: Clock, title: 'On-Time Delivery', desc: 'Strict project timelines with real-time tracking so you always know your project status.' },
-  { icon: Award, title: 'Expert Craftsmanship', desc: 'Our fabrication team has over a decade of hands-on experience with precision metalwork.' },
-  { icon: CheckCircle2, title: 'Transparent Pricing', desc: 'Detailed itemized quotes with no hidden charges. All costs are approved before work begins.' },
 ];
 
 const projects = [
@@ -329,43 +322,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Why Choose Us */}
-      <section id="services" className="py-20 px-6" style={{ backgroundColor: '#15263c', scrollMarginTop: '80px' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <div style={{ color: '#ff8888', fontFamily: 'var(--font-heading)', fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              OUR ADVANTAGE
-            </div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: 'clamp(28px, 5vw, 44px)', fontWeight: 800, lineHeight: 1.1, textTransform: 'uppercase' }}>
-              WHY CHOOSE ERMEL?
-            </h2>
-            <div className="w-16 h-1 mx-auto mt-4 rounded" style={{ backgroundColor: '#7a0000' }} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {whyUs.map((w) => (
-              <div
-                key={w.title}
-                className="p-6 rounded-xl"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
-              >
-                <div
-                  className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
-                  style={{ backgroundColor: 'rgba(122,0,0,0.3)', border: '1px solid rgba(122,0,0,0.4)' }}
-                >
-                  <w.icon size={22} color="#ff8888" />
-                </div>
-                <h3 style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '19px', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>
-                  {w.title}
-                </h3>
-                <p style={{ color: '#9ab0c4', fontSize: '14px', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-                  {w.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 px-6" style={{ backgroundColor: '#fafafa' }}>
         <div
@@ -451,6 +407,7 @@ export default function Home() {
                 { label: 'Products', href: '/#products', subtext: [{ label: 'Glass', href: '/products/glass' }, { label: 'Aluminum', href: '/products/aluminum' }] },
                 { label: 'Services', href: '/#services' },
                 { label: 'Projects', href: '/#projects' },
+                { label: 'About', href: '/about' },
                 { label: 'Request a Quote', href: '/quote' },
                 { label: 'Track My Order', href: '/dashboard' },
               ] as const).map((link) => {

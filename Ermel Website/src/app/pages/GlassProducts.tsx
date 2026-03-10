@@ -210,6 +210,8 @@ export default function GlassProducts() {
           </div>
         </div>
       </section>
+
+      
     </div>
   );
 }
