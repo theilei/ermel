@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Check, Info, ChevronRight, ChevronLeft, ArrowRight, X } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Order } from '../data/mockData';
+import { useApp, type Order } from '../context/AppContext';
 import {
   type MeasurementUnit,
   sanitizeTextInput,

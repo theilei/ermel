@@ -4,7 +4,7 @@
 // Uses a simple HTML-to-text approach for now.
 // In production, integrate pdfkit or puppeteer for real PDF generation.
 
-import { Quote } from '../models/Quote';
+import { Quote } from '../models/QuoteDB';
 
 export interface QuotePDFData {
   companyName: string;
@@ -61,7 +61,7 @@ export function generateQuotePDFHtml(data: QuotePDFData): string {
   </div>
 
   <div class="quote-title">QUOTATION</div>
-  <div class="quote-id">Quote ID: ${quote.id} | Issue Date: ${issueDate}</div>
+  <div class="quote-id">Quote ID: ${quote.quoteNumber} | Issue Date: ${issueDate}</div>
 
   <div class="section">
     <div class="section-title">Customer Information</div>

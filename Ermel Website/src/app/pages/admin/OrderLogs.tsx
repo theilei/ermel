@@ -4,7 +4,7 @@ import {
   Clock, Package, Hammer, Truck, ChevronLeft, ChevronRight,
   Calendar, DollarSign, User, ArrowUpDown,
 } from 'lucide-react';
-import { MOCK_ORDERS, type Order, type OrderStatus } from '../../data/mockData';
+import { useApp, type Order, type OrderStatus } from '../../context/AppContext';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -134,6 +134,7 @@ function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => vo
 
 // ── Main Component ──
 export default function OrderLogs() {
+  const { orders } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
@@ -142,7 +143,7 @@ export default function OrderLogs() {
   const [showFilters, setShowFilters] = useState(false);
 
   const filtered = useMemo(() => {
-    let data = [...MOCK_ORDERS];
+    let data = [...orders];
     if (statusFilter !== 'all') data = data.filter((o) => o.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -159,18 +160,18 @@ export default function OrderLogs() {
       case 'cost_asc':  data.sort((a, b) => a.estimatedCost - b.estimatedCost); break;
     }
     return data;
-  }, [search, statusFilter, sortBy]);
+  }, [search, statusFilter, sortBy, orders]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // Summary stats
   const stats = useMemo(() => ({
-    total: MOCK_ORDERS.length,
-    totalRevenue: MOCK_ORDERS.reduce((s, o) => s + (o.approvedCost || o.estimatedCost), 0),
-    paid: MOCK_ORDERS.filter((o) => o.paid).length,
-    active: MOCK_ORDERS.filter((o) => o.status !== 'installation').length,
-  }), []);
+    total: orders.length,
+    totalRevenue: orders.reduce((s, o) => s + (o.approvedCost || o.estimatedCost), 0),
+    paid: orders.filter((o) => o.paid).length,
+    active: orders.filter((o) => o.status !== 'installation').length,
+  }), [orders]);
 
   return (
     <div className="p-6">

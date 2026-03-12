@@ -5,17 +5,14 @@ import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
-import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import {
   sanitizeText,
   cleanPhone,
   isValidPhPhone,
-  hashPhone,
   maskPhone,
   toMeters,
   isValidMeasurement,
-  allUnitsFromMeters,
   isValidAddress,
   isValidOther,
   sanitizeOther,
@@ -23,18 +20,17 @@ import {
 import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
 import authRoutes from './routes/authRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 import { requireAuth, requireVerified } from './middleware/authMiddleware';
 import { sessionConfig } from './config/session';
+import pool from './config/database';
+import * as QuoteModel from './models/QuoteDB';
+import * as NotificationService from './services/notificationService';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-
-// ---- Database pool ----
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel',
-});
 
 // ---- Middleware ----
 app.use(cors({ origin: true, credentials: true }));
@@ -45,6 +41,7 @@ app.use(session(sessionConfig));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ---- Protected quote access check ----
 app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
@@ -62,7 +59,7 @@ const quoteLimiter = rateLimit({
 });
 
 // ============================================================
-// POST /api/quotes
+// POST /api/quotes — Public quote submission
 // ============================================================
 app.post('/api/quotes', quoteLimiter, async (req, res) => {
   try {
@@ -82,13 +79,6 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
     // Glass type
     const glassType = sanitizeText(body.glassType || '');
     if (!glassType) errors.push('Glass type is required.');
-    const glassTypeOther = body.glassTypeOther ? sanitizeOther(body.glassTypeOther) : null;
-    if (glassType.toLowerCase().startsWith('other') && (!glassTypeOther || !isValidOther(glassTypeOther))) {
-      errors.push('Please specify the "Other" glass type.');
-    }
-
-    // Color
-    const colorOther = body.colorOther ? sanitizeOther(body.colorOther) : null;
 
     // Frame material
     const material = sanitizeText(body.material || '');
@@ -125,78 +115,57 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
 
     // Return all errors
     if (errors.length > 0) {
-      return res.status(400).json({ error: errors.join(' ') });
+      return res.status(400).json({ success: false, message: errors.join(' ') });
     }
 
-    // ---- Compute canonical values ----
+    // ---- Compute values ----
     const widthM = toMeters(rawWidth, unit);
     const heightM = toMeters(rawHeight, unit);
-    const wUnits = allUnitsFromMeters(widthM);
-    const hUnits = allUnitsFromMeters(heightM);
-    const phoneHashed = hashPhone(phonePlain);
-
-    // ---- Log (masked phone) ----
-    console.log(`[QUOTE] New from ${customer} | phone: ${maskPhone(phonePlain)} | ${wUnits.cm}cm x ${hUnits.cm}cm`);
-
-    // ---- Insert into database with parameterized query ----
-    const insertQuery = `
-      INSERT INTO quotes (
-        id, customer, project, material, glass_type, dimensions,
-        width_m, height_m, width_cm, height_cm, width_ft, height_ft,
-        estimated_cost, status, created_date, phone, phone_hash,
-        email, notes, address,
-        project_category_other, glass_type_other, color_other
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17,
-        $18, $19, $20,
-        $21, $22, $23
-      )
-      RETURNING id
-    `;
-
-    const orderId = `EGA-2026-${String(Math.floor(Math.random() * 900) + 100)}`;
+    const widthCm = widthM * 100;
+    const heightCm = heightM * 100;
     const estimatedCost = parseFloat(body.estimatedCost) || 0;
     const notes = sanitizeText(body.notes || '');
+    const color = sanitizeText(body.color || 'Clear');
+    const quantity = parseInt(body.quantity) || 1;
 
-    const values = [
-      orderId,
-      customer,
-      category,
-      material,
-      glassType,
-      `${rawWidth}${unit} × ${rawHeight}${unit}`,
-      wUnits.m,
-      hUnits.m,
-      wUnits.cm,
-      hUnits.cm,
-      wUnits.ft,
-      hUnits.ft,
-      estimatedCost,
-      'inquiry',
-      new Date().toISOString().split('T')[0],
-      phonePlain, // stored encrypted in production
-      phoneHashed,
-      email,
-      notes || null,
-      address,
-      categoryOther,
-      glassTypeOther,
-      colorOther,
-    ];
+    // ---- Log (masked phone) ----
+    console.log(`[QUOTE] New from ${customer} | phone: ${maskPhone(phonePlain)} | ${widthCm}cm x ${heightCm}cm`);
 
+    // ---- Find customer_id if they have a registered account ----
+    let customerId: string | undefined;
     try {
-      const result = await pool.query(insertQuery, values);
-      return res.status(201).json({ id: result.rows[0]?.id || orderId, success: true });
-    } catch (dbErr: any) {
-      // If DB is not configured, still return success for local dev
-      console.error('[DB ERROR]', dbErr.message);
-      return res.status(201).json({ id: orderId, success: true, note: 'Saved locally (DB not connected)' });
-    }
+      const userResult = await pool.query(
+        `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+        [email]
+      );
+      if (userResult.rows.length > 0) customerId = userResult.rows[0].id;
+    } catch { /* User lookup is best-effort */ }
+
+    // ---- Insert using QuoteDB model ----
+    const quote = await QuoteModel.createQuote({
+      customerId,
+      customerName: customer,
+      customerEmail: email,
+      customerPhone: phonePlain,
+      customerAddress: address,
+      projectType: category,
+      glassType,
+      frameMaterial: material,
+      width: widthCm,
+      height: heightCm,
+      quantity,
+      color,
+      estimatedCost,
+      notes: notes || undefined,
+    });
+
+    // Notify admins about new quote
+    NotificationService.notifyAdminsNewQuote(quote.quoteNumber, customer).catch(() => {});
+
+    return res.status(201).json({ success: true, data: { id: quote.quoteNumber } });
   } catch (err: any) {
     console.error('[SERVER ERROR]', err.message);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 
