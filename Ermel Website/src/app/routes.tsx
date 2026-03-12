@@ -15,6 +15,11 @@ import InstallationQueue from './pages/admin/InstallationQueue';
 import OrderLogs from './pages/admin/OrderLogs';
 import MaterialProcurement from './pages/admin/MaterialProcurement';
 import AdminSettings from './pages/admin/AdminSettings';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import VerifyEmailResult from './pages/VerifyEmailResult';
+import VerificationRequired from './pages/VerificationRequired';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
@@ -23,12 +28,23 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: 'about', Component: About },
-      { path: 'quote', Component: QuotationModule },
+      {
+        path: 'quote',
+        element: (
+          <ProtectedRoute>
+            <QuotationModule />
+          </ProtectedRoute>
+        ),
+      },
       { path: 'dashboard', Component: CustomerDashboard },
       { path: 'products/glass', Component: GlassProducts },
       { path: 'products/aluminum', Component: AluminumProducts },
     ],
   },
+  { path: '/login', Component: Login },
+  { path: '/register', Component: Register },
+  { path: '/verify-email', Component: VerifyEmailResult },
+  { path: '/verification-required', Component: VerificationRequired },
   { path: '/admin/login', Component: AdminLogin },
   {
     path: '/admin',

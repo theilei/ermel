@@ -22,6 +22,9 @@ import {
 } from './validation';
 import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
+import authRoutes from './routes/authRoutes';
+import { requireAuth, requireVerified } from './middleware/authMiddleware';
+import { sessionConfig } from './config/session';
 
 dotenv.config();
 
@@ -36,22 +39,17 @@ const pool = new Pool({
 // ---- Middleware ----
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'ermel-dev-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
+app.use(session(sessionConfig));
 
 // ---- Mount route modules ----
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
+
+// ---- Protected quote access check ----
+app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
+  res.json({ allowed: true });
+});
 
 // ---- Rate limiter: 5 submissions per IP per hour ----
 const quoteLimiter = rateLimit({
@@ -203,8 +201,46 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  try {
+    const dbCheck = await pool.query('SELECT NOW() AS db_time');
+    const userCount = await pool.query('SELECT COUNT(*) AS total FROM users');
+    const tokenCount = await pool.query('SELECT COUNT(*) AS total FROM email_verification_tokens');
+    res.json({
+      status: 'ok',
+      time: new Date().toISOString(),
+      database: 'connected',
+      db_time: dbCheck.rows[0].db_time,
+      tables: {
+        users: parseInt(userCount.rows[0].total, 10),
+        email_verification_tokens: parseInt(tokenCount.rows[0].total, 10),
+      },
+    });
+  } catch (err: any) {
+    res.json({
+      status: 'degraded',
+      time: new Date().toISOString(),
+      database: 'disconnected',
+      error: err.message,
+    });
+  }
+});
+
+// ---- Live view: list all users (dev only) ----
+app.get('/api/dev/users', async (_req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Not available in production.' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT id, full_name, email, is_verified, failed_login_attempts,
+              lock_until, created_at, updated_at
+       FROM users ORDER BY created_at DESC`
+    );
+    res.json({ count: result.rows.length, users: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---- Start ----
