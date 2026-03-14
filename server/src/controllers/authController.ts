@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import pool from '../config/database';
 import { sendVerificationEmail } from '../services/verificationEmailService';
+import { addLog } from '../models/ActivityLogDB';
 
 const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -28,6 +29,14 @@ function isStrongPassword(password: string): boolean {
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export function csrfToken(req: Request, res: Response) {
+  const tokenFactory = (req as any).csrfToken as undefined | (() => string);
+  if (!tokenFactory) {
+    return res.status(500).json({ error: 'CSRF middleware is not configured.' });
+  }
+  return res.json({ csrfToken: tokenFactory() });
 }
 
 // ============================================================
@@ -85,10 +94,33 @@ export async function register(req: Request, res: Response) {
       [user.id, tokenHash, expiresAt],
     );
 
-    // Send verification email (non-blocking — don't fail registration if email fails)
-    sendVerificationEmail(email, fullName, rawToken).catch((err) => {
-      console.error('[EMAIL ERROR] Failed to send verification email:', err.message);
-    });
+    // Send verification email (non-blocking — registration still succeeds if email fails)
+    sendVerificationEmail(email, fullName, rawToken)
+      .then(() => addLog({
+        action: 'Verification email sent',
+        entity: 'user',
+        entityId: user.id,
+        userId: user.id,
+        userRole: 'customer',
+        userName: fullName,
+        details: `Sent to ${email}`,
+      }))
+      .catch(async (err) => {
+        console.error('[EMAIL ERROR] Failed to send verification email:', err.message);
+        try {
+          await addLog({
+            action: 'Verification email failed',
+            entity: 'user',
+            entityId: user.id,
+            userId: user.id,
+            userRole: 'customer',
+            userName: fullName,
+            details: `Send failed to ${email}: ${err.message}`,
+          });
+        } catch {
+          // Ignore logging failure
+        }
+      });
 
     // Set session
     req.session.userId = user.id;
@@ -304,9 +336,27 @@ export async function verifyEmail(req: Request, res: Response) {
         `UPDATE email_verification_tokens SET used_at = NOW() WHERE id = $1`,
         [token.id],
       );
+      const verifiedUserResult = await client.query(
+        `SELECT full_name FROM users WHERE id = $1 LIMIT 1`,
+        [token.user_id],
+      );
       await client.query(
         `UPDATE users SET is_verified = TRUE, updated_at = NOW() WHERE id = $1`,
         [token.user_id],
+      );
+      const userName = verifiedUserResult.rows[0]?.full_name || 'Customer';
+      await client.query(
+        `INSERT INTO qq_activity_logs (user_id, action, entity, entity_id, user_role, user_name, details)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          token.user_id,
+          'Email verified',
+          'user',
+          token.user_id,
+          'customer',
+          userName,
+          'Verification token consumed successfully',
+        ],
       );
       await client.query('COMMIT');
     } catch (txErr) {
@@ -356,13 +406,16 @@ export async function resendVerification(req: Request, res: Response) {
     }
 
     // Check resend limit: max 3 per hour
-    const recentTokens = await pool.query(
-      `SELECT COUNT(*) as cnt FROM email_verification_tokens
-       WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+    const recentResendAttempts = await pool.query(
+      `SELECT COUNT(*) as cnt
+       FROM qq_activity_logs
+       WHERE user_id = $1
+         AND action = 'Verification email resent'
+         AND created_at > NOW() - INTERVAL '1 hour'`,
       [userId],
     );
 
-    if (parseInt(recentTokens.rows[0].cnt, 10) >= 3) {
+    if (parseInt(recentResendAttempts.rows[0].cnt, 10) >= 3) {
       return res.status(429).json({
         error: 'You can only request 3 verification emails per hour. Please try again later.',
       });
@@ -381,6 +434,16 @@ export async function resendVerification(req: Request, res: Response) {
 
     // Send email
     await sendVerificationEmail(user.email, user.full_name, rawToken);
+
+    await addLog({
+      action: 'Verification email resent',
+      entity: 'user',
+      entityId: user.id,
+      userId: user.id,
+      userRole: 'customer',
+      userName: user.full_name,
+      details: `Resent to ${user.email}`,
+    });
 
     return res.json({ message: 'Verification email sent. Please check your inbox.' });
   } catch (err: any) {

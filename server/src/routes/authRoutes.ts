@@ -3,6 +3,7 @@
 // ============================================================
 import { Router } from 'express';
 import {
+  csrfToken,
   register,
   login,
   logout,
@@ -11,14 +12,16 @@ import {
   resendVerification,
 } from '../controllers/authController';
 import { loginLimiter, registerLimiter, resendLimiter } from '../middleware/rateLimiter';
+import { csrfProtection } from '../middleware/csrf';
 
 const router = Router();
 
-router.post('/register', registerLimiter, register);
-router.post('/login', loginLimiter, login);
-router.post('/logout', logout);
+router.get('/csrf-token', csrfProtection, csrfToken);
+router.post('/register', csrfProtection, registerLimiter, register);
+router.post('/login', csrfProtection, loginLimiter, login);
+router.post('/logout', csrfProtection, logout);
 router.get('/me', me);
-router.post('/verify-email', verifyEmail);
-router.post('/resend-verification', resendLimiter, resendVerification);
+router.post('/verify-email', csrfProtection, verifyEmail);
+router.post('/resend-verification', csrfProtection, resendLimiter, resendVerification);
 
 export default router;

@@ -15,10 +15,9 @@ function getAdminHeaders(): HeadersInit {
   };
 }
 
-function getCustomerHeaders(email: string): HeadersInit {
+function getCustomerHeaders(): HeadersInit {
   return {
     'Content-Type': 'application/json',
-    'x-customer-email': email,
   };
 }
 
@@ -114,27 +113,27 @@ export async function updateInstallationStatus(id: string, status: InstallationS
 }
 
 // ---- Customer API ----
-export async function fetchCustomerQuotes(email: string) {
-  const res = await fetch(`${API_BASE}/customer/quotes?email=${encodeURIComponent(email)}`, {
-    headers: getCustomerHeaders(email),
+export async function fetchCustomerQuotes(_email: string) {
+  const res = await fetch(`${API_BASE}/customer/quotes`, {
+    headers: getCustomerHeaders(),
     credentials: 'include',
   });
   return handleResponse<Quote[]>(res);
 }
 
-export async function customerAcceptQuote(id: string, email: string) {
+export async function customerAcceptQuote(id: string, _email: string) {
   const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(id)}/accept`, {
     method: 'POST',
-    headers: getCustomerHeaders(email),
+    headers: getCustomerHeaders(),
     credentials: 'include',
   });
   return handleResponse<Quote>(res);
 }
 
-export async function customerDeclineQuote(id: string, email: string) {
+export async function customerDeclineQuote(id: string, _email: string) {
   const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(id)}/decline`, {
     method: 'POST',
-    headers: getCustomerHeaders(email),
+    headers: getCustomerHeaders(),
     credentials: 'include',
   });
   return handleResponse<Quote>(res);
@@ -194,18 +193,18 @@ export async function markLegacyOrderPayment(id: string) {
   return handleResponse<any>(res);
 }
 
-export async function fetchCustomerLegacyOrders(email: string) {
-  const res = await fetch(`${API_BASE}/customer/legacy-orders?email=${encodeURIComponent(email)}`, {
-    headers: getCustomerHeaders(email),
+export async function fetchCustomerLegacyOrders(_email: string) {
+  const res = await fetch(`${API_BASE}/customer/legacy-orders`, {
+    headers: getCustomerHeaders(),
     credentials: 'include',
   });
   return handleResponse<any[]>(res);
 }
 
-export async function customerMarkPayment(id: string, email: string) {
+export async function customerMarkPayment(id: string, _email: string) {
   const res = await fetch(`${API_BASE}/customer/legacy-orders/${encodeURIComponent(id)}/payment`, {
     method: 'PUT',
-    headers: getCustomerHeaders(email),
+    headers: getCustomerHeaders(),
     credentials: 'include',
   });
   return handleResponse<any>(res);

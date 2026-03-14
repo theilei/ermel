@@ -2,6 +2,7 @@
 // Auth context — provides authentication state across the app
 // ============================================================
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { clearCsrfTokenCache, getCsrfToken } from '../services/csrf';
 
 interface User {
   id: string;
@@ -31,7 +32,8 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_BASE = '/api/auth';
+const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
+const API_BASE = `${API_ROOT}/auth`;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -59,9 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      const csrfToken = await getCsrfToken();
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
@@ -81,9 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (regData: RegisterData) => {
     try {
+      const csrfToken = await getCsrfToken();
       const res = await fetch(`${API_BASE}/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
         credentials: 'include',
         body: JSON.stringify(regData),
       });
@@ -103,20 +113,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      const csrfToken = await getCsrfToken();
       await fetch(`${API_BASE}/logout`, {
         method: 'POST',
+        headers: {
+          'x-csrf-token': csrfToken,
+        },
         credentials: 'include',
       });
     } catch {
       // Proceed even if server is unreachable
     }
+    clearCsrfTokenCache();
     setUser(null);
   }, []);
 
   const resendVerification = useCallback(async () => {
     try {
+      const csrfToken = await getCsrfToken();
       const res = await fetch(`${API_BASE}/resend-verification`, {
         method: 'POST',
+        headers: {
+          'x-csrf-token': csrfToken,
+        },
         credentials: 'include',
       });
 
@@ -124,6 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.ok) {
         return { success: true };
+      }
+
+      if (res.status === 403) {
+        clearCsrfTokenCache();
       }
 
       return { success: false, error: data.error || 'Failed to resend.' };

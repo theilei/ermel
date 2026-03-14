@@ -72,8 +72,8 @@ export async function markPaymentUploaded(req: Request, res: Response) {
 
 export async function getOrdersByEmail(req: Request, res: Response) {
   try {
-    const email = (req.query.email as string) || '';
-    if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+    const email = req.session?.userEmail || '';
+    if (!email) return res.status(401).json({ success: false, error: 'Authentication required' });
     const orders = await LegacyOrderModel.getByEmail(email);
     res.json({ success: true, data: orders });
   } catch (err: any) {

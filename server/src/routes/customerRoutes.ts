@@ -4,8 +4,11 @@
 import { Router } from 'express';
 import * as customerCtrl from '../controllers/customerControllerDB';
 import * as legacyOrderCtrl from '../controllers/legacyOrderController';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
+
+router.use(requireAuth);
 
 // Customer quote routes
 router.get('/quotes', customerCtrl.getMyQuotes);

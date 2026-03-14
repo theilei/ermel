@@ -126,6 +126,12 @@ UPDATE users SET is_verified = true WHERE email = 'test@example.com';
 - `Secure` flag is enabled in production (HTTPS only)
 - Sessions expire after 24 hours
 
+### CSRF Security
+- CSRF tokens are generated server-side using `csurf`
+- Frontend fetches a token from `GET /api/auth/csrf-token`
+- All state-changing auth endpoints and quote submission require `x-csrf-token`
+- Invalid tokens return `403 Invalid CSRF token`
+
 ### Account Lock System
 - After **5 failed login attempts**, the account is locked for **15 minutes**
 - Failed attempt counter resets on successful login
@@ -137,6 +143,7 @@ UPDATE users SET is_verified = true WHERE email = 'test@example.com';
 - Tokens are **single-use** (marked with `used_at` timestamp)
 - Tokens **expire after 24 hours**
 - Resend is limited to **3 per hour** per user
+- Verification events are logged in `qq_activity_logs` (sent, failed, resent, verified)
 
 ### Rate Limiting
 - Login: 10 attempts per 15 minutes per IP
@@ -158,10 +165,12 @@ UPDATE users SET is_verified = true WHERE email = 'test@example.com';
 
 | Method | Endpoint | Description |
 |---|---|---|
+| GET | `/api/auth/csrf-token` | Get CSRF token for mutating requests |
 | POST | `/api/auth/register` | Create new account |
 | POST | `/api/auth/login` | Sign in |
 | POST | `/api/auth/logout` | Sign out |
 | GET | `/api/auth/me` | Get current user |
+| GET | `/api/user/me` | Alias to current authenticated user profile |
 | POST | `/api/auth/verify-email` | Verify email with token |
 | POST | `/api/auth/resend-verification` | Resend verification email |
 
@@ -170,6 +179,7 @@ UPDATE users SET is_verified = true WHERE email = 'test@example.com';
 | Method | Endpoint | Middleware |
 |---|---|---|
 | GET | `/api/quote-access` | requireAuth + requireVerified |
+| POST | `/api/quotes` | requireAuth + requireVerified + CSRF + rate-limit |
 
 ---
 

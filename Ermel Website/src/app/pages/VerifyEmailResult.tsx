@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getCsrfToken } from '../services/csrf';
 import '../../styles/auth.css';
 
 type VerifyState = 'loading' | 'success' | 'expired' | 'error';
+const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export default function VerifyEmailResult() {
   const [searchParams] = useSearchParams();
@@ -25,9 +27,13 @@ export default function VerifyEmailResult() {
 
     (async () => {
       try {
-        const res = await fetch('/api/auth/verify-email', {
+        const csrfToken = await getCsrfToken();
+        const res = await fetch(`${API_ROOT}/auth/verify-email`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+          },
           credentials: 'include',
           body: JSON.stringify({ token }),
         });

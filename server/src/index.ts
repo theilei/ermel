@@ -24,6 +24,8 @@ import notificationRoutes from './routes/notificationRoutes';
 import { requireAuth, requireVerified } from './middleware/authMiddleware';
 import { sessionConfig } from './config/session';
 import pool from './config/database';
+import { me } from './controllers/authController';
+import { csrfProtection } from './middleware/csrf';
 import * as QuoteModel from './models/QuoteDB';
 import * as NotificationService from './services/notificationService';
 
@@ -31,6 +33,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+app.set('trust proxy', 1);
 
 // ---- Middleware ----
 app.use(cors({ origin: true, credentials: true }));
@@ -42,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.get('/api/user/me', me);
 
 // ---- Protected quote access check ----
 app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
@@ -61,7 +66,7 @@ const quoteLimiter = rateLimit({
 // ============================================================
 // POST /api/quotes — Public quote submission
 // ============================================================
-app.post('/api/quotes', quoteLimiter, async (req, res) => {
+app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimiter, async (req, res) => {
   try {
     const body = req.body;
 
@@ -107,11 +112,11 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
       errors.push('Please enter a complete address (minimum 10 characters).');
     }
 
-    // Name & email
-    const customer = sanitizeText(body.customer || '');
-    if (!customer) errors.push('Customer name is required.');
-    const email = sanitizeText(body.email || '');
-    if (!email) errors.push('Email is required.');
+    // Name & email are always resolved from authenticated session
+    const customer = sanitizeText(req.session.userName || '');
+    const email = sanitizeText(req.session.userEmail || '');
+    if (!customer) errors.push('Authenticated user name is required.');
+    if (!email) errors.push('Authenticated user email is required.');
 
     // Return all errors
     if (errors.length > 0) {
@@ -210,6 +215,14 @@ app.get('/api/dev/users', async (_req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---- CSRF error handler ----
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'Invalid CSRF token.' });
+  }
+  return next(err);
 });
 
 // ---- Start ----

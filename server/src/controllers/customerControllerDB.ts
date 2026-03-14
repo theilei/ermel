@@ -36,13 +36,10 @@ function toFrontendQuote(q: QuoteModel.Quote) {
 // GET /api/customer/quotes
 export async function getMyQuotes(req: Request, res: Response) {
   try {
-    // Use session email or query param or header
-    const email = (req.session as any)?.userEmail
-      || req.query.email as string
-      || req.headers['x-customer-email'] as string;
+    const email = req.session?.userEmail;
 
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Customer email is required.' });
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
     await QuoteModel.expireOldQuotes();
@@ -58,14 +55,16 @@ export async function getMyQuotes(req: Request, res: Response) {
 // GET /api/customer/quotes/:id
 export async function getMyQuote(req: Request, res: Response) {
   try {
-    const email = (req.session as any)?.userEmail
-      || req.query.email as string
-      || req.headers['x-customer-email'] as string;
+    const email = req.session?.userEmail;
+
+    if (!email) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
 
     const quote = await QuoteModel.getQuoteById(req.params.id);
     if (!quote) return res.status(404).json({ success: false, message: 'Quote not found.' });
 
-    if (email && quote.customerEmail.toLowerCase() !== email.toLowerCase()) {
+    if (quote.customerEmail.toLowerCase() !== email.toLowerCase()) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
