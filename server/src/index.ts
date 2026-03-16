@@ -21,6 +21,8 @@ import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
 import authRoutes from './routes/authRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import * as ReservationModel from './models/ReservationDB';
+import { listReservedDates as listReservedDatesHandler, validateReservationDate } from './controllers/reservationController';
 import { requireAuth, requireVerified } from './middleware/authMiddleware';
 import { sessionConfig } from './config/session';
 import pool from './config/database';
@@ -28,6 +30,7 @@ import { me } from './controllers/authController';
 import { csrfProtection } from './middleware/csrf';
 import * as QuoteModel from './models/QuoteDB';
 import * as NotificationService from './services/notificationService';
+import { sendQuoteSubmissionEmails } from './services/emailService';
 
 dotenv.config();
 
@@ -52,6 +55,9 @@ app.get('/api/user/me', me);
 app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
   res.json({ allowed: true });
 });
+
+// ---- Reservation dates used by the quote calendar ----
+app.get('/api/reservations/dates', requireAuth, requireVerified, listReservedDatesHandler);
 
 // ---- Rate limiter: 5 submissions per IP per hour ----
 const quoteLimiter = rateLimit({
@@ -112,6 +118,17 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
       errors.push('Please enter a complete address (minimum 10 characters).');
     }
 
+    // Reservation date
+    const reservationDate = sanitizeText(body.reservationDate || '');
+    if (!reservationDate) {
+      errors.push('Reservation date is required.');
+    } else {
+      const dateValidation = validateReservationDate(reservationDate);
+      if (!dateValidation.ok) {
+        errors.push(dateValidation.message || 'Invalid reservation date.');
+      }
+    }
+
     // Name & email are always resolved from authenticated session
     const customer = sanitizeText(req.session.userName || '');
     const email = sanitizeText(req.session.userEmail || '');
@@ -164,8 +181,21 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
       notes: notes || undefined,
     });
 
+    try {
+      await ReservationModel.createReservation(quote.id, reservationDate);
+    } catch (reservationErr: any) {
+      if (ReservationModel.isReservationConflictError(reservationErr)) {
+        await QuoteModel.softDeleteQuote(quote.id);
+        return res.status(409).json({ success: false, error: 'The selected reservation date is already booked.' });
+      }
+      throw reservationErr;
+    }
+
     // Notify admins about new quote
     NotificationService.notifyAdminsNewQuote(quote.quoteNumber, customer).catch(() => {});
+    sendQuoteSubmissionEmails(quote).catch((e) => {
+      console.error('[EMAIL]', e.message);
+    });
 
     return res.status(201).json({ success: true, data: { id: quote.quoteNumber } });
   } catch (err: any) {

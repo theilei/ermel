@@ -4,6 +4,7 @@
 
 export type QuoteStatus =
   | 'pending'
+  | 'rejected'
   | 'draft'
   | 'approved'
   | 'customer_accepted'
@@ -40,6 +41,22 @@ export interface Quote {
   declinedDate?: string;
   convertedDate?: string;
   notes?: string;
+  reservationDate?: string;
+  reservationStatus?: ReservationStatus;
+}
+
+export type ReservationStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export interface Reservation {
+  id: string;
+  quoteId: string;
+  quoteNumber?: string;
+  customerName?: string;
+  customerEmail?: string;
+  projectType?: string;
+  reservationDate: string;
+  status: ReservationStatus;
+  createdAt: string;
 }
 
 export interface InstallationOrder {
@@ -66,6 +83,7 @@ export interface ActivityLog {
 
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   pending: 'Pending',
+  rejected: 'Rejected',
   draft: 'Draft',
   approved: 'Approved',
   customer_accepted: 'Customer Accepted',
@@ -76,6 +94,7 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
 
 export const QUOTE_STATUS_COLORS: Record<QuoteStatus, { bg: string; text: string; border: string }> = {
   pending: { bg: '#fff8e1', text: '#7a5200', border: '#f0c04066' },
+  rejected: { bg: '#fff0f0', text: '#7a0000', border: '#7a000044' },
   draft: { bg: '#e8ecf0', text: '#15263c', border: '#15263c44' },
   approved: { bg: '#e8f5e9', text: '#1a5c1a', border: '#1a5c1a44' },
   customer_accepted: { bg: '#e0f2fe', text: '#0369a1', border: '#0369a144' },
