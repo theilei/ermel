@@ -33,6 +33,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const FEET_PER_METER = 3.280839895;
+const PRICE_PER_SQ_FOOT = 350;
 
 app.set('trust proxy', 1);
 
@@ -90,7 +92,7 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
     if (!material) errors.push('Frame material is required.');
 
     // Measurements
-    const unit = (['cm', 'm', 'ft'] as const).includes(body.measurementUnit) ? body.measurementUnit : 'cm';
+    const unit = (['cm', 'm', 'ft', 'in'] as const).includes(body.measurementUnit) ? body.measurementUnit : 'cm';
     const rawWidth = parseFloat(body.width);
     const rawHeight = parseFloat(body.height);
     if (isNaN(rawWidth) || !isValidMeasurement(rawWidth, unit)) {
@@ -128,7 +130,10 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
     const heightM = toMeters(rawHeight, unit);
     const widthCm = widthM * 100;
     const heightCm = heightM * 100;
-    const estimatedCost = parseFloat(body.estimatedCost) || 0;
+    const widthFeet = widthM * FEET_PER_METER;
+    const heightFeet = heightM * FEET_PER_METER;
+    const areaSqFeet = widthFeet * heightFeet;
+    const estimatedCost = Math.round(areaSqFeet * PRICE_PER_SQ_FOOT * 100) / 100;
     const notes = sanitizeText(body.notes || '');
     const color = sanitizeText(body.color || 'Clear');
     const quantity = parseInt(body.quantity) || 1;

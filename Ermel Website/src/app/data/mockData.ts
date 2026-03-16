@@ -31,7 +31,7 @@ export interface Order {
   heightFt?: number;
   phoneHash?: string;
   address?: string;
-  measurementUnit?: 'cm' | 'm' | 'ft';
+  measurementUnit?: 'cm' | 'm' | 'ft' | 'in';
 }
 
 export const MOCK_ORDERS: Order[] = [

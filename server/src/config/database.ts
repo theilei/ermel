@@ -9,22 +9,19 @@ dotenv.config();
 const connectionString =
   process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel';
 
-// Supabase connection strings often use pooler hosts under supabase.com.
-// In local dev, allow self-signed/intermediate cert chains from managed providers.
+// Supabase pooler URLs include sslmode=require which newer pg versions treat as
+// verify-full, causing cert errors. Strip sslmode from the URL and rely on the
+// explicit ssl option below (rejectUnauthorized: false) instead.
 const isSupabaseConnection = /supabase\.(co|com)/i.test(connectionString);
 const normalizedConnectionString = isSupabaseConnection
-  ? connectionString.match(/[?&]sslmode=/i)
-    ? connectionString.replace(/([?&]sslmode=)[^&]*/i, '$1no-verify')
-    : `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=no-verify`
+  ? connectionString
+      .replace(/([?&])sslmode=[^&]*/gi, '$1') // remove sslmode param
+      .replace(/[?&]$/, '')                    // clean trailing ? or &
   : connectionString;
 
 const pool = new Pool({
   connectionString: normalizedConnectionString,
-  ssl: isSupabaseConnection
-    ? {
-        rejectUnauthorized: false,
-      }
-    : undefined,
+  ssl: isSupabaseConnection ? { rejectUnauthorized: false } : undefined,
 });
 
 export default pool;

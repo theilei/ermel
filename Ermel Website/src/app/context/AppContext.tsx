@@ -33,7 +33,7 @@ export interface Order {
   widthFt?: number;
   heightFt?: number;
   address?: string;
-  measurementUnit?: 'cm' | 'm' | 'ft';
+  measurementUnit?: 'cm' | 'm' | 'ft' | 'in';
 }
 
 interface AppContextType {

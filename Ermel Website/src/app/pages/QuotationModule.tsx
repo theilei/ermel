@@ -59,8 +59,10 @@ const FRAME_MATERIALS = [
   { id: 'stainless', label: 'Stainless Frame', desc: 'Premium finish, corrosion-resistant', multiplier: 1.5 },
 ];
 
-const UNIT_LABELS: Record<MeasurementUnit, string> = { cm: 'cm', m: 'm', ft: 'ft' };
+const UNIT_LABELS: Record<MeasurementUnit, string> = { cm: 'cm', m: 'm', ft: 'ft', in: 'in' };
 const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
+const FEET_PER_METER = 3.280839895;
+const PRICE_PER_SQ_FOOT = 350;
 
 // ============================================================
 // Small sub-components
@@ -332,11 +334,11 @@ export default function QuotationModule() {
   const wMeters = toMeters(w, measureUnit);
   const hMeters = toMeters(h, measureUnit);
   const sqm = wMeters * hMeters;
+  const widthFeet = wMeters * FEET_PER_METER;
+  const heightFeet = hMeters * FEET_PER_METER;
+  const areaSqFeet = widthFeet * heightFeet;
 
-  const baseRate = selectedCategory?.baseRate || 1200;
-  const glassMult = selectedGlass?.multiplier || 1;
-  const frameMult = selectedFrame?.multiplier || 1;
-  const estimatedCost = Math.round(sqm * baseRate * glassMult * frameMult * 100) / 100 || 0;
+  const estimatedCost = Math.round(areaSqFeet * PRICE_PER_SQ_FOOT * 100) / 100 || 0;
 
   // Phone helpers
   const cleanedPhone = cleanPhoneInput(phone);
@@ -851,7 +853,7 @@ export default function QuotationModule() {
                 {/* Unit switcher */}
                 <div className="flex items-center gap-2 mb-4">
                   <span style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>UNIT:</span>
-                  {(['cm', 'm', 'ft'] as MeasurementUnit[]).map((u) => (
+                  {(['cm', 'm', 'ft', 'in'] as MeasurementUnit[]).map((u) => (
                     <button
                       key={u}
                       onClick={() => handleUnitChange(u)}
@@ -892,7 +894,7 @@ export default function QuotationModule() {
                       type="number"
                       value={width}
                       onChange={(e) => handleWidthChange(e.target.value)}
-                      placeholder={measureUnit === 'cm' ? 'e.g. 120' : measureUnit === 'm' ? 'e.g. 1.20' : 'e.g. 3.94'}
+                      placeholder={measureUnit === 'cm' ? 'e.g. 120' : measureUnit === 'm' ? 'e.g. 1.20' : measureUnit === 'ft' ? 'e.g. 3.94' : 'e.g. 47.24'}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(width !== '' && !widthValid)}
@@ -912,7 +914,7 @@ export default function QuotationModule() {
                       type="number"
                       value={height}
                       onChange={(e) => handleHeightChange(e.target.value)}
-                      placeholder={measureUnit === 'cm' ? 'e.g. 150' : measureUnit === 'm' ? 'e.g. 1.50' : 'e.g. 4.92'}
+                      placeholder={measureUnit === 'cm' ? 'e.g. 150' : measureUnit === 'm' ? 'e.g. 1.50' : measureUnit === 'ft' ? 'e.g. 4.92' : 'e.g. 59.06'}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(height !== '' && !heightValid)}
@@ -935,7 +937,7 @@ export default function QuotationModule() {
                       {' | '}
                       {fmt2(wMeters)} m × {fmt2(hMeters)} m
                       {' | '}
-                      {fmt2(fromMeters(wMeters, 'ft'))} ft × {fmt2(fromMeters(hMeters, 'ft'))} ft
+                      {fmt2(widthFeet)} ft × {fmt2(heightFeet)} ft
                     </div>
                   </div>
                 )}
@@ -1069,8 +1071,9 @@ export default function QuotationModule() {
                       { label: 'Dimensions', value: width && height ? `${width} ${UNIT_LABELS[measureUnit]} \u00d7 ${height} ${UNIT_LABELS[measureUnit]}` : 'Not set' },
                       { label: 'Dimensions (cm)', value: widthValid && heightValid ? `${fmt2(fromMeters(wMeters, 'cm'))} cm \u00d7 ${fmt2(fromMeters(hMeters, 'cm'))} cm` : '\u2014' },
                       { label: 'Dimensions (m)', value: widthValid && heightValid ? `${fmt2(wMeters)} m \u00d7 ${fmt2(hMeters)} m` : '\u2014' },
-                      { label: 'Dimensions (ft)', value: widthValid && heightValid ? `${fmt2(fromMeters(wMeters, 'ft'))} ft \u00d7 ${fmt2(fromMeters(hMeters, 'ft'))} ft` : '\u2014' },
+                      { label: 'Dimensions (ft)', value: widthValid && heightValid ? `${fmt2(widthFeet)} ft \u00d7 ${fmt2(heightFeet)} ft` : '\u2014' },
                       { label: 'Area', value: sqm > 0 ? `${fmt2(sqm)} m\u00b2` : 'Not computed' },
+                      { label: 'Area (ft²)', value: areaSqFeet > 0 ? `${fmt2(areaSqFeet)} ft²` : 'Not computed' },
                       { label: 'Address', value: sanitizeTextInput(address) || '\u2014' },
                       { label: 'Client Name', value: name || '\u2014' },
                       { label: 'Contact', value: maskPhone(cleanedPhone) },
@@ -1101,10 +1104,9 @@ export default function QuotationModule() {
                   </div>
                   <div className="mt-5 space-y-2">
                     {[
-                      { label: 'Base Rate', value: `\u20b1${(selectedCategory?.baseRate || 0).toLocaleString()}/m\u00b2` },
-                      { label: 'Glass Type (+)', value: `\u00d7${selectedGlass?.multiplier || 1} factor` },
-                      { label: 'Frame Type (+)', value: `\u00d7${selectedFrame?.multiplier || 1} factor` },
-                      { label: 'Area', value: `${fmt2(sqm)} m\u00b2` },
+                      { label: 'Rate', value: '\u20b1350 / ft²' },
+                      { label: 'Area (ft²)', value: `${fmt2(areaSqFeet)} ft²` },
+                      { label: 'Formula', value: 'Area × 350' },
                     ].map((row) => (
                       <div key={row.label} className="flex justify-between items-center">
                         <span style={{ color: '#9ab0c4', fontSize: '12px', fontFamily: 'var(--font-body)' }}>{row.label}</span>

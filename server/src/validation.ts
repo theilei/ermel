@@ -40,10 +40,10 @@ export function maskPhone(phone: string): string {
 }
 
 // ---- Measurement ----
-type Unit = 'cm' | 'm' | 'ft';
+type Unit = 'cm' | 'm' | 'ft' | 'in';
 
-const TO_M: Record<Unit, number> = { cm: 0.01, m: 1, ft: 0.3048 };
-const FROM_M: Record<Unit, number> = { cm: 100, m: 1, ft: 1 / 0.3048 };
+const TO_M: Record<Unit, number> = { cm: 0.01, m: 1, ft: 0.3048, in: 0.0254 };
+const FROM_M: Record<Unit, number> = { cm: 100, m: 1, ft: 1 / 0.3048, in: 1 / 0.0254 };
 
 export function toMeters(value: number, from: Unit): number {
   return value * TO_M[from];
@@ -65,6 +65,7 @@ export function allUnitsFromMeters(meters: number) {
     m: fmt(meters),
     cm: fmt(fromMeters(meters, 'cm')),
     ft: fmt(fromMeters(meters, 'ft')),
+    in: fmt(fromMeters(meters, 'in')),
   };
 }
 

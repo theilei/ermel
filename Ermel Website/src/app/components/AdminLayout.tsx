@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import {
-  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight
+  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight, DollarSign
 } from 'lucide-react';
 import { useQuotes } from '../context/QuoteContext';
 
@@ -43,6 +43,7 @@ export default function AdminLayout() {
     {
       title: 'Operations',
       items: [
+        { id: 'price-approval', label: 'Price Approval', icon: DollarSign, path: '/admin/price-approval', category: 'operations' },
         { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: pendingCount || undefined },
         { id: 'queue', label: 'Installation Queue', icon: Trello, path: '/admin/queue', category: 'operations' },
       ]

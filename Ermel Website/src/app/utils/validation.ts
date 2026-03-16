@@ -33,18 +33,20 @@ export function maskPhone(phone: string): string {
 }
 
 // ---- Measurement Conversions ----
-export type MeasurementUnit = 'cm' | 'm' | 'ft';
+export type MeasurementUnit = 'cm' | 'm' | 'ft' | 'in';
 
 const TO_METERS: Record<MeasurementUnit, number> = {
   cm: 0.01,
   m: 1,
   ft: 0.3048,
+  in: 0.0254,
 };
 
 const FROM_METERS: Record<MeasurementUnit, number> = {
   cm: 100,
   m: 1,
   ft: 1 / 0.3048,
+  in: 1 / 0.0254,
 };
 
 /** Convert a value from `fromUnit` to canonical meters. */
@@ -93,6 +95,7 @@ export function allUnitsFromMeters(meters: number) {
     m: Number(fmt2(meters)),
     cm: Number(fmt2(fromMeters(meters, 'cm'))),
     ft: Number(fmt2(fromMeters(meters, 'ft'))),
+    in: Number(fmt2(fromMeters(meters, 'in'))),
   };
 }
 
