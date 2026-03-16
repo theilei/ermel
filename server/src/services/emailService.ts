@@ -25,7 +25,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   // Check if nodemailer + SMTP credentials are configured
   const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS;
 
   if (gmailUser && gmailPass) {
     try {
@@ -160,4 +160,48 @@ export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Pro
     html,
     attachmentHtml: pdfHtml,
   });
+}
+
+export async function sendQuoteSubmissionEmails(quote: Quote): Promise<void> {
+  const companyEmail = process.env.COMPANY_EMAIL || process.env.GMAIL_USER;
+
+  const customerHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
+      <h2 style="margin: 0 0 12px;">Quote Request Received</h2>
+      <p>Hello ${quote.customerName},</p>
+      <p>We received your quote request <strong>${quote.quoteNumber}</strong>. Our team will review it and follow up soon.</p>
+      <p><strong>Project:</strong> ${quote.projectType}<br>
+      <strong>Material:</strong> ${quote.frameMaterial}<br>
+      <strong>Dimensions:</strong> ${quote.width}cm × ${quote.height}cm</p>
+      <p style="color:#54667d;">Thank you for choosing Ermel Glass & Aluminum Works.</p>
+    </div>
+  `;
+
+  const companyHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
+      <h2 style="margin: 0 0 12px;">New Quote Submitted</h2>
+      <p><strong>Quote:</strong> ${quote.quoteNumber}</p>
+      <p><strong>Customer:</strong> ${quote.customerName} (${quote.customerEmail})</p>
+      <p><strong>Phone:</strong> ${quote.customerPhone}</p>
+      <p><strong>Project:</strong> ${quote.projectType}</p>
+      <p><strong>Material:</strong> ${quote.frameMaterial}</p>
+      <p><strong>Dimensions:</strong> ${quote.width}cm × ${quote.height}cm</p>
+      <p><strong>Estimated Cost:</strong> ₱${quote.estimatedCost.toLocaleString()}</p>
+      <p><strong>Notes:</strong> ${quote.notes || 'N/A'}</p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: quote.customerEmail,
+    subject: `Quote Request Received (${quote.quoteNumber})`,
+    html: customerHtml,
+  });
+
+  if (companyEmail) {
+    await sendEmail({
+      to: companyEmail,
+      subject: `New Quote Request ${quote.quoteNumber}`,
+      html: companyHtml,
+    });
+  }
 }

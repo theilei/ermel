@@ -6,6 +6,7 @@ import { requireAdmin } from '../middleware/auth';
 import * as quoteCtrl from '../controllers/quoteControllerDB';
 import * as orderCtrl from '../controllers/orderControllerDB';
 import * as legacyOrderCtrl from '../controllers/legacyOrderController';
+import * as reservationCtrl from '../controllers/reservationController';
 
 const router = Router();
 
@@ -20,6 +21,12 @@ router.post('/quotes/:id/approve', quoteCtrl.approveQuote);
 router.post('/quotes/:id/reject', quoteCtrl.rejectQuote);
 router.get('/quotes/:id/pdf', quoteCtrl.generatePDF);
 router.post('/quotes/:id/convert', quoteCtrl.convertToOrder);
+
+// ---- Reservation Management ----
+router.get('/reservations', reservationCtrl.listReservations);
+router.post('/reservations/:id/approve', reservationCtrl.approveReservation);
+router.post('/reservations/:id/reject', reservationCtrl.rejectReservation);
+router.post('/reservations/:id/reschedule', reservationCtrl.rescheduleReservation);
 
 // ---- Installation Queue ----
 router.get('/orders', orderCtrl.listOrders);
