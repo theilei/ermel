@@ -34,6 +34,8 @@ function toFrontendQuote(q: QuoteModel.Quote) {
     declinedDate: q.declinedDate,
     convertedDate: q.convertedDate,
     notes: q.notes,
+    reservationDate: q.reservationDate,
+    reservationStatus: q.reservationStatus,
   };
 }
 
@@ -188,7 +190,7 @@ export async function rejectQuote(req: Request, res: Response) {
     }
 
     const updated = await QuoteModel.updateQuote(quote.id, {
-      status: 'customer_declined',
+      status: 'rejected',
       rejectionReason: reason.trim(),
     });
 

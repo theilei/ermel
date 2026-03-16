@@ -1,19 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import {
   Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight
 } from 'lucide-react';
 import { useQuotes } from '../context/QuoteContext';
+import { supabase } from '../services/supabaseClient';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [notifications, setNotifications] = useState(3);
+  const [openNotifications, setOpenNotifications] = useState(false);
   const [adminUser, setAdminUser] = useState('');
-  const { quotes } = useQuotes();
+  const [unreadQuoteIds, setUnreadQuoteIds] = useState<string[]>([]);
+  const { quotes, refreshQuotes } = useQuotes();
 
   const pendingCount = quotes.filter((q) => q.status === 'pending' || q.status === 'draft').length;
+
+  const sortedQuotes = useMemo(
+    () => [...quotes].sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()),
+    [quotes]
+  );
+
+  const notificationItems = useMemo(
+    () => sortedQuotes.slice(0, 8).map((q) => ({
+      id: q.id,
+      title: 'New Quote Request',
+      message: `${q.customerName} submitted ${q.id}`,
+      createdAt: q.submissionDate,
+      unread: unreadQuoteIds.includes(q.id),
+    })),
+    [sortedQuotes, unreadQuoteIds]
+  );
 
   useEffect(() => {
     // Check authentication
@@ -27,10 +45,53 @@ export default function AdminLayout() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    const stored = localStorage.getItem('ermel_admin_unread_quotes');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setUnreadQuoteIds(parsed);
+      } catch {
+        setUnreadQuoteIds([]);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('ermel_admin_unread_quotes', JSON.stringify(unreadQuoteIds));
+  }, [unreadQuoteIds]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('admin-quotes-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, (payload) => {
+        const quoteNumber = (payload.new as any)?.quote_number;
+        if (quoteNumber && typeof quoteNumber === 'string') {
+          setUnreadQuoteIds((prev) => (prev.includes(quoteNumber) ? prev : [quoteNumber, ...prev].slice(0, 50)));
+        }
+        refreshQuotes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshQuotes]);
+
   const handleLogout = () => {
     localStorage.removeItem('ermel_admin_token');
     localStorage.removeItem('ermel_admin_user');
     navigate('/admin/login');
+  };
+
+  const unreadCount = unreadQuoteIds.length;
+
+  const handleOpenQuoteFromNotif = (quoteId: string) => {
+    setUnreadQuoteIds((prev) => prev.filter((id) => id !== quoteId));
+    setOpenNotifications(false);
+    navigate(`/admin/quotations/${quoteId}`);
   };
 
   const menuCategories = [
@@ -283,17 +344,38 @@ export default function AdminLayout() {
             <button
               className="relative p-3"
               style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px' }}
+              onClick={() => setOpenNotifications((v) => !v)}
             >
               <Bell size={18} color="#54667d" />
-              {notifications > 0 && (
+              {unreadCount > 0 && (
                 <span
                   className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: '#7a0000', color: 'white', fontSize: '10px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}
                 >
-                  {notifications}
+                  {unreadCount}
                 </span>
               )}
             </button>
+            {openNotifications && (
+              <div style={{ position: 'absolute', top: '68px', right: '24px', width: '320px', maxHeight: '420px', overflowY: 'auto', backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100 }}>
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid #f0f2f5', fontFamily: 'var(--font-heading)', fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#15263c' }}>
+                  Notifications
+                </div>
+                {notificationItems.length === 0 && (
+                  <div style={{ padding: '14px', color: '#9ab0c4', fontSize: '13px' }}>No notifications yet.</div>
+                )}
+                {notificationItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleOpenQuoteFromNotif(item.id)}
+                    style={{ width: '100%', textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f2f5', backgroundColor: item.unread ? '#fff8e1' : 'white', cursor: 'pointer' }}
+                  >
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '12px', color: '#15263c', fontWeight: 700 }}>{item.title}</div>
+                    <div style={{ fontSize: '12px', color: '#54667d', marginTop: '2px' }}>{item.message}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </header>
 

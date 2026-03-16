@@ -30,6 +30,8 @@ function toFrontendQuote(q: QuoteModel.Quote) {
     declinedDate: q.declinedDate,
     convertedDate: q.convertedDate,
     notes: q.notes,
+    reservationDate: q.reservationDate,
+    reservationStatus: q.reservationStatus,
   };
 }
 

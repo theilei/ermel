@@ -1,7 +1,7 @@
 // ============================================================
 // API Service — Frontend API layer for quote system
 // ============================================================
-import type { Quote, QuoteStatus, InstallationOrder, InstallationStatus, ActivityLog } from '../types/quotation';
+import type { Quote, QuoteStatus, InstallationOrder, InstallationStatus, ActivityLog, Reservation } from '../types/quotation';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -146,6 +146,54 @@ export async function fetchActivityLogs(params?: { quoteId?: string; orderId?: s
   if (params?.orderId) query.set('orderId', params.orderId);
   const res = await fetch(`${API_BASE}/admin/activity-logs?${query}`, { headers: getAdminHeaders(), credentials: 'include' });
   return handleResponse<ActivityLog[]>(res);
+}
+
+// ---- Reservation API ----
+export async function fetchReservedDates() {
+  const res = await fetch(`${API_BASE}/reservations/dates`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<string[]>(res);
+}
+
+export async function fetchReservations(params?: { status?: string }) {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status', params.status);
+
+  const res = await fetch(`${API_BASE}/admin/reservations?${query}`, {
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<Reservation[]>(res);
+}
+
+export async function approveReservation(id: string) {
+  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<Reservation>(res);
+}
+
+export async function rejectReservation(id: string) {
+  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<Reservation>(res);
+}
+
+export async function rescheduleReservation(id: string, reservationDate: string) {
+  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reschedule`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ reservationDate }),
+  });
+  return handleResponse<Reservation>(res);
 }
 
 // ---- Legacy Orders (general project tracking) ----

@@ -117,6 +117,7 @@ export default function QuoteDetails() {
         <div style="display: flex; justify-content: space-between; padding: 6px 0;"><span style="color: #54667d;">Frame Material:</span><span style="font-weight: bold;">${quote.frameMaterial}</span></div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0;"><span style="color: #54667d;">Dimensions:</span><span style="font-weight: bold;">${quote.width}cm × ${quote.height}cm × ${quote.quantity} unit(s)</span></div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0;"><span style="color: #54667d;">Color:</span><span style="font-weight: bold;">${quote.color}</span></div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0;"><span style="color: #54667d;">Reservation Date:</span><span style="font-weight: bold;">${quote.reservationDate || 'N/A'}</span></div>
       </div>
       <div style="background: #15263c; color: white; padding: 15px 20px; border-radius: 8px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Total Estimated Cost</span>
@@ -366,6 +367,7 @@ export default function QuoteDetails() {
                     { label: 'Dimensions', value: `${quote.width}cm × ${quote.height}cm` },
                     { label: 'Quantity', value: `${quote.quantity} unit(s)` },
                     { label: 'Color', value: quote.color },
+                      { label: 'Reservation', value: quote.reservationDate || 'N/A' },
                   ].map((field) => (
                     <div key={field.label} className="p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
                       <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{field.label}</div>

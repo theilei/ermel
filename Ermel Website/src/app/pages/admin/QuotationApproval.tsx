@@ -16,6 +16,7 @@ const ITEMS_PER_PAGE = 10;
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
+  { value: 'rejected', label: 'Rejected' },
   { value: 'draft', label: 'Draft' },
   { value: 'approved', label: 'Approved' },
   { value: 'customer_accepted', label: 'Customer Accepted' },
