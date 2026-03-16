@@ -34,7 +34,7 @@ const PROJECT_CATEGORIES = [
   { id: 'glass-partition', label: 'Glass Partition', desc: 'Interior divider or office partition', img: 'https://images.unsplash.com/photo-1770993151375-0dee97eda931?w=400&q=80', baseRate: 1500 },
   { id: 'awning-window', label: 'Awning Window', desc: 'Top-hinged outward opening window', img: 'https://images.unsplash.com/photo-1766521076678-b124ae61690a?w=400&q=80', baseRate: 1100 },
   { id: 'fixed-window', label: 'Fixed Window', desc: 'Non-operable picture window', img: 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?w=400&q=80', baseRate: 900 },
-  { id: 'other', label: 'Other', desc: 'Other – Please specify', img: '', baseRate: 1200 },
+  { id: 'other', label: 'Other', desc: 'Other – Please specify', img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&q=80', baseRate: 1200 },
 ];
 
 const GLASS_TYPES = [
@@ -42,7 +42,7 @@ const GLASS_TYPES = [
   { id: 'bronze', label: 'Bronze Glass', desc: 'Warm tint, reduces glare & heat', color: 'rgba(205,152,70,0.3)', border: '#cd9846', multiplier: 1.25, thickness: '6mm tinted' },
   { id: 'frosted', label: 'Frosted Glass', desc: 'Diffused light, privacy-enhancing', color: 'rgba(230,230,230,0.5)', border: '#aaa', multiplier: 1.35, thickness: '6mm acid-etched' },
   { id: 'tempered', label: 'Tempered Glass', desc: 'Safety-grade, 5× stronger than clear', color: 'rgba(180,210,255,0.4)', border: '#1565c0', multiplier: 1.6, thickness: '10mm tempered' },
-  { id: 'other', label: 'Other', desc: 'Other – Please specify', color: 'rgba(200,200,200,0.3)', border: '#999', multiplier: 1.0, thickness: 'Custom' },
+  { id: 'other', label: 'Other', desc: 'Other – Please specify', color: 'rgba(200,200,200,0.3)', border: '#999', multiplier: 1.0, thickness: 'Custom', img: 'https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&q=80' },
 ];
 
 const COLOR_OPTIONS = [
@@ -648,12 +648,18 @@ export default function QuotationModule() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
                 {GLASS_TYPES.map((g) => (
                   <div key={g.id} onClick={() => setGlassType(g.id)} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200" style={{ border: glassType === g.id ? '3px solid #7a0000' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : 'none', minHeight: '60px' }}>
-                    <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', backgroundColor: g.color, border: `1px solid ${g.border}` }}>
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(255,255,255,0.2) 100%)' }} />
-                      {g.id === 'tempered' && <div className="absolute bottom-2 left-2 right-2 text-center" style={{ fontSize: '10px', color: '#1565c0', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em' }}>TEMPERED</div>}
-                      {g.id === 'frosted' && <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)', background: 'rgba(255,255,255,0.2)' }} />}
-                      {g.id === 'other' && <div className="absolute inset-0 flex items-center justify-center"><span style={{ fontSize: '28px', color: '#999' }}>?</span></div>}
-                    </div>
+                    {g.img ? (
+                      <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', border: `1px solid ${g.border}` }}>
+                        <img src={g.img} alt={g.label} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 50%)' }} />
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', backgroundColor: g.color, border: `1px solid ${g.border}` }}>
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(255,255,255,0.2) 100%)' }} />
+                        {g.id === 'tempered' && <div className="absolute bottom-2 left-2 right-2 text-center" style={{ fontSize: '10px', color: '#1565c0', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em' }}>TEMPERED</div>}
+                        {g.id === 'frosted' && <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)', background: 'rgba(255,255,255,0.2)' }} />}
+                      </div>
+                    )}
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: '#15263c', textTransform: 'uppercase', marginBottom: '4px' }}>{g.label}</div>
                     <div style={{ fontSize: '11px', color: '#54667d', marginBottom: '4px', fontFamily: 'var(--font-body)' }}>{g.desc}</div>
                     <div style={{ fontSize: '11px', color: '#7a0000', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>{g.thickness}</div>
@@ -820,44 +826,6 @@ export default function QuotationModule() {
                   )}
                 </div>
               </div>
-
-              <div className="p-5 rounded-xl mb-6" style={{ backgroundColor: '#fff8e1', border: '1px solid #f0c040' }}>
-                <div style={{ fontFamily: 'var(--font-heading)', color: '#7a4f00', fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '6px' }}>⚠ MEASURING TIPS</div>
-                <p style={{ fontSize: '13px', color: '#7a4f00', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-                  Measure the opening/rough opening — not the existing frame. For windows, measure the width at 3 points (top, middle, bottom) and use the <strong>smallest</strong> value.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="flex items-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    WIDTH ({UNIT_LABELS[measureUnit]})
-                    <Tooltip text={`Measure the full width of the opening in ${UNIT_LABELS[measureUnit]}.`} />
-                  </label>
-                  <input type="number" value={width} onChange={(e) => handleWidthChange(e.target.value)} step="any" className="w-full px-4 py-3 rounded-lg outline-none transition-all" style={inputStyle(width !== '' && !widthValid)} />
-                  {width !== '' && !widthValid && <InlineError message={w <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />}
-                </div>
-                <div>
-                  <label className="flex items-center mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    HEIGHT ({UNIT_LABELS[measureUnit]})
-                    <Tooltip text={`Measure the full height of the opening in ${UNIT_LABELS[measureUnit]}.`} />
-                  </label>
-                  <input type="number" value={height} onChange={(e) => handleHeightChange(e.target.value)} step="any" className="w-full px-4 py-3 rounded-lg outline-none transition-all" style={inputStyle(height !== '' && !heightValid)} />
-                  {height !== '' && !heightValid && <InlineError message={h <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />}
-                </div>
-              </div>
-
-              {widthValid && heightValid && (
-                <div className="p-4 rounded-lg" style={{ backgroundColor: '#f0f4f8', border: '1px solid #d9d9d9' }}>
-                  <div style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '13px', letterSpacing: '0.08em', marginBottom: '4px' }}>COMPUTED AREA: <strong style={{ color: '#15263c' }}>{fmt2(sqm)} m²</strong></div>
-                  <div style={{ fontSize: '12px', color: '#54667d', fontFamily: 'var(--font-body)' }}>
-                    {fmt2(fromMeters(wMeters, 'cm'))} cm × {fmt2(fromMeters(hMeters, 'cm'))} cm {' | '}
-                    {fmt2(wMeters)} m × {fmt2(hMeters)} m {' | '}
-                    {fmt2(fromMeters(wMeters, 'ft'))} ft × {fmt2(fromMeters(hMeters, 'ft'))} ft
-                  </div>
-                </div>
-              )}
-            </div>
           )}
 
           {step === 4 && (
@@ -877,6 +845,7 @@ export default function QuotationModule() {
 
               <div style={{ backgroundColor: 'white', border: '1px solid #d9d9d9', borderRadius: '8px', padding: '10px' }}>
                 <FullCalendar
+                  key={`reservation-calendar-${reservationDate || 'none'}-${reservedDates.size}`}
                   plugins={[dayGridPlugin, interactionPlugin]}
                   initialView="dayGridMonth"
                   fixedWeekCount={false}
@@ -893,6 +862,7 @@ export default function QuotationModule() {
                   dayCellDidMount={(arg) => {
                     const cellDate = new Date(arg.date.getFullYear(), arg.date.getMonth(), arg.date.getDate());
                     const dateStr = isoDate(cellDate);
+                    const dayNumberEl = arg.el.querySelector('.fc-daygrid-day-number') as HTMLElement | null;
                     if (reservedDates.has(dateStr)) {
                       arg.el.style.backgroundColor = '#fff0f0';
                       arg.el.style.color = '#7a0000';
@@ -907,9 +877,23 @@ export default function QuotationModule() {
                       arg.el.style.cursor = 'pointer';
                     }
 
+                    if (dayNumberEl) {
+                      dayNumberEl.style.borderRadius = '6px';
+                      dayNumberEl.style.padding = '2px 6px';
+                      dayNumberEl.style.backgroundColor = 'transparent';
+                      dayNumberEl.style.color = 'inherit';
+                    }
+
                     if (reservationDate && dateStr === reservationDate) {
+                      arg.el.style.backgroundColor = '#15263c';
+                      arg.el.style.color = 'white';
                       arg.el.style.outline = '2px solid #15263c';
                       arg.el.style.outlineOffset = '-2px';
+                      if (dayNumberEl) {
+                        dayNumberEl.style.backgroundColor = '#0f1d30';
+                        dayNumberEl.style.color = 'white';
+                        dayNumberEl.style.fontWeight = '700';
+                      }
                     }
                   }}
                 />
