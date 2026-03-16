@@ -5,9 +5,8 @@ import {
   ChevronRight, Eye, FileImage, X, AlertCircle, FileText,
   ThumbsUp, ThumbsDown, Ban
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp, type Order, type OrderStatus } from '../context/AppContext';
 import { useQuotes } from '../context/QuoteContext';
-import { Order, OrderStatus } from '../data/mockData';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS } from '../types/quotation';
 import type { Quote } from '../types/quotation';
 

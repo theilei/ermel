@@ -7,7 +7,7 @@
 //
 // For development, emails are logged to console instead of actually sent.
 
-import { Quote } from '../models/Quote';
+import { Quote } from '../models/QuoteDB';
 
 interface EmailOptions {
   to: string;
@@ -106,7 +106,7 @@ export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Pro
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #54667d; font-size: 13px;">Quote ID:</td>
-              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quote.id}</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quote.quoteNumber}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #54667d; font-size: 13px;">Project:</td>
@@ -156,7 +156,7 @@ export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Pro
 
   return sendEmail({
     to: quote.customerEmail,
-    subject: `Your Quotation ${quote.id} is Ready — ERMEL Glass & Aluminum`,
+    subject: `Your Quotation ${quote.quoteNumber} is Ready — ERMEL Glass & Aluminum`,
     html,
     attachmentHtml: pdfHtml,
   });

@@ -5,53 +5,53 @@ import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
-import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import {
   sanitizeText,
   cleanPhone,
   isValidPhPhone,
-  hashPhone,
   maskPhone,
   toMeters,
   isValidMeasurement,
-  allUnitsFromMeters,
   isValidAddress,
   isValidOther,
   sanitizeOther,
 } from './validation';
 import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
+import authRoutes from './routes/authRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import { requireAuth, requireVerified } from './middleware/authMiddleware';
+import { sessionConfig } from './config/session';
+import pool from './config/database';
+import { me } from './controllers/authController';
+import { csrfProtection } from './middleware/csrf';
+import * as QuoteModel from './models/QuoteDB';
+import * as NotificationService from './services/notificationService';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ---- Database pool ----
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel',
-});
+app.set('trust proxy', 1);
 
 // ---- Middleware ----
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'ermel-dev-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
+app.use(session(sessionConfig));
 
 // ---- Mount route modules ----
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.get('/api/user/me', me);
+
+// ---- Protected quote access check ----
+app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
+  res.json({ allowed: true });
+});
 
 // ---- Rate limiter: 5 submissions per IP per hour ----
 const quoteLimiter = rateLimit({
@@ -64,9 +64,9 @@ const quoteLimiter = rateLimit({
 });
 
 // ============================================================
-// POST /api/quotes
+// POST /api/quotes — Public quote submission
 // ============================================================
-app.post('/api/quotes', quoteLimiter, async (req, res) => {
+app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimiter, async (req, res) => {
   try {
     const body = req.body;
 
@@ -84,13 +84,6 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
     // Glass type
     const glassType = sanitizeText(body.glassType || '');
     if (!glassType) errors.push('Glass type is required.');
-    const glassTypeOther = body.glassTypeOther ? sanitizeOther(body.glassTypeOther) : null;
-    if (glassType.toLowerCase().startsWith('other') && (!glassTypeOther || !isValidOther(glassTypeOther))) {
-      errors.push('Please specify the "Other" glass type.');
-    }
-
-    // Color
-    const colorOther = body.colorOther ? sanitizeOther(body.colorOther) : null;
 
     // Frame material
     const material = sanitizeText(body.material || '');
@@ -119,92 +112,117 @@ app.post('/api/quotes', quoteLimiter, async (req, res) => {
       errors.push('Please enter a complete address (minimum 10 characters).');
     }
 
-    // Name & email
-    const customer = sanitizeText(body.customer || '');
-    if (!customer) errors.push('Customer name is required.');
-    const email = sanitizeText(body.email || '');
-    if (!email) errors.push('Email is required.');
+    // Name & email are always resolved from authenticated session
+    const customer = sanitizeText(req.session.userName || '');
+    const email = sanitizeText(req.session.userEmail || '');
+    if (!customer) errors.push('Authenticated user name is required.');
+    if (!email) errors.push('Authenticated user email is required.');
 
     // Return all errors
     if (errors.length > 0) {
-      return res.status(400).json({ error: errors.join(' ') });
+      return res.status(400).json({ success: false, message: errors.join(' ') });
     }
 
-    // ---- Compute canonical values ----
+    // ---- Compute values ----
     const widthM = toMeters(rawWidth, unit);
     const heightM = toMeters(rawHeight, unit);
-    const wUnits = allUnitsFromMeters(widthM);
-    const hUnits = allUnitsFromMeters(heightM);
-    const phoneHashed = hashPhone(phonePlain);
-
-    // ---- Log (masked phone) ----
-    console.log(`[QUOTE] New from ${customer} | phone: ${maskPhone(phonePlain)} | ${wUnits.cm}cm x ${hUnits.cm}cm`);
-
-    // ---- Insert into database with parameterized query ----
-    const insertQuery = `
-      INSERT INTO quotes (
-        id, customer, project, material, glass_type, dimensions,
-        width_m, height_m, width_cm, height_cm, width_ft, height_ft,
-        estimated_cost, status, created_date, phone, phone_hash,
-        email, notes, address,
-        project_category_other, glass_type_other, color_other
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17,
-        $18, $19, $20,
-        $21, $22, $23
-      )
-      RETURNING id
-    `;
-
-    const orderId = `EGA-2026-${String(Math.floor(Math.random() * 900) + 100)}`;
+    const widthCm = widthM * 100;
+    const heightCm = heightM * 100;
     const estimatedCost = parseFloat(body.estimatedCost) || 0;
     const notes = sanitizeText(body.notes || '');
+    const color = sanitizeText(body.color || 'Clear');
+    const quantity = parseInt(body.quantity) || 1;
 
-    const values = [
-      orderId,
-      customer,
-      category,
-      material,
-      glassType,
-      `${rawWidth}${unit} × ${rawHeight}${unit}`,
-      wUnits.m,
-      hUnits.m,
-      wUnits.cm,
-      hUnits.cm,
-      wUnits.ft,
-      hUnits.ft,
-      estimatedCost,
-      'inquiry',
-      new Date().toISOString().split('T')[0],
-      phonePlain, // stored encrypted in production
-      phoneHashed,
-      email,
-      notes || null,
-      address,
-      categoryOther,
-      glassTypeOther,
-      colorOther,
-    ];
+    // ---- Log (masked phone) ----
+    console.log(`[QUOTE] New from ${customer} | phone: ${maskPhone(phonePlain)} | ${widthCm}cm x ${heightCm}cm`);
 
+    // ---- Find customer_id if they have a registered account ----
+    let customerId: string | undefined;
     try {
-      const result = await pool.query(insertQuery, values);
-      return res.status(201).json({ id: result.rows[0]?.id || orderId, success: true });
-    } catch (dbErr: any) {
-      // If DB is not configured, still return success for local dev
-      console.error('[DB ERROR]', dbErr.message);
-      return res.status(201).json({ id: orderId, success: true, note: 'Saved locally (DB not connected)' });
-    }
+      const userResult = await pool.query(
+        `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+        [email]
+      );
+      if (userResult.rows.length > 0) customerId = userResult.rows[0].id;
+    } catch { /* User lookup is best-effort */ }
+
+    // ---- Insert using QuoteDB model ----
+    const quote = await QuoteModel.createQuote({
+      customerId,
+      customerName: customer,
+      customerEmail: email,
+      customerPhone: phonePlain,
+      customerAddress: address,
+      projectType: category,
+      glassType,
+      frameMaterial: material,
+      width: widthCm,
+      height: heightCm,
+      quantity,
+      color,
+      estimatedCost,
+      notes: notes || undefined,
+    });
+
+    // Notify admins about new quote
+    NotificationService.notifyAdminsNewQuote(quote.quoteNumber, customer).catch(() => {});
+
+    return res.status(201).json({ success: true, data: { id: quote.quoteNumber } });
   } catch (err: any) {
     console.error('[SERVER ERROR]', err.message);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 
 // ---- Health check ----
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  try {
+    const dbCheck = await pool.query('SELECT NOW() AS db_time');
+    const userCount = await pool.query('SELECT COUNT(*) AS total FROM users');
+    const tokenCount = await pool.query('SELECT COUNT(*) AS total FROM email_verification_tokens');
+    res.json({
+      status: 'ok',
+      time: new Date().toISOString(),
+      database: 'connected',
+      db_time: dbCheck.rows[0].db_time,
+      tables: {
+        users: parseInt(userCount.rows[0].total, 10),
+        email_verification_tokens: parseInt(tokenCount.rows[0].total, 10),
+      },
+    });
+  } catch (err: any) {
+    res.json({
+      status: 'degraded',
+      time: new Date().toISOString(),
+      database: 'disconnected',
+      error: err.message,
+    });
+  }
+});
+
+// ---- Live view: list all users (dev only) ----
+app.get('/api/dev/users', async (_req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Not available in production.' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT id, full_name, email, is_verified, failed_login_attempts,
+              lock_until, created_at, updated_at
+       FROM users ORDER BY created_at DESC`
+    );
+    res.json({ count: result.rows.length, users: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- CSRF error handler ----
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'Invalid CSRF token.' });
+  }
+  return next(err);
 });
 
 // ---- Start ----

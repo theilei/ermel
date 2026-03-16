@@ -3,8 +3,9 @@
 // ============================================================
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/auth';
-import * as quoteCtrl from '../controllers/quoteController';
-import * as orderCtrl from '../controllers/orderController';
+import * as quoteCtrl from '../controllers/quoteControllerDB';
+import * as orderCtrl from '../controllers/orderControllerDB';
+import * as legacyOrderCtrl from '../controllers/legacyOrderController';
 
 const router = Router();
 
@@ -24,6 +25,14 @@ router.post('/quotes/:id/convert', quoteCtrl.convertToOrder);
 router.get('/orders', orderCtrl.listOrders);
 router.get('/orders/:id', orderCtrl.getOrder);
 router.put('/orders/:id/status', orderCtrl.updateInstallationStatus);
+
+// ---- Legacy Orders (general project tracking) ----
+router.get('/legacy-orders', legacyOrderCtrl.listOrders);
+router.get('/legacy-orders/:id', legacyOrderCtrl.getOrder);
+router.post('/legacy-orders', legacyOrderCtrl.createOrder);
+router.put('/legacy-orders/:id/status', legacyOrderCtrl.updateStatus);
+router.put('/legacy-orders/:id/cost', legacyOrderCtrl.updateCost);
+router.put('/legacy-orders/:id/payment', legacyOrderCtrl.markPaymentUploaded);
 
 // ---- Activity Logs ----
 router.get('/activity-logs', quoteCtrl.getActivityLogs);

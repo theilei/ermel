@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Check, Info, ChevronRight, ChevronLeft, ArrowRight, X } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Order } from '../data/mockData';
+import { getCsrfToken } from '../services/csrf';
 import {
   type MeasurementUnit,
   sanitizeTextInput,
@@ -61,6 +60,7 @@ const FRAME_MATERIALS = [
 ];
 
 const UNIT_LABELS: Record<MeasurementUnit, string> = { cm: 'cm', m: 'm', ft: 'ft' };
+const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
 
 // ============================================================
 // Small sub-components
@@ -280,7 +280,6 @@ const STEPS = ['Category', 'Material', 'Dimensions', 'Summary'];
 // ============================================================
 export default function QuotationModule() {
   const navigate = useNavigate();
-  const { addOrder } = useApp();
 
   // Core form state
   const [step, setStep] = useState(0);
@@ -445,44 +444,54 @@ export default function QuotationModule() {
     const wUnits = allUnitsFromMeters(wMeters);
     const hUnits = allUnitsFromMeters(hMeters);
     const unitLabel = UNIT_LABELS[measureUnit];
-
-    const newOrder: Order = {
-      id: `EGA-2026-${String(Math.floor(Math.random() * 900) + 100)}`,
+    const quotePayload = {
       customer: finalName,
+      email: finalEmail,
+      phone_plain: finalPhone,
+      address: finalAddress,
+      notes: finalNotes || undefined,
       project: category === 'other' ? `Other: ${sanitizeOtherInput(categoryOther)}` : (selectedCategory?.label || ''),
+      projectCategoryOther: category === 'other' ? sanitizeOtherInput(categoryOther) : null,
       material: selectedFrame?.label || '',
       glassType: glassType === 'other' ? `Other: ${sanitizeOtherInput(glassTypeOther)}` : (selectedGlass?.label || ''),
-      dimensions: `${width}${unitLabel} \u00d7 ${height}${unitLabel}`,
+      glassTypeOther: glassType === 'other' ? sanitizeOtherInput(glassTypeOther) : null,
+      color: colorChoice === 'other' ? sanitizeOtherInput(colorOther) : (selectedColor?.label || 'Clear'),
+      colorOther: colorChoice === 'other' ? sanitizeOtherInput(colorOther) : null,
+      dimensions: `${width}${unitLabel} × ${height}${unitLabel}`,
       width: wUnits.cm,
       height: hUnits.cm,
-      estimatedCost,
-      status: 'inquiry',
-      createdDate: new Date().toISOString().split('T')[0],
-      phone: finalPhone,
-      email: finalEmail,
-      notes: finalNotes || undefined,
-      paid: false,
-      projectCategoryOther: category === 'other' ? sanitizeOtherInput(categoryOther) : null,
-      glassTypeOther: glassType === 'other' ? sanitizeOtherInput(glassTypeOther) : null,
-      colorOther: colorChoice === 'other' ? sanitizeOtherInput(colorOther) : null,
       widthM: wUnits.m,
       heightM: hUnits.m,
       widthCm: wUnits.cm,
       heightCm: hUnits.cm,
       widthFt: wUnits.ft,
       heightFt: hUnits.ft,
-      address: finalAddress,
       measurementUnit: measureUnit,
+      estimatedCost,
+      quantity: 1,
     };
 
-    // Server submission (graceful fallback to client-only)
+    // Server submission only
     try {
-      const res = await fetch('/api/quotes', {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`${API_ROOT}/quotes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newOrder, phone_plain: finalPhone }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify(quotePayload),
       });
 
+      if (res.status === 401) {
+        navigate('/login?redirect=%2Fquote');
+        return;
+      }
+      if (res.status === 403) {
+        navigate('/verification-required');
+        return;
+      }
       if (res.status === 429) {
         setSubmitError('Too many quote requests. Please try again later.');
         return;
@@ -493,12 +502,14 @@ export default function QuotationModule() {
           setSubmitError(body.error);
           return;
         }
+        setSubmitError('Unable to submit your quote right now. Please try again.');
+        return;
       }
     } catch {
-      // Server unreachable \u2014 proceed with client-only mock
+      setSubmitError('Network error. Please check your connection and try again.');
+      return;
     }
 
-    addOrder(newOrder);
     setSubmitted(true);
   };
 
@@ -569,8 +580,7 @@ export default function QuotationModule() {
   }
 
   // ============================================================
-  // Render helpers
-  // ============================================================
+
   const inputStyle = (hasError = false) => ({
     border: hasError ? '2px solid #d32f2f' : '2px solid #d9d9d9',
     borderRadius: '8px' as const,
