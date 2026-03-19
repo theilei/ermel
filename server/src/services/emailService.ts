@@ -205,3 +205,49 @@ export async function sendQuoteSubmissionEmails(quote: Quote): Promise<void> {
     });
   }
 }
+
+export async function sendQuoteStatusUpdateEmail(
+  quote: Quote,
+  payload: { status?: string; estimatedPrice?: number; updatedPrice?: number; adminRemark?: string }
+): Promise<boolean> {
+  const dashboardUrl = process.env.FRONTEND_URL
+    ? `${process.env.FRONTEND_URL}/check-status`
+    : 'http://localhost:5173/check-status';
+
+  const statusLine = payload.status ? `<p style="margin: 0 0 8px;"><strong>Status:</strong> ${payload.status}</p>` : '';
+  const estimatedLine = payload.estimatedPrice !== undefined
+    ? `<p style="margin: 0 0 8px;"><strong>Estimated Price:</strong> Php ${payload.estimatedPrice.toLocaleString()}</p>`
+    : '';
+  const updatedLine = payload.updatedPrice !== undefined
+    ? `<p style="margin: 0 0 8px;"><strong>Updated Price:</strong> Php ${payload.updatedPrice.toLocaleString()}</p>`
+    : '';
+  const remarkLine = payload.adminRemark
+    ? `<p style="margin: 0;"><strong>Admin Remark:</strong> ${payload.adminRemark}</p>`
+    : '';
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
+      <h2 style="margin: 0 0 12px;">Your Quote Has Been Updated</h2>
+      <p>Hello ${quote.customerName},</p>
+      <p>Your quote <strong>${quote.quoteNumber}</strong> has new updates from our admin team.</p>
+
+      <div style="background: #f5f7fa; border: 1px solid #e0e4ea; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        ${statusLine}
+        ${estimatedLine}
+        ${updatedLine}
+        ${remarkLine}
+      </div>
+
+      <p>Please open your status page to review the latest details.</p>
+      <a href="${dashboardUrl}" style="display:inline-block; background:#7a0000; color:white; text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:700;">
+        Open Check My Status
+      </a>
+    </div>
+  `;
+
+  return sendEmail({
+    to: quote.customerEmail,
+    subject: `Quote Update (${quote.quoteNumber})`,
+    html,
+  });
+}

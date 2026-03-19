@@ -1,7 +1,16 @@
 // ============================================================
 // API Service — Frontend API layer for quote system
 // ============================================================
-import type { Quote, QuoteStatus, InstallationOrder, InstallationStatus, ActivityLog, Reservation } from '../types/quotation';
+import type {
+  Quote,
+  QuoteStatus,
+  InstallationOrder,
+  InstallationStatus,
+  ActivityLog,
+  Reservation,
+  QuoteUpdate,
+  SystemNotification,
+} from '../types/quotation';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -247,6 +256,54 @@ export async function fetchCustomerLegacyOrders(_email: string) {
     credentials: 'include',
   });
   return handleResponse<any[]>(res);
+}
+
+// ---- Customer Check Status API ----
+export async function fetchCheckStatusQuotes() {
+  const res = await fetch(`${API_BASE}/customer/check-status/quotes`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<Quote[]>(res);
+}
+
+export async function fetchQuoteUpdates(quoteId: string) {
+  const res = await fetch(`${API_BASE}/customer/check-status/quotes/${encodeURIComponent(quoteId)}/updates`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<{ quote: Quote; updates: QuoteUpdate[] }>(res);
+}
+
+export function getCustomerQuotePDFUrl(id: string): string {
+  return `${API_BASE}/customer/quotes/${encodeURIComponent(id)}/pdf`;
+}
+
+// ---- Notifications API ----
+export async function fetchNotifications() {
+  const res = await fetch(`${API_BASE}/notifications`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<{ notifications: SystemNotification[]; unreadCount: number }>(res);
+}
+
+export async function markNotificationRead(id: string) {
+  const res = await fetch(`${API_BASE}/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'PUT',
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<null>(res);
+}
+
+export async function markAllNotificationsRead() {
+  const res = await fetch(`${API_BASE}/notifications/read-all`, {
+    method: 'PUT',
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<{ marked: number }>(res);
 }
 
 export async function customerMarkPayment(id: string, _email: string) {

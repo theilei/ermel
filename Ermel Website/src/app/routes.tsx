@@ -7,6 +7,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
+import CheckStatus from './pages/CheckStatus';
 import GlassProducts from './pages/GlassProducts';
 import AluminumProducts from './pages/AluminumProducts';
 import QuotationApproval from './pages/admin/QuotationApproval';
@@ -38,6 +39,14 @@ export const router = createBrowserRouter([
         ),
       },
       { path: 'dashboard', Component: CustomerDashboard },
+      {
+        path: 'check-status',
+        element: (
+          <ProtectedRoute>
+            <CheckStatus />
+          </ProtectedRoute>
+        ),
+      },
       { path: 'products/glass', Component: GlassProducts },
       { path: 'products/aluminum', Component: AluminumProducts },
     ],

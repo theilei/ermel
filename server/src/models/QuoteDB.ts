@@ -28,7 +28,9 @@ export interface Quote {
   height: number;
   quantity: number;
   color: string;
+  originalEstimatedCost: number;
   estimatedCost: number;
+  updatedCost?: number;
   status: QuoteStatus;
   submissionDate: string;
   rejectionReason?: string;
@@ -45,6 +47,11 @@ export interface Quote {
 }
 
 function rowToQuote(row: any): Quote {
+  const originalEstimatedCost = parseFloat(row.estimated_cost);
+  const updatedCost = row.updated_cost !== null && row.updated_cost !== undefined
+    ? parseFloat(row.updated_cost)
+    : undefined;
+
   return {
     id: row.id,
     quoteNumber: row.quote_number,
@@ -60,7 +67,9 @@ function rowToQuote(row: any): Quote {
     height: parseFloat(row.height),
     quantity: row.quantity,
     color: row.color,
-    estimatedCost: parseFloat(row.estimated_cost),
+    originalEstimatedCost,
+    estimatedCost: updatedCost ?? originalEstimatedCost,
+    updatedCost,
     status: row.status as QuoteStatus,
     submissionDate: row.submission_date?.toISOString?.().split('T')[0] || row.submission_date,
     rejectionReason: row.rejection_reason || undefined,
@@ -153,8 +162,8 @@ export async function createQuote(data: CreateQuoteData): Promise<Quote> {
     `INSERT INTO qq_quotes (
       quote_number, customer_id, customer_name, customer_email, customer_phone,
       customer_address, project_type, glass_type, frame_material,
-      width, height, quantity, color, estimated_cost, notes
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      width, height, quantity, color, estimated_cost, updated_cost, notes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULL, $15)
     RETURNING *`,
     [
       quoteNumber, data.customerId || null, data.customerName, data.customerEmail,
@@ -188,6 +197,7 @@ export async function updateQuote(id: string, updates: Partial<Quote>): Promise<
     quantity: 'quantity',
     color: 'color',
     estimatedCost: 'estimated_cost',
+    updatedCost: 'updated_cost',
     status: 'status',
     rejectionReason: 'rejection_reason',
     approvedDate: 'approved_date',

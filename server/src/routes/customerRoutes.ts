@@ -13,8 +13,11 @@ router.use(requireAuth);
 // Customer quote routes
 router.get('/quotes', customerCtrl.getMyQuotes);
 router.get('/quotes/:id', customerCtrl.getMyQuote);
+router.get('/quotes/:id/pdf', customerCtrl.getMyQuotePdf);
 router.post('/quotes/:id/accept', customerCtrl.acceptQuote);
 router.post('/quotes/:id/decline', customerCtrl.declineQuote);
+router.get('/check-status/quotes', customerCtrl.getMyStatusQuotes);
+router.get('/check-status/quotes/:id/updates', customerCtrl.getMyQuoteUpdates);
 
 // Customer legacy order routes
 router.get('/legacy-orders', legacyOrderCtrl.getOrdersByEmail);

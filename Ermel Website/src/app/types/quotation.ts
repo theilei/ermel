@@ -31,7 +31,9 @@ export interface Quote {
   height: number;
   quantity: number;
   color: string;
+  originalEstimatedCost?: number;
   estimatedCost: number;
+  updatedCost?: number;
   status: QuoteStatus;
   submissionDate: string;
   rejectionReason?: string;
@@ -43,6 +45,29 @@ export interface Quote {
   notes?: string;
   reservationDate?: string;
   reservationStatus?: ReservationStatus;
+}
+
+export interface QuoteUpdate {
+  id: string;
+  quoteId: string;
+  status?: string;
+  estimatedPrice?: number;
+  updatedPrice?: number;
+  adminRemark?: string;
+  adminName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SystemNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  type?: string;
+  relatedQuoteNumber?: string;
+  createdAt: string;
 }
 
 export type ReservationStatus = 'pending' | 'approved' | 'rejected' | 'expired';
