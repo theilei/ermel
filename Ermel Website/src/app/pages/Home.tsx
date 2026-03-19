@@ -4,6 +4,7 @@ import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail, MapPin, Wrench, Bui
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import Footer from '../components/Footer';
 
+import bgvid from '../../assets/VIDEO UI.mp4';
 import completekitchen from '../../assets/kitchen_cabinet.png';
 import cabinetunder from '../../assets/cabinet_under.png';
 import slidingwindow from '../../assets/sliding_window.png';
@@ -11,7 +12,7 @@ import frenchtype from '../../assets/french_type.png';
 import swingdoor from '../../assets/swing_door.png';
 import doubleswing from '../../assets/double_swing.png';
 
-const GLASS_INSTALLATION_IMG = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
+const GLASS_INSTALLATION_VIDEO = bgvid;
 
 const KITCHEN_CABINET_IMG = completekitchen;
 const CABINET_IMG = cabinetunder;
@@ -87,9 +88,11 @@ export default function Home() {
         className="relative flex items-center justify-center overflow-hidden"
         style={{ minHeight: '100vh', paddingTop: '76px' }}
       >
-        <ImageWithFallback
-          src={GLASS_INSTALLATION_IMG}
-          alt="Glass installation"
+        <video
+          src={GLASS_INSTALLATION_VIDEO}
+          autoPlay
+          loop
+          muted
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div
