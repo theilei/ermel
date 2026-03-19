@@ -4,6 +4,8 @@ import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../../styles/auth.css';
 
+const registerBg = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
+
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -60,7 +62,18 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page"
+    style={{
+        backgroundImage: `
+          linear-gradient(135deg, rgba(21,38,60,0.88) 0%, rgba(21,38,60,0.55) 60%, rgba(122,0,0,0.3) 100%),
+          url('${registerBg}')
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh',
+        width: '100%'
+      }}>
       <div className="auth-card auth-card-wide">
         <div className="auth-header">
           <div className="auth-brand">ERMEL GLASS &amp; ALUMINUM</div>

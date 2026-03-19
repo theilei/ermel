@@ -8,18 +8,34 @@
   align-items: center;
   justify-content: center;
   padding: 100px 16px 60px;
-  background-color: #fafafa;
+  background: linear-gradient(135deg, #fafafa 0%, #e6e9ef 100%);
+  position: relative;
   font-family: var(--font-body);
+  z-index: 1;
+}
+
+.auth-page::before {
+  content: "";
+  position: absolute;
+  top: 20%;
+  left: 30%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(122, 0, 0, 0.05) 0%, transparent 70%); /* Faded #7a0000 */
+  z-index: -1;
+  border-radius: 50%;
 }
 
 .auth-card {
   width: 100%;
   max-width: 460px;
-  background: white;
-  border: 1px solid #d9d9d9;
+  background: rgba(255, 255, 255, 0.50);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   padding: 40px 36px;
-  box-shadow: 0 8px 40px rgba(21, 38, 60, 0.08);
+  box-shadow: 0 8px 32px rgba(21, 38, 60, 0.12);
 }
 
 .auth-card-wide {
@@ -83,23 +99,32 @@
 .auth-input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #d9d9d9;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(21, 38, 60, 0.15);
   border-radius: 8px;
   font-size: 15px;
   font-family: var(--font-body);
-  background: white;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.3s ease;
   box-sizing: border-box;
+  color: #15263c;
+}
+
+.auth-input:hover {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .auth-input:focus {
-  border-color: #15263c;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #7a0000; /* Highlights with your brand red */
+  box-shadow: 0 0 0 3px rgba(122, 0, 0, 0.1);
 }
 
 .auth-input.error {
   border-color: #d32f2f;
-  background-color: #fff5f5;
+  background-color: rgba(211, 47, 47, 0.05); /* Translucent error red */
 }
 
 .auth-input-wrapper {
