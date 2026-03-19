@@ -28,7 +28,9 @@ export interface Quote {
   height: number;
   quantity: number;
   color: string;
+  originalEstimatedCost: number;
   estimatedCost: number;
+  updatedCost?: number;
   status: QuoteStatus;
   submissionDate: string;
   rejectionReason?: string;
@@ -45,6 +47,11 @@ export interface Quote {
 }
 
 function rowToQuote(row: any): Quote {
+  const originalEstimatedCost = parseFloat(row.estimated_cost);
+  const updatedCost = row.updated_cost !== null && row.updated_cost !== undefined
+    ? parseFloat(row.updated_cost)
+    : undefined;
+
   return {
     id: row.id,
     quoteNumber: row.quote_number,
@@ -60,7 +67,9 @@ function rowToQuote(row: any): Quote {
     height: parseFloat(row.height),
     quantity: row.quantity,
     color: row.color,
-    estimatedCost: parseFloat(row.estimated_cost),
+    originalEstimatedCost,
+    estimatedCost: updatedCost ?? originalEstimatedCost,
+    updatedCost,
     status: row.status as QuoteStatus,
     submissionDate: row.submission_date?.toISOString?.().split('T')[0] || row.submission_date,
     rejectionReason: row.rejection_reason || undefined,
@@ -72,6 +81,46 @@ function rowToQuote(row: any): Quote {
     notes: row.notes || undefined,
     reservationDate: row.reservation_date?.toISOString?.().split('T')[0] || row.reservation_date || undefined,
     reservationStatus: row.reservation_status || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function isMissingRelationOrColumn(err: any): boolean {
+  // Postgres: undefined_table=42P01, undefined_column=42703
+  return err?.code === '42P01' || err?.code === '42703';
+}
+
+function rowToLegacyQuote(row: any): Quote {
+  const estimated = row.estimated_cost !== null && row.estimated_cost !== undefined
+    ? parseFloat(row.estimated_cost)
+    : 0;
+
+  return {
+    id: row.id,
+    quoteNumber: row.id,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    customerPhone: row.customer_phone,
+    customerAddress: row.customer_address,
+    projectType: row.project_type,
+    glassType: row.glass_type,
+    frameMaterial: row.frame_material,
+    width: parseFloat(row.width),
+    height: parseFloat(row.height),
+    quantity: row.quantity ?? 1,
+    color: row.color ?? 'Clear',
+    originalEstimatedCost: estimated,
+    estimatedCost: estimated,
+    status: (row.status as QuoteStatus) ?? 'pending',
+    submissionDate: row.submission_date?.toISOString?.().split('T')[0] || row.submission_date,
+    rejectionReason: row.rejection_reason || undefined,
+    approvedDate: row.approved_date?.toISOString?.().split('T')[0] || row.approved_date || undefined,
+    expiryDate: row.expiry_date?.toISOString?.().split('T')[0] || row.expiry_date || undefined,
+    acceptedDate: row.accepted_date?.toISOString?.().split('T')[0] || row.accepted_date || undefined,
+    declinedDate: row.declined_date?.toISOString?.().split('T')[0] || row.declined_date || undefined,
+    convertedDate: row.converted_date?.toISOString?.().split('T')[0] || row.converted_date || undefined,
+    notes: row.notes || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -95,27 +144,64 @@ export async function getAllQuotes(): Promise<Quote[]> {
 }
 
 export async function getQuoteById(id: string): Promise<Quote | undefined> {
-  // Support lookup by UUID or quote_number
-  const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
-     FROM qq_quotes q
-     LEFT JOIN reservations r ON r.quote_id = q.id
-     WHERE q.deleted_at IS NULL AND (q.id::text = $1 OR q.quote_number = $1)`,
-    [id]
-  );
-  return result.rows.length > 0 ? rowToQuote(result.rows[0]) : undefined;
+  try {
+    // Support lookup by UUID or quote_number
+    const result = await pool.query(
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id
+       WHERE q.deleted_at IS NULL AND (q.id::text = $1 OR q.quote_number = $1)`,
+      [id]
+    );
+    return result.rows.length > 0 ? rowToQuote(result.rows[0]) : undefined;
+  } catch (err: any) {
+    if (!isMissingRelationOrColumn(err)) throw err;
+
+    try {
+      // Legacy fallback for older schemas
+      const legacy = await pool.query(
+        `SELECT *
+         FROM quotation_quotes
+         WHERE id = $1`,
+        [id]
+      );
+      return legacy.rows.length > 0 ? rowToLegacyQuote(legacy.rows[0]) : undefined;
+    } catch (legacyErr: any) {
+      if (!isMissingRelationOrColumn(legacyErr)) throw legacyErr;
+      return undefined;
+    }
+  }
 }
 
 export async function getQuotesByEmail(email: string): Promise<Quote[]> {
-  const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
-     FROM qq_quotes q
-     LEFT JOIN reservations r ON r.quote_id = q.id
-     WHERE q.deleted_at IS NULL AND LOWER(q.customer_email) = LOWER($1)
-     ORDER BY q.submission_date DESC, q.created_at DESC`,
-    [email]
-  );
-  return result.rows.map(rowToQuote);
+  try {
+    const result = await pool.query(
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id
+       WHERE q.deleted_at IS NULL AND LOWER(q.customer_email) = LOWER($1)
+       ORDER BY q.submission_date DESC, q.created_at DESC`,
+      [email]
+    );
+    return result.rows.map(rowToQuote);
+  } catch (err: any) {
+    if (!isMissingRelationOrColumn(err)) throw err;
+
+    try {
+      // Legacy fallback for older schemas
+      const legacy = await pool.query(
+        `SELECT *
+         FROM quotation_quotes
+         WHERE LOWER(customer_email) = LOWER($1)
+         ORDER BY submission_date DESC, created_at DESC`,
+        [email]
+      );
+      return legacy.rows.map(rowToLegacyQuote);
+    } catch (legacyErr: any) {
+      if (!isMissingRelationOrColumn(legacyErr)) throw legacyErr;
+      return [];
+    }
+  }
 }
 
 export async function getQuotesByCustomerId(customerId: string): Promise<Quote[]> {
@@ -153,8 +239,8 @@ export async function createQuote(data: CreateQuoteData): Promise<Quote> {
     `INSERT INTO qq_quotes (
       quote_number, customer_id, customer_name, customer_email, customer_phone,
       customer_address, project_type, glass_type, frame_material,
-      width, height, quantity, color, estimated_cost, notes
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      width, height, quantity, color, estimated_cost, updated_cost, notes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULL, $15)
     RETURNING *`,
     [
       quoteNumber, data.customerId || null, data.customerName, data.customerEmail,
@@ -188,6 +274,7 @@ export async function updateQuote(id: string, updates: Partial<Quote>): Promise<
     quantity: 'quantity',
     color: 'color',
     estimatedCost: 'estimated_cost',
+    updatedCost: 'updated_cost',
     status: 'status',
     rejectionReason: 'rejection_reason',
     approvedDate: 'approved_date',
@@ -225,9 +312,25 @@ export async function softDeleteQuote(id: string): Promise<boolean> {
 }
 
 export async function expireOldQuotes(): Promise<number> {
-  const result = await pool.query(
-    `UPDATE qq_quotes SET status = 'expired'
-     WHERE status = 'approved' AND expiry_date < CURRENT_DATE AND deleted_at IS NULL`
-  );
-  return result.rowCount ?? 0;
+  try {
+    const result = await pool.query(
+      `UPDATE qq_quotes SET status = 'expired'
+       WHERE status = 'approved' AND expiry_date < CURRENT_DATE AND deleted_at IS NULL`
+    );
+    return result.rowCount ?? 0;
+  } catch (err: any) {
+    if (!isMissingRelationOrColumn(err)) throw err;
+
+    try {
+      // Legacy schema without soft-delete support
+      const legacy = await pool.query(
+        `UPDATE quotation_quotes SET status = 'expired'
+         WHERE status = 'approved' AND expiry_date < CURRENT_DATE`
+      );
+      return legacy.rowCount ?? 0;
+    } catch (legacyErr: any) {
+      if (!isMissingRelationOrColumn(legacyErr)) throw legacyErr;
+      return 0;
+    }
+  }
 }

@@ -19,7 +19,8 @@ export async function notifyQuoteApproved(customerEmail: string, quoteNumber: st
   await NotificationModel.createNotification(
     userId,
     'Quote Approved',
-    `Your quotation ${quoteNumber} has been approved. Please review and accept or decline within 30 days.`
+    `Your quotation ${quoteNumber} has been approved. Please review and accept or decline within 30 days.`,
+    { type: 'quote_status', relatedQuoteNumber: quoteNumber }
   );
 }
 
@@ -29,7 +30,33 @@ export async function notifyQuoteRejected(customerEmail: string, quoteNumber: st
   await NotificationModel.createNotification(
     userId,
     'Quote Update',
-    `Your quotation ${quoteNumber} has been declined. Reason: ${reason}`
+    `Your quotation ${quoteNumber} has been declined. Reason: ${reason}`,
+    { type: 'quote_status', relatedQuoteNumber: quoteNumber }
+  );
+}
+
+export async function notifyQuoteStatusUpdated(
+  customerEmail: string,
+  quoteNumber: string,
+  payload: { status?: string; updatedPrice?: number; adminRemark?: string }
+) {
+  const userId = await findUserIdByEmail(customerEmail);
+  if (!userId) return;
+
+  const parts: string[] = [];
+  if (payload.status) parts.push(`Status: ${payload.status}`);
+  if (payload.updatedPrice !== undefined) parts.push(`Updated price: Php ${payload.updatedPrice.toLocaleString()}`);
+  if (payload.adminRemark) parts.push(`Admin remark: ${payload.adminRemark}`);
+
+  const message = parts.length > 0
+    ? `Quotation ${quoteNumber} was updated. ${parts.join(' | ')}`
+    : `Quotation ${quoteNumber} was updated by the admin.`;
+
+  await NotificationModel.createNotification(
+    userId,
+    'Quote Updated',
+    message,
+    { type: 'quote_status', relatedQuoteNumber: quoteNumber }
   );
 }
 
@@ -39,7 +66,8 @@ export async function notifyQuoteConverted(customerEmail: string, quoteNumber: s
   await NotificationModel.createNotification(
     userId,
     'Order Created',
-    `Your quotation ${quoteNumber} has been converted to order ${orderNumber}. Installation will begin soon.`
+    `Your quotation ${quoteNumber} has been converted to order ${orderNumber}. Installation will begin soon.`,
+    { type: 'quote_status', relatedQuoteNumber: quoteNumber }
   );
 }
 
@@ -55,7 +83,8 @@ export async function notifyInstallationStatusUpdate(customerEmail: string, orde
   await NotificationModel.createNotification(
     userId,
     'Installation Update',
-    `Order ${orderNumber}: status updated to "${statusLabels[status] || status}".`
+    `Order ${orderNumber}: status updated to "${statusLabels[status] || status}".`,
+    { type: 'installation' }
   );
 }
 
@@ -68,7 +97,8 @@ export async function notifyAdminsNewQuote(quoteNumber: string, customerName: st
     await NotificationModel.createNotification(
       admin.id,
       'New Quote Request',
-      `${customerName} submitted a new quote request (${quoteNumber}).`
+      `${customerName} submitted a new quote request (${quoteNumber}).`,
+      { type: 'admin_quote', relatedQuoteNumber: quoteNumber }
     );
   }
 }
@@ -81,7 +111,8 @@ export async function notifyAdminCustomerAction(quoteNumber: string, customerNam
     await NotificationModel.createNotification(
       admin.id,
       `Customer ${action === 'accepted' ? 'Accepted' : 'Declined'} Quote`,
-      `${customerName} ${action} quotation ${quoteNumber}.`
+      `${customerName} ${action} quotation ${quoteNumber}.`,
+      { type: 'admin_quote', relatedQuoteNumber: quoteNumber }
     );
   }
 }
