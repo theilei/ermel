@@ -370,7 +370,7 @@ export default function Home() {
               Request A Quote <ArrowRight size={18} />
             </Link>
             <Link
-              to="/dashboard"
+              to="/check-status"
               style={{
                 fontFamily: 'var(--font-heading)',
                 color: '#d9d9d9',
@@ -384,7 +384,7 @@ export default function Home() {
                 textTransform: 'uppercase',
               }}
             >
-              Track My Order
+              Check My Status
             </Link>
           </div>
         </div>

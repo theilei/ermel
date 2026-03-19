@@ -17,6 +17,7 @@ router.use(requireAdmin);
 router.get('/quotes', quoteCtrl.listQuotes);
 router.get('/quotes/:id', quoteCtrl.getQuote);
 router.put('/quotes/:id', quoteCtrl.updateQuote);
+router.post('/quotes/:id/updates', quoteCtrl.createQuoteUpdate);
 router.post('/quotes/:id/approve', quoteCtrl.approveQuote);
 router.post('/quotes/:id/reject', quoteCtrl.rejectQuote);
 router.get('/quotes/:id/pdf', quoteCtrl.generatePDF);

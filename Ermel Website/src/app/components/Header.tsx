@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, FileText } from 'lucide-react';
 import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
+import { useAuth } from '../context/AuthContext';
+import { useAccountIdentity } from '../hooks/useAccountIdentity';
 
 export function Header() {
+  const { logout } = useAuth();
+  const account = useAccountIdentity();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   // Close delay ref — prevents flicker when mouse briefly leaves the wrapper
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accountRef = useRef<HTMLDivElement | null>(null);
 
   const openDropdown = useCallback(() => {
     if (closeTimerRef.current) {
@@ -34,6 +40,18 @@ export function Header() {
   }, []);
 
   useEffect(() => {
+    const onClickOutside = (event: MouseEvent) => {
+      if (!accountRef.current) return;
+      if (!accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -46,6 +64,16 @@ export function Header() {
   ];
 
   const isActive = (href: string) => location.pathname === href.split('#')[0];
+  const isLoggedIn = account.isLoggedIn;
+  const initials = account.initials;
+  const displayName = account.fullName;
+
+  const handleLogout = async () => {
+    await logout();
+    setAccountOpen(false);
+    setMenuOpen(false);
+    navigate('/');
+  };
 
   return (
     <header
@@ -335,6 +363,147 @@ export function Header() {
             Request a Quote
           </Link>
 
+          {isLoggedIn && (
+            <div className="relative hidden md:block" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((v) => !v)}
+                title="My Account"
+                style={{
+                  width: scrolled ? '36px' : '40px',
+                  height: scrolled ? '36px' : '40px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  background: 'linear-gradient(135deg, #0f1e30, #1b3654)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: scrolled ? '12px' : '13px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {initials}
+                <span
+                  style={{
+                    position: 'absolute',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '999px',
+                    backgroundColor: '#31c36b',
+                    border: '1px solid #0f1e30',
+                    right: '1px',
+                    bottom: '1px',
+                  }}
+                />
+              </button>
+
+              {accountOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: scrolled ? '44px' : '48px',
+                    width: '252px',
+                    backgroundColor: '#0f1e30',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
+                    overflow: 'hidden',
+                    zIndex: 1000,
+                  }}
+                >
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
+                    <div style={{ color: '#ffffff', fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 700 }}>
+                      {displayName}
+                    </div>
+                    <div style={{ color: '#9ab0c4', fontSize: '12px', marginTop: '2px' }}>
+                      {account.email}
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setAccountOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      color: '#d9d9d9',
+                      textDecoration: 'none',
+                      padding: '11px 14px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '12px',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <User size={15} /> View Profile
+                  </Link>
+
+                  <Link
+                    to="/check-status"
+                    onClick={() => setAccountOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      color: '#d9d9d9',
+                      textDecoration: 'none',
+                      padding: '11px 14px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '12px',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <FileText size={15} /> Check My Status
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      background: 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      color: '#ffb2b2',
+                      padding: '11px 14px',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '12px',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <LogOut size={15} /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             className="md:hidden p-2 rounded-lg"
             style={{ color: 'white' }}
@@ -449,6 +618,112 @@ export function Header() {
                 {link.label}
               </a>
             )
+          )}
+
+          {isLoggedIn && (
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '8px', paddingTop: '10px' }}>
+              <div className="flex items-center gap-3" style={{ padding: '8px 0 12px' }}>
+                <div
+                  title="My Account"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '999px',
+                    border: '1px solid rgba(255,255,255,0.25)',
+                    background: 'linear-gradient(135deg, #0f1e30, #1b3654)',
+                    color: '#ffffff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    letterSpacing: '0.05em',
+                    position: 'relative',
+                    flexShrink: 0,
+                  }}
+                >
+                  {initials}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '999px',
+                      backgroundColor: '#31c36b',
+                      border: '1px solid #0f1e30',
+                      right: '1px',
+                      bottom: '1px',
+                    }}
+                  />
+                </div>
+                <div>
+                  <div style={{ color: '#ffffff', fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 700 }}>
+                    {displayName}
+                  </div>
+                    <div style={{ color: '#9ab0c4', fontSize: '12px' }}>{account.email}</div>
+                </div>
+              </div>
+
+              <Link
+                to="/profile"
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '14px',
+                  padding: '10px 0',
+                  display: 'block',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                View Profile
+              </Link>
+
+              <Link
+                to="/check-status"
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  color: '#d9d9d9',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '14px',
+                  padding: '10px 0',
+                  display: 'block',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                Check My Status
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  fontFamily: 'var(--font-heading)',
+                  color: '#ffb2b2',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  fontSize: '14px',
+                  padding: '10px 0',
+                  border: 'none',
+                  background: 'transparent',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Logout
+              </button>
+            </div>
           )}
 
         </div>

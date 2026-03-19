@@ -8,6 +8,8 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
+  type?: string;
+  relatedQuoteNumber?: string;
   read: boolean;
   createdAt: string;
 }
@@ -18,6 +20,8 @@ function rowToNotification(row: any): Notification {
     userId: row.user_id,
     title: row.title,
     message: row.message,
+    type: row.type || undefined,
+    relatedQuoteNumber: row.related_quote_number || undefined,
     read: row.read,
     createdAt: row.created_at,
   };
@@ -42,11 +46,14 @@ export async function getUnreadCount(userId: string): Promise<number> {
 export async function createNotification(
   userId: string,
   title: string,
-  message: string
+  message: string,
+  meta?: { type?: string; relatedQuoteNumber?: string }
 ): Promise<Notification> {
   const result = await pool.query(
-    `INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3) RETURNING *`,
-    [userId, title, message]
+    `INSERT INTO notifications (user_id, title, message, type, related_quote_number)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [userId, title, message, meta?.type || null, meta?.relatedQuoteNumber || null]
   );
   return rowToNotification(result.rows[0]);
 }
