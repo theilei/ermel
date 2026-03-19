@@ -11,12 +11,18 @@ import pool from '../config/database';
 
 async function getUserRoleById(userId?: string): Promise<string | null> {
   if (!userId) return null;
-  const result = await pool.query(
-    `SELECT role FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-    [userId]
-  );
-  if (result.rows.length === 0) return null;
-  return result.rows[0].role || null;
+  try {
+    const result = await pool.query(
+      `SELECT role FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+    if (result.rows.length === 0) return null;
+    return result.rows[0].role || null;
+  } catch (err: any) {
+    // Fallback for environments where role/deleted_at columns are missing.
+    console.warn('[CUSTOMER CTRL] role lookup failed, defaulting to customer access:', err?.message || err);
+    return null;
+  }
 }
 
 function toFrontendQuote(q: QuoteModel.Quote) {

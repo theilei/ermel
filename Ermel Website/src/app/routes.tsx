@@ -8,6 +8,7 @@ import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
 import CheckStatus from './pages/CheckStatus';
+import Profile from './pages/Profile';
 import GlassProducts from './pages/GlassProducts';
 import AluminumProducts from './pages/AluminumProducts';
 import QuotationApproval from './pages/admin/QuotationApproval';
@@ -44,6 +45,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <CheckStatus />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         ),
       },
