@@ -3,6 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../../styles/auth.css';
+import BGvideo from '../../assets/VIDEO UI.mp4';
+
+const LOGIN_BG_VIDEO = BGvideo;
 
 export default function Login() {
   const { login } = useAuth();
@@ -37,8 +40,24 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <div 
+      className="auth-page relative flex items-center justify-center overflow-hidden" 
+      style={{ minHeight: '100vh' }}
+    >
+      <video
+        src={LOGIN_BG_VIDEO}
+        autoPlay
+        loop
+        muted
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(135deg, rgba(21,38,60,0.88) 0%, rgba(21,38,60,0.55) 60%, rgba(122,0,0,0.3) 100%)' }}
+      />
+
+      <div className="auth-card relative z-10">
         <div className="auth-header">
           <div className="auth-brand">ERMEL GLASS &amp; ALUMINUM</div>
           <h1 className="auth-title">SIGN IN</h1>
