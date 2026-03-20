@@ -14,8 +14,9 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   resendVerification: () => Promise<{ success: boolean; error?: string }>;
@@ -39,6 +40,7 @@ const API_BASE = `${API_ROOT}/auth`;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isAdmin = user?.role === 'admin';
 
   const refreshUser = useCallback(async () => {
     try {
@@ -77,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.ok) {
         setUser(data.user);
-        return { success: true };
+        return { success: true, user: data.user as User };
       }
 
       return { success: false, error: data.error || 'Login failed.' };
@@ -157,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, resendVerification, refreshUser }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, login, register, logout, resendVerification, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

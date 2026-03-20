@@ -24,11 +24,11 @@ export default function AdminRoute({ children }: { children: React.ReactNode }) 
   }
 
   if (!user) {
-    return <Navigate to={`/admin/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   if (user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/forbidden" replace />;
   }
 
   return <>{children}</>;

@@ -33,7 +33,12 @@ export default function Login() {
     setSubmitting(false);
 
     if (result.success) {
-      navigate(redirectTo, { replace: true });
+      const resolvedRole = result.user?.role;
+      if (resolvedRole === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        navigate(redirectTo, { replace: true });
+      }
     } else {
       setError(result.error || 'Login failed.');
     }

@@ -9,9 +9,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const connectionString =
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel';
+const isSupabaseConnection = /supabase\.(co|com)/i.test(connectionString);
+const normalizedConnectionString = isSupabaseConnection
+  ? connectionString
+      .replace(/([?&])sslmode=[^&]*/gi, '$1')
+      .replace(/[?&]$/, '')
+  : connectionString;
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel',
-  ssl: process.env.DATABASE_URL?.includes('supabase.co')
+  connectionString: normalizedConnectionString,
+  ssl: isSupabaseConnection
     ? { rejectUnauthorized: false }
     : undefined,
 });

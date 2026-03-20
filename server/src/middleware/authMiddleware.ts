@@ -2,6 +2,7 @@
 // Authentication & verification middleware
 // ============================================================
 import { Request, Response, NextFunction } from 'express';
+import { addLog } from '../models/ActivityLogDB';
 
 // Extend express-session types
 declare module 'express-session' {
@@ -47,10 +48,28 @@ export function requireVerified(req: Request, res: Response, next: NextFunction)
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session || (!req.session.user && !req.session.userId)) {
+    return res.status(401).json({
+      error: 'Authentication required.',
+      redirect: `/login?redirect=${encodeURIComponent(req.originalUrl)}`,
+    });
+  }
+
   const role = req.session?.user?.role;
   if (role === 'admin') {
     return next();
   }
+
+  void addLog({
+    action: 'Unauthorized admin access attempt',
+    entity: 'auth',
+    userId: req.session?.userId,
+    userRole: 'customer',
+    userName: req.session?.userEmail || 'Unknown',
+    details: `Blocked ${req.method} ${req.originalUrl}`,
+  }).catch(() => {
+    // Keep auth guard resilient even when logging fails.
+  });
 
   return res.status(403).json({ error: 'Forbidden. Admin access required.' });
 }

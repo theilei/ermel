@@ -10,6 +10,7 @@ import { addLog } from '../models/ActivityLogDB';
 
 const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Helpers
@@ -182,8 +183,8 @@ export async function login(req: Request, res: Response) {
 
     // Find user
     const result = await pool.query(
-      `SELECT id, full_name, email, password_hash, is_verified,
-              role, failed_login_attempts
+            `SELECT id, full_name, email, password_hash, is_verified,
+              role, failed_login_attempts, lock_until
        FROM users WHERE email = $1`,
       [email],
     );
@@ -195,16 +196,38 @@ export async function login(req: Request, res: Response) {
 
     const user = result.rows[0];
 
+    if (user.lock_until && new Date(user.lock_until) > new Date()) {
+      await logAuthAttempt(email, ipAddress, false);
+      await addLog({
+        action: 'Blocked login while account locked',
+        entity: 'auth',
+        userId: user.id,
+        userRole: user.role === 'admin' ? 'admin' : 'customer',
+        userName: user.full_name,
+        details: `${email} attempted login from ${ipAddress}`,
+      });
+      return res.status(429).json({
+        error: `Too many failed attempts. Try again in ${LOCK_MINUTES} minutes.`,
+      });
+    }
+
     // Compare password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatch) {
       const attempts = user.failed_login_attempts + 1;
 
+      const lockUntil = attempts >= MAX_FAILED_ATTEMPTS
+        ? new Date(Date.now() + LOCK_MINUTES * 60 * 1000)
+        : null;
+
       await pool.query(
-        `UPDATE users SET failed_login_attempts = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [attempts, user.id],
+        `UPDATE users
+         SET failed_login_attempts = $1,
+             lock_until = COALESCE($2, lock_until),
+             updated_at = NOW()
+         WHERE id = $3`,
+        [attempts, lockUntil, user.id],
       );
 
       await logAuthAttempt(email, ipAddress, false);
@@ -216,7 +239,11 @@ export async function login(req: Request, res: Response) {
           userId: user.id,
           userRole: user.role || 'customer',
           userName: user.full_name,
-          details: `${email} has ${attempts} failed login attempts from IP ${ipAddress}`,
+          details: `${email} has ${attempts} failed login attempts from IP ${ipAddress}. Lock applied for ${LOCK_MINUTES} minutes.`,
+        });
+
+        return res.status(429).json({
+          error: `Too many failed attempts. Try again in ${LOCK_MINUTES} minutes.`,
         });
       }
 
@@ -225,7 +252,7 @@ export async function login(req: Request, res: Response) {
 
     // Successful login — reset failed attempts
     await pool.query(
-      `UPDATE users SET failed_login_attempts = 0, updated_at = NOW()
+      `UPDATE users SET failed_login_attempts = 0, lock_until = NULL, updated_at = NOW()
        WHERE id = $1`,
       [user.id],
     );
