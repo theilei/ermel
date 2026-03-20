@@ -6,6 +6,11 @@ import { Request, Response, NextFunction } from 'express';
 // Extend express-session types
 declare module 'express-session' {
   interface SessionData {
+    user?: {
+      id: string;
+      email: string;
+      role: 'admin' | 'customer';
+    };
     userId: string;
     userEmail: string;
     userName: string;
@@ -18,7 +23,7 @@ declare module 'express-session' {
  * Returns 401 with the original URL so the frontend can redirect to login.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (req.session && req.session.userId) {
+  if (req.session && (req.session.user || req.session.userId)) {
     return next();
   }
   return res.status(401).json({
@@ -39,4 +44,13 @@ export function requireVerified(req: Request, res: Response, next: NextFunction)
     error: 'You must verify your email before accessing this resource.',
     code: 'EMAIL_NOT_VERIFIED',
   });
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const role = req.session?.user?.role;
+  if (role === 'admin') {
+    return next();
+  }
+
+  return res.status(403).json({ error: 'Forbidden. Admin access required.' });
 }

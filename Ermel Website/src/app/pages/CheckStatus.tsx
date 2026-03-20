@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router';
+import { Link } from 'react-router';
 import { Bell, FileDown, RefreshCw, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
@@ -45,12 +45,6 @@ export default function CheckStatus() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [adminBlocked, setAdminBlocked] = useState(false);
-
-  useEffect(() => {
-    const adminToken = localStorage.getItem('ermel_admin_token');
-    if (adminToken) setAdminBlocked(true);
-  }, []);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -177,10 +171,6 @@ export default function CheckStatus() {
       }
     }
   };
-
-  if (adminBlocked) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', paddingTop: '96px', paddingBottom: '40px', fontFamily: 'var(--font-body)' }}>
