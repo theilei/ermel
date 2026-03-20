@@ -31,22 +31,57 @@ function hashToken(token: string): string {
 }
 
 function getClientIp(req: Request): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) {
-    return xff.split(',')[0].trim();
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
   }
-  return req.ip || (req.socket?.remoteAddress ?? 'unknown');
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
 }
 
-async function logAuthAttempt(email: string, ipAddress: string, success: boolean) {
+async function logAuthAttempt(params: {
+  req: Request;
+  email: string;
+  success: boolean;
+  reason: string;
+  userId?: number;
+  userName?: string;
+}) {
   try {
-    await pool.query(
-      `INSERT INTO auth_logs (email, ip_address, success)
-       VALUES ($1, $2, $3)`,
-      [email, ipAddress, success],
+    await addLog({
+      action: params.success ? 'Login success' : 'Login failed',
+      entity: 'auth',
+      entityId: params.userId !== undefined ? String(params.userId) : undefined,
+      userId: params.userId !== undefined ? String(params.userId) : undefined,
+      userRole: 'customer',
+      userName: params.userName || params.email,
+      details: `${params.reason} | email=${params.email} | ip=${getClientIp(params.req)}`,
+    });
+  } catch {
+    // Never block auth flow if logging fails.
+  }
+}
+
+let consentTimestampColumnsSupported: boolean | null = null;
+
+async function hasConsentTimestampColumns(): Promise<boolean> {
+  if (consentTimestampColumnsSupported !== null) return consentTimestampColumnsSupported;
+
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM information_schema.columns
+       WHERE table_name = 'users'
+         AND column_name IN ('accepted_terms_at', 'accepted_privacy_at')`,
     );
-  } catch (err: any) {
-    console.warn('[AUTH LOG] failed to write auth_logs:', err.message);
+
+    consentTimestampColumnsSupported = (result.rows[0]?.count ?? 0) === 2;
+    return consentTimestampColumnsSupported;
+  } catch {
+    consentTimestampColumnsSupported = false;
+    return false;
   }
 }
 
@@ -93,12 +128,25 @@ export async function register(req: Request, res: Response) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Create user
-    const userResult = await pool.query(
-      `INSERT INTO users (full_name, email, password_hash, accepted_terms, accepted_privacy)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, full_name, email, is_verified`,
-      [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
-    );
+    let userResult;
+    if (await hasConsentTimestampColumns()) {
+      userResult = await pool.query(
+        `INSERT INTO users (
+           full_name, email, password_hash, accepted_terms, accepted_privacy,
+           accepted_terms_at, accepted_privacy_at
+         )
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id, full_name, email, is_verified`,
+        [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
+      );
+    } else {
+      userResult = await pool.query(
+        `INSERT INTO users (full_name, email, password_hash, accepted_terms, accepted_privacy)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, full_name, email, is_verified`,
+        [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
+      );
+    }
 
     const user = userResult.rows[0];
 
@@ -189,11 +237,34 @@ export async function login(req: Request, res: Response) {
     );
 
     if (result.rows.length === 0) {
-      await logAuthAttempt(email, ipAddress, false);
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: 'User not found',
+      });
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const user = result.rows[0];
+
+    // Check account lock
+    if (user.lock_until && new Date(user.lock_until) > new Date()) {
+      const minutesLeft = Math.ceil(
+        (new Date(user.lock_until).getTime() - Date.now()) / 60000,
+      );
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: `Account locked (${minutesLeft} minute(s) remaining)`,
+        userId: user.id,
+        userName: user.full_name,
+      });
+      return res.status(423).json({
+        error: `Account is locked due to too many failed attempts. Try again in ${minutesLeft} minute(s).`,
+      });
+    }
 
     // Compare password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
@@ -207,16 +278,18 @@ export async function login(req: Request, res: Response) {
         [attempts, user.id],
       );
 
-      await logAuthAttempt(email, ipAddress, false);
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: lockUntil ? 'Too many failed attempts; account locked' : 'Password mismatch',
+        userId: user.id,
+        userName: user.full_name,
+      });
 
-      if (attempts >= MAX_FAILED_ATTEMPTS) {
-        await addLog({
-          action: 'Suspicious login threshold reached',
-          entity: 'auth',
-          userId: user.id,
-          userRole: user.role || 'customer',
-          userName: user.full_name,
-          details: `${email} has ${attempts} failed login attempts from IP ${ipAddress}`,
+      if (lockUntil) {
+        return res.status(423).json({
+          error: 'Account locked due to too many failed attempts. Try again in 15 minutes.',
         });
       }
 
@@ -237,11 +310,15 @@ export async function login(req: Request, res: Response) {
     req.session.userEmail = user.email;
     req.session.userName = user.full_name;
     req.session.isVerified = user.is_verified;
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role === 'admin' ? 'admin' : 'customer',
-    };
+
+    await logAuthAttempt({
+      req,
+      email,
+      success: true,
+      reason: 'Authenticated',
+      userId: user.id,
+      userName: user.full_name,
+    });
 
     return res.json({
       message: 'Login successful.',

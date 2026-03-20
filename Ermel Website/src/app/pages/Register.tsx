@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import TermsPrivacyModal from '../components/TermsPrivacyModal';
 import '../../styles/auth.css';
 
 const registerBg = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
@@ -20,6 +21,7 @@ export default function Register() {
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [openLegalModal, setOpenLegalModal] = useState<'terms' | 'privacy' | null>(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -186,7 +188,14 @@ export default function Register() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
               />
               <label htmlFor="reg-terms" className="auth-checkbox-label">
-                I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>
+                I agree to the{' '}
+                <button
+                  type="button"
+                  className="auth-inline-link-btn"
+                  onClick={() => setOpenLegalModal('terms')}
+                >
+                  Terms and Conditions
+                </button>
               </label>
             </div>
             <div className="auth-checkbox-row">
@@ -198,15 +207,27 @@ export default function Register() {
                 onChange={(e) => setAcceptedPrivacy(e.target.checked)}
               />
               <label htmlFor="reg-privacy" className="auth-checkbox-label">
-                I accept the <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                I accept the{' '}
+                <button
+                  type="button"
+                  className="auth-inline-link-btn"
+                  onClick={() => setOpenLegalModal('privacy')}
+                >
+                  Privacy Policy
+                </button>
               </label>
             </div>
+            {(!acceptedTerms || !acceptedPrivacy) && (
+              <div className="auth-consent-warning">
+                You must read and accept the Terms and Privacy Policy before creating an account.
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             className="auth-btn-primary"
-            disabled={submitting}
+            disabled={submitting || !acceptedTerms || !acceptedPrivacy}
           >
             {submitting ? 'Creating account...' : (
               <>Create Account <UserPlus size={18} /></>
@@ -221,6 +242,12 @@ export default function Register() {
           </Link>
         </div>
       </div>
+
+      <TermsPrivacyModal
+        isOpen={openLegalModal !== null}
+        type={openLegalModal || 'terms'}
+        onClose={() => setOpenLegalModal(null)}
+      />
     </div>
   );
 }
