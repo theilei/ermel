@@ -127,7 +127,7 @@ export default function AdminLayout() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div style={{ backgroundColor: '#fafafa', minHeight: '100vh', display: 'flex' }}>
+    <div style={{ backgroundColor: '#fafafa', minHeightcd: '100vh', display: 'flex' }}>
       {/* Sidebar */}
       <aside
         style={{
