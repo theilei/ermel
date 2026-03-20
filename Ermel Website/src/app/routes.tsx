@@ -16,13 +16,15 @@ import QuoteDetails from './pages/admin/QuoteDetails';
 import InstallationQueue from './pages/admin/InstallationQueue';
 import PriceApproval from './pages/admin/PriceApproval';
 import OrderLogs from './pages/admin/OrderLogs';
-import MaterialProcurement from './pages/admin/MaterialProcurement';
-import AdminSettings from './pages/admin/AdminSettings';
+import MaterialProcurement from './pages/admin/Materialprocurement';
+import AdminSettings from './pages/admin/Adminsettings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmailResult from './pages/VerifyEmailResult';
 import VerificationRequired from './pages/VerificationRequired';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
+import AnalyticsDSS from './pages/AnalyticsDSS';
 
 export const router = createBrowserRouter([
   {
@@ -67,10 +69,15 @@ export const router = createBrowserRouter([
   { path: '/admin/login', Component: AdminLogin },
   {
     path: '/admin',
-    Component: AdminLayout,
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
     children: [
       { index: true, Component: AdminDashboard },
       { path: 'dashboard', Component: AdminDashboard },
+      { path: 'analytics', Component: AnalyticsDSS },
       { path: 'price-approval', Component: PriceApproval },
       { path: 'quotations', Component: QuotationApproval },
       { path: 'quotations/:id', Component: QuoteDetails },

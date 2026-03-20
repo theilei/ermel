@@ -6,6 +6,7 @@ import connectPgSimple from 'connect-pg-simple';
 import pool from './database';
 
 const PgStore = connectPgSimple(session);
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
 export const sessionConfig: session.SessionOptions = {
   store: new PgStore({
@@ -16,11 +17,12 @@ export const sessionConfig: session.SessionOptions = {
   secret: process.env.SESSION_SECRET || 'ermel-dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   name: 'ermel.sid',
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: IDLE_TIMEOUT_MS,
   },
 };

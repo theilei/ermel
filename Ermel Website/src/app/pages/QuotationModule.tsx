@@ -258,6 +258,13 @@ export default function QuotationModule() {
       .catch(() => setReservedDates(new Set()));
   }, []);
 
+  useEffect(() => {
+    api.trackAnalyticsEvent('quote_started', {
+      source: 'quotation_module',
+      userEmail: user?.email,
+    });
+  }, [user?.email]);
+
   const today = useMemo(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -339,6 +346,10 @@ export default function QuotationModule() {
     setHeight(val);
     setHeightOrigVal(val);
     setHeightOrigUnit(measureUnit);
+  };
+
+  const handleAddressChange = (val: string) => {
+    setAddress(sanitizeTextInput(val));
   };
 
   const handleSubmit = async () => {

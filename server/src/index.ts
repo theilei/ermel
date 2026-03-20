@@ -30,6 +30,8 @@ import { me } from './controllers/authController';
 import { csrfProtection } from './middleware/csrf';
 import * as QuoteModel from './models/QuoteDB';
 import * as NotificationService from './services/notificationService';
+import * as AnalyticsService from './services/analyticsService';
+import { postAnalyticsEvent } from './controllers/analyticsController';
 import { sendQuoteSubmissionEmails } from './services/emailService';
 
 dotenv.config();
@@ -46,11 +48,27 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.use(session(sessionConfig));
 
+app.use((req, res, next) => {
+  const startedAt = process.hrtime.bigint();
+  res.on('finish', () => {
+    const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    pool.query(
+      `INSERT INTO system_logs (endpoint, method, response_time, status_code)
+       VALUES ($1, $2, $3, $4)`,
+      [req.originalUrl, req.method, elapsedMs, res.statusCode],
+    ).catch((err: any) => {
+      console.warn('[SYSTEM LOG] failed to persist request log:', err.message);
+    });
+  });
+  next();
+});
+
 // ---- Mount route modules ----
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.post('/api/analytics/events', requireAuth, postAnalyticsEvent);
 app.get('/api/user/me', me);
 
 // ---- Protected quote access check ----
@@ -197,6 +215,10 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
     }
 
     // Notify admins about new quote
+    await AnalyticsService.trackEvent('quote_submitted', req.session?.userId, {
+      quoteNumber: quote.quoteNumber,
+      projectType: category,
+    });
     NotificationService.notifyAdminsNewQuote(quote.quoteNumber, customer).catch(() => {});
     sendQuoteSubmissionEmails(quote).catch((e) => {
       console.error('[EMAIL]', e.message);
