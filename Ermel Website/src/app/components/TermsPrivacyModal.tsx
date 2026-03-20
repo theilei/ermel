@@ -160,7 +160,7 @@ const LEGAL_CONTENT: Record<LegalModalType, { title: string; sections: LegalSect
 
 function replacePlaceholders(content: string): string {
   return Object.entries(PLACEHOLDERS).reduce(
-    (output, [token, value]) => output.replaceAll(token, value),
+    (output, [token, value]) => output.split(token).join(value),
     content,
   );
 }
