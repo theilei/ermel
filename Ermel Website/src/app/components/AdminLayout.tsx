@@ -41,7 +41,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login?redirect=%2Fadmin%2Fdashboard');
+      navigate('/login', { replace: true });
       return;
     }
 

@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../../styles/auth.css';
 import BGvideo from '../../assets/VIDEO UI.mp4';
@@ -63,6 +63,13 @@ export default function Login() {
       />
 
       <div className="auth-card relative z-10">
+        <div className="auth-back-row">
+          <Link to="/" className="auth-back-btn" aria-label="Back to homepage">
+            <ArrowLeft size={16} />
+            Back to Home
+          </Link>
+        </div>
+
         <div className="auth-header">
           <div className="auth-brand">ERMEL GLASS &amp; ALUMINUM</div>
           <h1 className="auth-title">SIGN IN</h1>

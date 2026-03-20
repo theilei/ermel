@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, AlertTriangle, DollarSign, Package, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useQuotes } from '../context/QuoteContext';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
 import * as api from '../services/api';
 import type { Reservation } from '../types/quotation';
 
@@ -234,8 +236,10 @@ function FabricationCapacityGauge() {
 
 export default function AdminDashboard() {
   const { orders } = useApp();
+  const { quotes } = useQuotes();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [rescheduleDate, setRescheduleDate] = useState<Record<string, string>>({});
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   const loadReservations = async () => {
     try {
@@ -268,11 +272,38 @@ export default function AdminDashboard() {
   };
 
   const pendingReservations = reservations.filter((r) => r.status === 'pending');
-  const calendarEvents = reservations.map((r) => ({
-    title: `${r.quoteNumber || 'Quote'} • ${r.status}`,
-    date: r.reservationDate,
-    color: r.status === 'approved' ? '#1a5c1a' : r.status === 'rejected' ? '#7a0000' : '#7a5200',
-  }));
+
+  const convertedQuotes = useMemo(
+    () => quotes.filter((q) => q.status === 'converted_to_order'),
+    [quotes]
+  );
+
+  const convertedByDate = useMemo(() => {
+    const grouped = new Map<string, any[]>();
+    convertedQuotes.forEach((q) => {
+      if (!q.reservationDate) return;
+      const list = grouped.get(q.reservationDate) || [];
+      list.push(q);
+      grouped.set(q.reservationDate, list);
+    });
+    return grouped;
+  }, [convertedQuotes]);
+
+  const calendarEvents = useMemo(
+    () => convertedQuotes
+      .filter((q) => !!q.reservationDate)
+      .map((q) => ({
+        id: q.id,
+        title: q.customerName,
+        date: q.reservationDate as string,
+        color: '#6b21a8',
+      })),
+    [convertedQuotes]
+  );
+
+  const selectedDateQuotes = selectedCalendarDate
+    ? (convertedByDate.get(selectedCalendarDate) || [])
+    : [];
 
   // Calculate metrics
   const totalInquiries = orders.filter(o => o.status === 'inquiry').length;
@@ -369,9 +400,88 @@ export default function AdminDashboard() {
             <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px' }}>
               Installation Calendar
             </div>
-            <FullCalendar plugins={[dayGridPlugin]} initialView="dayGridMonth" events={calendarEvents} height="auto" />
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              events={calendarEvents}
+              height="auto"
+              eventColor="#6b21a8"
+              dateClick={(info) => setSelectedCalendarDate(info.dateStr)}
+              eventClick={(info) => setSelectedCalendarDate(info.event.startStr.split('T')[0])}
+            />
           </div>
         </div>
+
+        {selectedCalendarDate && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(21, 38, 60, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1200,
+              padding: '16px',
+            }}
+            onClick={() => setSelectedCalendarDate(null)}
+          >
+            <div
+              style={{
+                width: 'min(840px, 100%)',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+                backgroundColor: 'white',
+                borderRadius: '10px',
+                border: '1px solid #e0e4ea',
+                padding: '18px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Installations on {selectedCalendarDate}
+                  </div>
+                  <div style={{ color: '#54667d', fontSize: '12px', marginTop: '4px' }}>
+                    Read-only installation details
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCalendarDate(null)}
+                  style={{ border: '1px solid #e0e4ea', borderRadius: '6px', padding: '6px 10px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+              </div>
+
+              {selectedDateQuotes.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#54667d', fontFamily: 'var(--font-body)' }}>
+                  No installation for this date
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedDateQuotes.map((q) => (
+                    <div key={q.id} style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '12px' }}>
+                      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontWeight: 700, fontSize: '14px' }}>
+                        {q.customerName}
+                      </div>
+                      <div style={{ color: '#54667d', fontSize: '12px', marginTop: '4px' }}>
+                        {q.projectType}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginTop: '10px' }}>
+                        <div style={{ fontSize: '12px', color: '#54667d' }}>Dimensions: {q.width}cm × {q.height}cm × {q.quantity}</div>
+                        <div style={{ fontSize: '12px', color: '#54667d' }}>Color: {q.color}</div>
+                        <div style={{ fontSize: '12px', color: '#54667d' }}>Estimated Cost: ₱{Number(q.estimatedCost || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: '12px', color: '#54667d' }}>Status: {q.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getCsrfToken } from '../services/csrf';
 import '../../styles/auth.css';
@@ -67,6 +67,13 @@ export default function VerifyEmailResult() {
   return (
     <div className="auth-page">
       <div className="auth-card" style={{ textAlign: 'center' }}>
+        <div className="auth-back-row" style={{ marginBottom: '10px' }}>
+          <Link to="/" className="auth-back-btn" aria-label="Back to homepage">
+            <ArrowLeft size={16} />
+            Back to Home
+          </Link>
+        </div>
+
         {state === 'loading' && (
           <>
             <div className="auth-icon-circle warning">
