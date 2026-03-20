@@ -16,6 +16,8 @@ router.get('/quotes/:id', customerCtrl.getMyQuote);
 router.get('/quotes/:id/pdf', customerCtrl.getMyQuotePdf);
 router.post('/quotes/:id/accept', customerCtrl.acceptQuote);
 router.post('/quotes/:id/decline', customerCtrl.declineQuote);
+
+// Customer check-status routes
 router.get('/check-status/quotes', customerCtrl.getMyStatusQuotes);
 router.get('/check-status/quotes/:id/updates', customerCtrl.getMyQuoteUpdates);
 

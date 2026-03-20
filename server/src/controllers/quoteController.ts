@@ -112,9 +112,9 @@ export async function approveQuote(req: Request, res: Response) {
 
   // Generate PDF and send email
   if (updated) {
-    const pdfData = getQuotePDFData(updated);
+    const pdfData = getQuotePDFData(updated as any);
     const pdfHtml = generateQuotePDFHtml(pdfData);
-    await sendQuoteApprovalEmail(updated, pdfHtml);
+    await sendQuoteApprovalEmail(updated as any, pdfHtml);
   }
 
   return res.json(updated);
@@ -150,7 +150,7 @@ export function generatePDF(req: Request, res: Response) {
   const quote = QuoteModel.getQuoteById(req.params.id);
   if (!quote) return res.status(404).json({ error: 'Quote not found.' });
 
-  const pdfData = getQuotePDFData(quote);
+  const pdfData = getQuotePDFData(quote as any);
   const html = generateQuotePDFHtml(pdfData);
 
   res.setHeader('Content-Type', 'text/html');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { ArrowLeft, Eye, EyeOff, Shield, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -8,38 +8,49 @@ import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { useAuth } from '../context/AuthContext';
 import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 
 const GLASS_INSTALLATION_IMG = 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnbGFzcyUyMHdpbmRvdyUyMGluc3RhbGxhdGlvbiUyMGNvbnN0cnVjdGlvbnxlbnwxfHx8fDE3NzE5OTMyOTF8MA&ixlib=rb-4.1.0&q=80&w=1080';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
   const [adminId, setAdminId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const redirectTo = searchParams.get('redirect') || '/admin/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const result = await login(adminId, password);
+    setIsLoading(false);
 
-    if (adminId === 'admin' && password === 'admin123') {
-      const token = 'demo_token_' + Date.now();
-      localStorage.setItem('ermel_admin_token', token);
-      if (rememberMe) {
-        localStorage.setItem('ermel_remember_me', 'true');
-      }
-      navigate('/admin/dashboard');
-    } else {
-      setError('Invalid credentials. Please check your Admin ID and password.');
-      setIsLoading(false);
+    if (!result.success) {
+      setError(result.error || 'Invalid credentials. Please check your email and password.');
+      return;
     }
+
+    const meRes = await fetch(`${(import.meta as any).env?.VITE_API_URL || '/api'}/auth/me`, { credentials: 'include' });
+    const meData = await meRes.json().catch(() => ({}));
+    if (!meRes.ok || meData?.user?.role !== 'admin') {
+      setError('This account does not have admin access.');
+      return;
+    }
+
+    if (rememberMe) {
+      // Keep this preference only for UX and not authentication.
+      localStorage.setItem('ermel_remember_me', 'true');
+    }
+
+    navigate(redirectTo, { replace: true });
   };
 
   return (
@@ -110,16 +121,16 @@ export default function AdminLogin() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Admin ID Field */}
               <div className="space-y-2">
-                <Label htmlFor="adminId">Admin ID</Label>
+                <Label htmlFor="adminId">Admin Email</Label>
                 <Input
                   id="adminId"
-                  type="text"
-                  placeholder="Enter your admin ID"
+                  type="email"
+                  placeholder="Enter your admin email"
                   value={adminId}
                   onChange={(e) => setAdminId(e.target.value)}
                   disabled={isLoading}
                   required
-                  autoComplete="username"
+                  autoComplete="email"
                   className="h-11"
                 />
               </div>
@@ -190,14 +201,8 @@ export default function AdminLogin() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-3">
-            <div className="w-full border-t pt-4">
-              <div className="text-center text-xs text-muted-foreground bg-muted/50 rounded-md p-3">
-                <p className="font-medium mb-1">Demo Credentials</p>
-                <p className="font-mono">
-                  <span className="font-semibold">ID:</span> admin &nbsp;|&nbsp; 
-                  <span className="font-semibold">Password:</span> admin123
-                </p>
-              </div>
+            <div className="w-full border-t pt-4 text-center text-xs text-muted-foreground">
+              Use your verified admin account credentials.
             </div>
           </CardFooter>
         </Card>

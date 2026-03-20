@@ -15,12 +15,8 @@ import type {
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
 function getAdminHeaders(): HeadersInit {
-  const token = localStorage.getItem('ermel_admin_token') || '';
-  const user = localStorage.getItem('ermel_admin_user') || 'Admin';
   return {
     'Content-Type': 'application/json',
-    'x-admin-token': token,
-    'x-admin-user': user,
   };
 }
 
@@ -313,4 +309,30 @@ export async function customerMarkPayment(id: string, _email: string) {
     credentials: 'include',
   });
   return handleResponse<any>(res);
+}
+
+export async function fetchAdminAnalyticsSummary() {
+  const res = await fetch(`${API_BASE}/admin/analytics/summary`, {
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<{
+    totalQuotes: number;
+    approvalRate: number;
+    conversionRate: number;
+    monthlyTrends: Array<{ month: string; total: number }>;
+  }>(res);
+}
+
+export async function trackAnalyticsEvent(eventType: 'quote_started' | 'quote_submitted' | 'quote_approved' | 'quote_accepted', metadata?: Record<string, unknown>) {
+  await fetch(`${API_BASE}/analytics/events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ eventType, metadata: metadata || {} }),
+  }).catch(() => {
+    // Best-effort telemetry only.
+  });
 }

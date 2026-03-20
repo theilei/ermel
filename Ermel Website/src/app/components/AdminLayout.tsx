@@ -5,14 +5,20 @@ import {
 } from 'lucide-react';
 import { useQuotes } from '../context/QuoteContext';
 import { supabase } from '../services/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+
+const ADMIN_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const ADMIN_WARNING_LEAD_MS = 2 * 60 * 1000;
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [adminUser, setAdminUser] = useState('');
   const [unreadQuoteIds, setUnreadQuoteIds] = useState<string[]>([]);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
   const { quotes, refreshQuotes } = useQuotes();
 
   const pendingCount = quotes.filter((q) => q.status === 'pending' || q.status === 'draft').length;
@@ -34,16 +40,18 @@ export default function AdminLayout() {
   );
 
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('ermel_admin_token');
-    const user = localStorage.getItem('ermel_admin_user');
-    
-    if (!token) {
+    if (!user) {
       navigate('/admin/login');
-    } else {
-      setAdminUser(user || 'Admin');
+      return;
     }
-  }, [navigate]);
+
+    if (user.role !== 'admin') {
+      navigate('/');
+      return;
+    }
+
+    setAdminUser(user.fullName || 'Admin');
+  }, [navigate, user]);
 
   useEffect(() => {
     const stored = localStorage.getItem('ermel_admin_unread_quotes');
@@ -63,8 +71,9 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!supabase) return;
+    const client = supabase;
 
-    const channel = supabase
+    const channel = client
       .channel('admin-quotes-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, (payload) => {
         const quoteNumber = (payload.new as any)?.quote_number;
@@ -76,15 +85,45 @@ export default function AdminLayout() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [refreshQuotes]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('ermel_admin_token');
-    localStorage.removeItem('ermel_admin_user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/admin/login');
   };
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+
+    let warnTimeout: ReturnType<typeof setTimeout>;
+    let logoutTimeout: ReturnType<typeof setTimeout>;
+
+    const resetTimers = () => {
+      clearTimeout(warnTimeout);
+      clearTimeout(logoutTimeout);
+      setShowSessionWarning(false);
+
+      warnTimeout = setTimeout(() => {
+        setShowSessionWarning(true);
+      }, ADMIN_IDLE_TIMEOUT_MS - ADMIN_WARNING_LEAD_MS);
+
+      logoutTimeout = setTimeout(() => {
+        handleLogout();
+      }, ADMIN_IDLE_TIMEOUT_MS);
+    };
+
+    const events: Array<keyof WindowEventMap> = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
+    events.forEach((eventName) => window.addEventListener(eventName, resetTimers, { passive: true }));
+    resetTimers();
+
+    return () => {
+      clearTimeout(warnTimeout);
+      clearTimeout(logoutTimeout);
+      events.forEach((eventName) => window.removeEventListener(eventName, resetTimers));
+    };
+  }, [user]);
 
   const unreadCount = unreadQuoteIds.length;
 
@@ -99,6 +138,7 @@ export default function AdminLayout() {
       title: 'Intelligence',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: TrendingUp, path: '/admin/dashboard', category: 'intelligence' },
+        { id: 'analytics', label: 'Analytics', icon: TrendingUp, path: '/admin/analytics', category: 'intelligence' },
       ]
     },
     {
@@ -309,6 +349,11 @@ export default function AdminLayout() {
         }}
       >
         {/* Top Header */}
+        {showSessionWarning && (
+          <div style={{ backgroundColor: '#fff4e5', borderBottom: '1px solid #ffd9a8', color: '#7a5200', padding: '10px 24px', fontSize: '13px', fontWeight: 600 }}>
+            Your admin session will expire soon due to inactivity. Move your mouse or press any key to stay signed in.
+          </div>
+        )}
         <header
           style={{
             backgroundColor: 'white',

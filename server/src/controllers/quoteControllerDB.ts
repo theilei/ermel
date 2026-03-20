@@ -6,6 +6,7 @@ import * as QuoteModel from '../models/QuoteDB';
 import * as QuoteUpdateModel from '../models/QuoteUpdateDB';
 import * as ActivityLogService from '../services/activityLogService';
 import * as NotificationService from '../services/notificationService';
+import * as AnalyticsService from '../services/analyticsService';
 import { generateQuotePDFHtml, getQuotePDFData } from '../services/pdfService';
 import { sendQuoteApprovalEmail, sendQuoteStatusUpdateEmail } from '../services/emailService';
 
@@ -143,7 +144,7 @@ export async function updateQuote(req: Request, res: Response) {
     }
 
     const updated = await QuoteModel.updateQuote(existing.id, updates);
-    const adminName = (req.session as any)?.admin?.username || req.headers['x-admin-user'] as string || 'Admin';
+    const adminName = req.session?.userName || 'Admin';
 
     if (updates.updatedCost !== undefined) {
       await ActivityLogService.logQuotePriceEdited(existing.id, adminName, updates.updatedCost);
@@ -215,8 +216,11 @@ export async function approveQuote(req: Request, res: Response) {
       expiryDate: expiryDate.toISOString().split('T')[0],
     });
 
-    const adminName = (req.session as any)?.admin?.username || req.headers['x-admin-user'] as string || 'Admin';
+    const adminName = req.session?.userName || 'Admin';
     await ActivityLogService.logQuoteApproved(quote.id, adminName);
+    await AnalyticsService.trackEvent('quote_approved', req.session?.userId, {
+      quoteNumber: quote.quoteNumber,
+    });
 
     // Send notifications
     if (updated) {
@@ -265,7 +269,7 @@ export async function rejectQuote(req: Request, res: Response) {
       rejectionReason: reason.trim(),
     });
 
-    const adminName = (req.session as any)?.admin?.username || req.headers['x-admin-user'] as string || 'Admin';
+    const adminName = req.session?.userName || 'Admin';
     await ActivityLogService.logQuoteRejected(quote.id, adminName, reason.trim());
 
     if (updated) {
@@ -330,7 +334,7 @@ export async function convertToOrder(req: Request, res: Response) {
       convertedDate: new Date().toISOString().split('T')[0],
     });
 
-    const adminName = (req.session as any)?.admin?.username || req.headers['x-admin-user'] as string || 'Admin';
+    const adminName = req.session?.userName || 'Admin';
     await ActivityLogService.logConvertedToOrder(quote.id, order.id, adminName);
     await NotificationService.notifyQuoteConverted(quote.customerEmail, quote.quoteNumber, order.orderNumber);
 
@@ -415,7 +419,7 @@ export async function createQuoteUpdate(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: 'At least one update field is required.' });
     }
 
-    const adminName = (req.session as any)?.admin?.username || req.headers['x-admin-user'] as string || 'Admin';
+    const adminName = req.session?.userName || 'Admin';
     const quotePatch: Partial<QuoteModel.Quote> = {};
     if (status) quotePatch.status = status as QuoteModel.QuoteStatus;
     if (updatedPrice !== undefined) quotePatch.updatedCost = updatedPrice;
