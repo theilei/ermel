@@ -7,7 +7,7 @@
     "build": "vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "dev:backend": "npm.cmd --prefix ../server run dev",
+    "dev:backend": "npm --prefix ../server run dev",
     "dev:full": "concurrently -k -n FRONTEND,BACKEND -c cyan,green \"npm run dev\" \"npm run dev:backend\""
   },
   "dependencies": {
