@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAccountIdentity } from '../hooks/useAccountIdentity';
 
 export function Header() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const account = useAccountIdentity();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,6 +65,7 @@ export function Header() {
 
   const isActive = (href: string) => location.pathname === href.split('#')[0];
   const isLoggedIn = account.isLoggedIn;
+  const isAdmin = user?.role === 'admin';
   const initials = account.initials;
   const displayName = account.fullName;
 
@@ -333,7 +334,7 @@ export function Header() {
         {/* CTA + Mobile toggle */}
         <div className="flex items-center gap-3">
           <Link
-            to="/quote"
+            to={isAdmin ? '/admin/dashboard' : '/quote'}
             style={{
               fontFamily: 'var(--font-heading)',
               background: 'linear-gradient(135deg, #7a0000, #a50000)',
@@ -360,7 +361,7 @@ export function Header() {
               el.style.boxShadow = '0 2px 12px rgba(122,0,0,0.4)';
             }}
           >
-            Request a Quote
+            {isAdmin ? 'Admin Dashboard' : 'Request a Quote'}
           </Link>
 
           {isLoggedIn && (
@@ -456,26 +457,49 @@ export function Header() {
                     <User size={15} /> View Profile
                   </Link>
 
-                  <Link
-                    to="/check-status"
-                    onClick={() => setAccountOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      color: '#d9d9d9',
-                      textDecoration: 'none',
-                      padding: '11px 14px',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      fontFamily: 'var(--font-heading)',
-                      fontSize: '12px',
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                    }}
-                  >
-                    <FileText size={15} /> Check My Status
-                  </Link>
+                  {isAdmin ? (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setAccountOpen(false)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        color: '#d9d9d9',
+                        textDecoration: 'none',
+                        padding: '11px 14px',
+                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '12px',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <FileText size={15} /> Admin Dashboard
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/check-status"
+                      onClick={() => setAccountOpen(false)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        color: '#d9d9d9',
+                        textDecoration: 'none',
+                        padding: '11px 14px',
+                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '12px',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <FileText size={15} /> Check My Status
+                    </Link>
+                  )}
 
                   <button
                     type="button"
@@ -685,7 +709,7 @@ export function Header() {
               </Link>
 
               <Link
-                to="/check-status"
+                to={isAdmin ? '/admin/dashboard' : '/check-status'}
                 style={{
                   fontFamily: 'var(--font-heading)',
                   color: '#d9d9d9',
@@ -700,7 +724,7 @@ export function Header() {
                 }}
                 onClick={() => setMenuOpen(false)}
               >
-                Check My Status
+                {isAdmin ? 'Admin Dashboard' : 'Check My Status'}
               </Link>
 
               <button

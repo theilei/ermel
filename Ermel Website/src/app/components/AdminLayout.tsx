@@ -41,7 +41,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!user) {
-      navigate('/admin/login');
+      navigate('/login?redirect=%2Fadmin%2Fdashboard');
       return;
     }
 
@@ -91,7 +91,7 @@ export default function AdminLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/admin/login');
+    navigate('/login');
   };
 
   useEffect(() => {

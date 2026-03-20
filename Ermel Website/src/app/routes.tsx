@@ -22,6 +22,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmailResult from './pages/VerifyEmailResult';
 import VerificationRequired from './pages/VerificationRequired';
+import Forbidden from './pages/Forbidden';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import AnalyticsDSS from './pages/AnalyticsDSS';
@@ -36,7 +37,7 @@ export const router = createBrowserRouter([
       {
         path: 'quote',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requireVerified>
             <QuotationModule />
           </ProtectedRoute>
         ),
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
   { path: '/register', Component: Register },
   { path: '/verify-email', Component: VerifyEmailResult },
   { path: '/verification-required', Component: VerificationRequired },
+  { path: '/forbidden', Component: Forbidden },
   { path: '/admin/login', Component: AdminLogin },
   {
     path: '/admin',

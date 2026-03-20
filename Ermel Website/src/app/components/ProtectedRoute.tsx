@@ -7,7 +7,13 @@ import { useAuth } from '../context/AuthContext';
  * - Logged in but unverified → redirect to /verification-required
  * - Logged in + verified → render children
  */
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export default function ProtectedRoute({
+  children,
+  requireVerified = false,
+}: {
+  children: React.ReactNode;
+  requireVerified?: boolean;
+}) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -32,7 +38,11 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
-  if (!user.isVerified) {
+  if (location.pathname === '/quote' && user.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (requireVerified && !user.isVerified) {
     return <Navigate to="/verification-required" replace />;
   }
 

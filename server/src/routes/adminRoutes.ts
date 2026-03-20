@@ -8,6 +8,7 @@ import * as orderCtrl from '../controllers/orderControllerDB';
 import * as legacyOrderCtrl from '../controllers/legacyOrderController';
 import * as reservationCtrl from '../controllers/reservationController';
 import * as analyticsCtrl from '../controllers/analyticsController';
+import * as adminUserCtrl from '../controllers/adminUserController';
 
 const router = Router();
 
@@ -48,5 +49,8 @@ router.get('/activity-logs', quoteCtrl.getActivityLogs);
 
 // ---- Analytics ----
 router.get('/analytics/summary', analyticsCtrl.getAdminAnalytics);
+
+// ---- User role management ----
+router.patch('/users/:id/role', adminUserCtrl.updateUserRole);
 
 export default router;
