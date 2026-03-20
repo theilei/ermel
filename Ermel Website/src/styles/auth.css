@@ -42,6 +42,29 @@
   max-width: 520px;
 }
 
+.auth-back-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.auth-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #15263c;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.auth-back-btn:hover {
+  color: #7a0000;
+}
+
 /* Header */
 .auth-header {
   text-align: center;

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { fetchAdminAnalyticsSummary } from '../services/api';
+import { supabase } from '../services/supabaseClient';
 
 interface AnalyticsSummary {
   totalQuotes: number;
@@ -14,27 +15,37 @@ export default function AnalyticsDSS() {
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
 
+  const loadSummary = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    try {
+      const data = await fetchAdminAnalyticsSummary();
+      setSummary(data);
+      setError('');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load analytics.');
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let active = true;
-    fetchAdminAnalyticsSummary()
-      .then((data) => {
-        if (!active) return;
-        setSummary(data);
-        setError('');
-      })
-      .catch((err: any) => {
-        if (!active) return;
-        setError(err?.message || 'Failed to load analytics.');
-      })
-      .finally(() => {
-        if (!active) return;
-        setLoading(false);
-      });
+    loadSummary(true);
+  }, [loadSummary]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+
+    const channel = client
+      .channel('admin-analytics-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, () => loadSummary())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, () => loadSummary())
+      .subscribe();
 
     return () => {
-      active = false;
+      client.removeChannel(channel);
     };
-  }, []);
+  }, [loadSummary]);
 
   if (loading) {
     return <div style={{ padding: '24px' }}>Loading analytics...</div>;

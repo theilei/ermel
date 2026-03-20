@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TermsPrivacyModal, { LegalModalType } from '../components/TermsPrivacyModal';
 import '../../styles/auth.css';
@@ -77,6 +77,13 @@ export default function Register() {
         width: '100%'
       }}>
       <div className="auth-card auth-card-wide">
+        <div className="auth-back-row">
+          <Link to="/" className="auth-back-btn" aria-label="Back to homepage">
+            <ArrowLeft size={16} />
+            Back to Home
+          </Link>
+        </div>
+
         <div className="auth-header">
           <div className="auth-brand">ERMEL GLASS &amp; ALUMINUM</div>
           <h1 className="auth-title">CREATE ACCOUNT</h1>

@@ -1,15 +1,17 @@
 // ============================================================
 // Admin Quotation Approval Page
 // ============================================================
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Filter, Eye, CheckCircle, XCircle, Edit2, FileText,
-  ChevronLeft, ChevronRight, ArrowUpDown,
+  Search, Filter, Eye, CheckCircle, XCircle, FileText,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useQuotes } from '../../context/QuoteContext';
-import type { QuoteStatus } from '../../types/quotation';
+import type { Quote, QuoteStatus } from '../../types/quotation';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS } from '../../types/quotation';
+import * as api from '../../services/api';
+import { supabase } from '../../services/supabaseClient';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -32,37 +34,64 @@ export default function QuotationApproval() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [rows, setRows] = useState<Quote[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [rejectModalQuoteId, setRejectModalQuoteId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  // Filter & search
-  const filtered = useMemo(() => {
-    let result = [...quotes];
-    if (statusFilter !== 'all') {
-      result = result.filter((q) => q.status === statusFilter);
+  const loadPage = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.fetchQuotes({
+        search: search.trim() || undefined,
+        status: statusFilter,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      });
+      setRows(Array.isArray(data.quotes) ? data.quotes : []);
+      setTotalItems(data.pagination?.totalItems || 0);
+      setTotalPages(Math.max(1, data.pagination?.totalPages || 1));
+      setError('');
+    } catch (err: any) {
+      setRows([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setError(err?.message || 'Failed to load quotations.');
+    } finally {
+      setLoading(false);
     }
-    if (search.trim()) {
-      const s = search.trim().toLowerCase();
-      result = result.filter(
-        (q) =>
-          q.customerName.toLowerCase().includes(s) ||
-          q.id.toLowerCase().includes(s)
-      );
-    }
-    return result;
-  }, [quotes, statusFilter, search]);
+  }, [currentPage, search, statusFilter]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+
+    const channel = client
+      .channel('admin-quotation-approval-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, () => loadPage())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, () => loadPage())
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [loadPage]);
 
   const canApprove = (status: QuoteStatus) => status === 'pending' || status === 'draft';
   const canReject = (status: QuoteStatus) => status === 'pending' || status === 'draft' || status === 'approved';
 
   const handleApprove = (id: string) => {
     approveQuote(id);
+    setTimeout(() => {
+      loadPage();
+    }, 120);
   };
 
   const handleRejectConfirm = () => {
@@ -70,6 +99,9 @@ export default function QuotationApproval() {
       rejectQuote(rejectModalQuoteId, rejectReason.trim());
       setRejectModalQuoteId(null);
       setRejectReason('');
+      setTimeout(() => {
+        loadPage();
+      }, 120);
     }
   };
 
@@ -171,14 +203,26 @@ export default function QuotationApproval() {
               </tr>
             </thead>
             <tbody>
-              {paginated.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#54667d', fontFamily: 'var(--font-body)' }}>
+                    Loading quotations...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#7a0000', fontFamily: 'var(--font-body)' }}>
+                    {error}
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#aaa', fontFamily: 'var(--font-body)' }}>
                     No quotes found.
                   </td>
                 </tr>
               ) : (
-                paginated.map((quote) => {
+                rows.map((quote) => {
                   const statusColors = QUOTE_STATUS_COLORS[quote.status];
                   return (
                     <tr
@@ -293,7 +337,7 @@ export default function QuotationApproval() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #f0f2f5' }}>
             <div style={{ fontSize: '13px', color: '#54667d', fontFamily: 'var(--font-body)' }}>
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems}
             </div>
             <div className="flex items-center gap-1">
               <button

@@ -10,6 +10,7 @@ import type {
   ActivityLog,
 } from '../types/quotation';
 import * as api from '../services/api';
+import { supabase } from '../services/supabaseClient';
 
 // ---- Context Interface ----
 interface QuoteContextType {
@@ -91,6 +92,32 @@ export function QuoteProvider({ children }: { children: React.ReactNode }) {
     }
     loadAll();
   }, [refreshQuotes, refreshOrders, refreshLogs]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        Promise.all([refreshQuotes(), refreshOrders(), refreshLogs()]).catch(() => {
+          // Keep UI alive if one request fails.
+        });
+      }, 120);
+    };
+
+    const quoteChannel = client
+      .channel('quote-context-qq-quotes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, queueRefresh)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, queueRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      client.removeChannel(quoteChannel);
+    };
+  }, [refreshLogs, refreshOrders, refreshQuotes]);
 
   // ---- Admin actions ----
   const updateQuoteFn = useCallback(async (id: string, updates: Partial<Quote>) => {
