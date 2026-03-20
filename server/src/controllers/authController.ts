@@ -31,6 +31,27 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+let consentTimestampColumnsSupported: boolean | null = null;
+
+async function hasConsentTimestampColumns(): Promise<boolean> {
+  if (consentTimestampColumnsSupported !== null) return consentTimestampColumnsSupported;
+
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM information_schema.columns
+       WHERE table_name = 'users'
+         AND column_name IN ('accepted_terms_at', 'accepted_privacy_at')`,
+    );
+
+    consentTimestampColumnsSupported = (result.rows[0]?.count ?? 0) === 2;
+    return consentTimestampColumnsSupported;
+  } catch {
+    consentTimestampColumnsSupported = false;
+    return false;
+  }
+}
+
 export function csrfToken(req: Request, res: Response) {
   const tokenFactory = (req as any).csrfToken as undefined | (() => string);
   if (!tokenFactory) {
@@ -74,12 +95,25 @@ export async function register(req: Request, res: Response) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Create user
-    const userResult = await pool.query(
-      `INSERT INTO users (full_name, email, password_hash, accepted_terms, accepted_privacy)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, full_name, email, is_verified`,
-      [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
-    );
+    let userResult;
+    if (await hasConsentTimestampColumns()) {
+      userResult = await pool.query(
+        `INSERT INTO users (
+           full_name, email, password_hash, accepted_terms, accepted_privacy,
+           accepted_terms_at, accepted_privacy_at
+         )
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id, full_name, email, is_verified`,
+        [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
+      );
+    } else {
+      userResult = await pool.query(
+        `INSERT INTO users (full_name, email, password_hash, accepted_terms, accepted_privacy)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, full_name, email, is_verified`,
+        [fullName, email, passwordHash, acceptedTerms, acceptedPrivacy],
+      );
+    }
 
     const user = userResult.rows[0];
 
