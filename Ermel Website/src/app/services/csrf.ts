@@ -21,7 +21,7 @@ export async function getCsrfToken(forceRefresh = false): Promise<string> {
   }
 
   csrfTokenCache = body.csrfToken;
-  return csrfTokenCache;
+  return body.csrfToken;
 }
 
 export function clearCsrfTokenCache() {

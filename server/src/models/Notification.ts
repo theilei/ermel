@@ -22,9 +22,17 @@ function rowToNotification(row: any): Notification {
     message: row.message,
     type: row.type || undefined,
     relatedQuoteNumber: row.related_quote_number || undefined,
-    read: row.read,
+    read: row.read ?? row.is_read,
     createdAt: row.created_at,
   };
+}
+
+async function logNotificationEvent(notificationId: string, eventType: 'sent' | 'received' | 'read'): Promise<void> {
+  await pool.query(
+    `INSERT INTO notification_logs (notification_id, event_type)
+     VALUES ($1, $2)`,
+    [notificationId, eventType],
+  );
 }
 
 export async function getNotificationsByUser(userId: string): Promise<Notification[]> {
@@ -32,6 +40,20 @@ export async function getNotificationsByUser(userId: string): Promise<Notificati
     `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
     [userId]
   );
+
+  // Record a one-time "received" event for any notification that has not been marked as received yet.
+  await pool.query(
+    `INSERT INTO notification_logs (notification_id, event_type)
+     SELECT n.id, 'received'
+     FROM notifications n
+     WHERE n.user_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM notification_logs nl
+         WHERE nl.notification_id = n.id AND nl.event_type = 'received'
+       )`,
+    [userId],
+  );
+
   return result.rows.map(rowToNotification);
 }
 
@@ -50,25 +72,43 @@ export async function createNotification(
   meta?: { type?: string; relatedQuoteNumber?: string }
 ): Promise<Notification> {
   const result = await pool.query(
-    `INSERT INTO notifications (user_id, title, message, type, related_quote_number)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO notifications (user_id, title, message, type, content, related_quote_number)
+     VALUES ($1, $2, $3, $4, $3, $5)
      RETURNING *`,
     [userId, title, message, meta?.type || null, meta?.relatedQuoteNumber || null]
   );
+
+  await logNotificationEvent(result.rows[0].id, 'sent');
   return rowToNotification(result.rows[0]);
 }
 
 export async function markAsRead(id: string, userId: string): Promise<boolean> {
   const result = await pool.query(
-    `UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2`,
+    `UPDATE notifications SET read = TRUE, is_read = TRUE WHERE id = $1 AND user_id = $2`,
     [id, userId]
   );
+  if ((result.rowCount ?? 0) > 0) {
+    await logNotificationEvent(id, 'read');
+  }
   return (result.rowCount ?? 0) > 0;
 }
 
 export async function markAllAsRead(userId: string): Promise<number> {
+  await pool.query(
+    `INSERT INTO notification_logs (notification_id, event_type)
+     SELECT n.id, 'read'
+     FROM notifications n
+     WHERE n.user_id = $1
+       AND (n.read = FALSE OR n.is_read = FALSE)
+       AND NOT EXISTS (
+         SELECT 1 FROM notification_logs nl
+         WHERE nl.notification_id = n.id AND nl.event_type = 'read'
+       )`,
+    [userId],
+  );
+
   const result = await pool.query(
-    `UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`,
+    `UPDATE notifications SET read = TRUE, is_read = TRUE WHERE user_id = $1 AND (read = FALSE OR is_read = FALSE)`,
     [userId]
   );
   return result.rowCount ?? 0;

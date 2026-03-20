@@ -6,6 +6,7 @@ import * as QuoteModel from '../models/QuoteDB';
 import * as QuoteUpdateModel from '../models/QuoteUpdateDB';
 import * as ActivityLogService from '../services/activityLogService';
 import * as NotificationService from '../services/notificationService';
+import * as AnalyticsService from '../services/analyticsService';
 import { generateQuotePDFHtml, getQuotePDFData } from '../services/pdfService';
 import pool from '../config/database';
 
@@ -128,6 +129,9 @@ export async function acceptQuote(req: Request, res: Response) {
 
     await ActivityLogService.logCustomerAccepted(quote.id, quote.customerName);
     await NotificationService.notifyAdminCustomerAction(quote.quoteNumber, quote.customerName, 'accepted');
+    await AnalyticsService.trackEvent('quote_accepted', req.session?.userId, {
+      quoteNumber: quote.quoteNumber,
+    });
 
     return res.json({ success: true, data: updated ? toFrontendQuote(updated) : null });
   } catch (err: any) {

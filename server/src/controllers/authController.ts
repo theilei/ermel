@@ -10,7 +10,6 @@ import { addLog } from '../models/ActivityLogDB';
 
 const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Helpers
@@ -195,6 +194,11 @@ export async function register(req: Request, res: Response) {
     req.session.userEmail = user.email;
     req.session.userName = user.full_name;
     req.session.isVerified = false;
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      role: 'customer',
+    };
 
     return res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account.',
@@ -218,6 +222,7 @@ export async function login(req: Request, res: Response) {
   try {
     const email = sanitize(req.body.email).toLowerCase();
     const password = req.body.password || '';
+    const ipAddress = getClientIp(req);
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
@@ -226,7 +231,7 @@ export async function login(req: Request, res: Response) {
     // Find user
     const result = await pool.query(
       `SELECT id, full_name, email, password_hash, is_verified,
-              failed_login_attempts, lock_until
+              role, failed_login_attempts
        FROM users WHERE email = $1`,
       [email],
     );
@@ -266,15 +271,11 @@ export async function login(req: Request, res: Response) {
 
     if (!passwordMatch) {
       const attempts = user.failed_login_attempts + 1;
-      const lockUntil =
-        attempts >= MAX_FAILED_ATTEMPTS
-          ? new Date(Date.now() + LOCK_DURATION_MS)
-          : null;
 
       await pool.query(
-        `UPDATE users SET failed_login_attempts = $1, lock_until = $2, updated_at = NOW()
-         WHERE id = $3`,
-        [attempts, lockUntil, user.id],
+        `UPDATE users SET failed_login_attempts = $1, updated_at = NOW()
+         WHERE id = $2`,
+        [attempts, user.id],
       );
 
       await logAuthAttempt({
@@ -297,10 +298,12 @@ export async function login(req: Request, res: Response) {
 
     // Successful login — reset failed attempts
     await pool.query(
-      `UPDATE users SET failed_login_attempts = 0, lock_until = NULL, updated_at = NOW()
+      `UPDATE users SET failed_login_attempts = 0, updated_at = NOW()
        WHERE id = $1`,
       [user.id],
     );
+
+    await logAuthAttempt(email, ipAddress, true);
 
     // Set session
     req.session.userId = user.id;
@@ -324,6 +327,7 @@ export async function login(req: Request, res: Response) {
         fullName: user.full_name,
         email: user.email,
         isVerified: user.is_verified,
+        role: user.role === 'admin' ? 'admin' : 'customer',
       },
     });
   } catch (err: any) {
@@ -356,7 +360,7 @@ export async function me(req: Request, res: Response) {
 
   try {
     const result = await pool.query(
-      `SELECT id, full_name, email, is_verified FROM users WHERE id = $1`,
+      `SELECT id, full_name, email, is_verified, role FROM users WHERE id = $1`,
       [req.session.userId],
     );
 
@@ -369,6 +373,11 @@ export async function me(req: Request, res: Response) {
 
     // Keep session in sync
     req.session.isVerified = user.is_verified;
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role === 'admin' ? 'admin' : 'customer',
+    };
 
     return res.json({
       user: {
@@ -376,6 +385,7 @@ export async function me(req: Request, res: Response) {
         fullName: user.full_name,
         email: user.email,
         isVerified: user.is_verified,
+        role: user.role === 'admin' ? 'admin' : 'customer',
       },
     });
   } catch (err: any) {
