@@ -7,7 +7,26 @@
 //
 // For development, emails are logged to console instead of actually sent.
 
-import { Quote } from '../models/QuoteDB';
+import { Quote as DBQuote } from '../models/QuoteDB';
+
+type QuoteForEmail = Pick<
+  DBQuote,
+  | 'id'
+  | 'customerName'
+  | 'customerEmail'
+  | 'customerPhone'
+  | 'projectType'
+  | 'glassType'
+  | 'frameMaterial'
+  | 'width'
+  | 'height'
+  | 'quantity'
+  | 'estimatedCost'
+  | 'approvedDate'
+  | 'notes'
+> & {
+  quoteNumber?: string;
+};
 
 interface EmailOptions {
   to: string;
@@ -79,7 +98,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 /**
  * Send quote approval notification to customer.
  */
-export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Promise<boolean> {
+export async function sendQuoteApprovalEmail(quote: QuoteForEmail, pdfHtml: string): Promise<boolean> {
+  const quoteNumber = quote.quoteNumber || quote.id;
   const dashboardUrl = process.env.FRONTEND_URL
     ? `${process.env.FRONTEND_URL}/dashboard`
     : 'http://localhost:5173/dashboard';
@@ -106,7 +126,7 @@ export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Pro
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #54667d; font-size: 13px;">Quote ID:</td>
-              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quote.quoteNumber}</td>
+              <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteNumber}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #54667d; font-size: 13px;">Project:</td>
@@ -156,20 +176,21 @@ export async function sendQuoteApprovalEmail(quote: Quote, pdfHtml: string): Pro
 
   return sendEmail({
     to: quote.customerEmail,
-    subject: `Your Quotation ${quote.quoteNumber} is Ready — ERMEL Glass & Aluminum`,
+    subject: `Your Quotation ${quoteNumber} is Ready — ERMEL Glass & Aluminum`,
     html,
     attachmentHtml: pdfHtml,
   });
 }
 
-export async function sendQuoteSubmissionEmails(quote: Quote): Promise<void> {
+export async function sendQuoteSubmissionEmails(quote: QuoteForEmail): Promise<void> {
+  const quoteNumber = quote.quoteNumber || quote.id;
   const companyEmail = process.env.COMPANY_EMAIL || process.env.GMAIL_USER;
 
   const customerHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
       <h2 style="margin: 0 0 12px;">Quote Request Received</h2>
       <p>Hello ${quote.customerName},</p>
-      <p>We received your quote request <strong>${quote.quoteNumber}</strong>. Our team will review it and follow up soon.</p>
+      <p>We received your quote request <strong>${quoteNumber}</strong>. Our team will review it and follow up soon.</p>
       <p><strong>Project:</strong> ${quote.projectType}<br>
       <strong>Material:</strong> ${quote.frameMaterial}<br>
       <strong>Dimensions:</strong> ${quote.width}cm × ${quote.height}cm</p>
@@ -180,7 +201,7 @@ export async function sendQuoteSubmissionEmails(quote: Quote): Promise<void> {
   const companyHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
       <h2 style="margin: 0 0 12px;">New Quote Submitted</h2>
-      <p><strong>Quote:</strong> ${quote.quoteNumber}</p>
+      <p><strong>Quote:</strong> ${quoteNumber}</p>
       <p><strong>Customer:</strong> ${quote.customerName} (${quote.customerEmail})</p>
       <p><strong>Phone:</strong> ${quote.customerPhone}</p>
       <p><strong>Project:</strong> ${quote.projectType}</p>
@@ -193,23 +214,24 @@ export async function sendQuoteSubmissionEmails(quote: Quote): Promise<void> {
 
   await sendEmail({
     to: quote.customerEmail,
-    subject: `Quote Request Received (${quote.quoteNumber})`,
+    subject: `Quote Request Received (${quoteNumber})`,
     html: customerHtml,
   });
 
   if (companyEmail) {
     await sendEmail({
       to: companyEmail,
-      subject: `New Quote Request ${quote.quoteNumber}`,
+      subject: `New Quote Request ${quoteNumber}`,
       html: companyHtml,
     });
   }
 }
 
 export async function sendQuoteStatusUpdateEmail(
-  quote: Quote,
+  quote: QuoteForEmail,
   payload: { status?: string; estimatedPrice?: number; updatedPrice?: number; adminRemark?: string }
 ): Promise<boolean> {
+  const quoteNumber = quote.quoteNumber || quote.id;
   const dashboardUrl = process.env.FRONTEND_URL
     ? `${process.env.FRONTEND_URL}/check-status`
     : 'http://localhost:5173/check-status';
@@ -229,7 +251,7 @@ export async function sendQuoteStatusUpdateEmail(
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #15263c;">
       <h2 style="margin: 0 0 12px;">Your Quote Has Been Updated</h2>
       <p>Hello ${quote.customerName},</p>
-      <p>Your quote <strong>${quote.quoteNumber}</strong> has new updates from our admin team.</p>
+      <p>Your quote <strong>${quoteNumber}</strong> has new updates from our admin team.</p>
 
       <div style="background: #f5f7fa; border: 1px solid #e0e4ea; border-radius: 8px; padding: 16px; margin: 16px 0;">
         ${statusLine}
@@ -247,7 +269,7 @@ export async function sendQuoteStatusUpdateEmail(
 
   return sendEmail({
     to: quote.customerEmail,
-    subject: `Quote Update (${quote.quoteNumber})`,
+    subject: `Quote Update (${quoteNumber})`,
     html,
   });
 }

@@ -4,14 +4,34 @@
 // Uses a simple HTML-to-text approach for now.
 // In production, integrate pdfkit or puppeteer for real PDF generation.
 
-import { Quote } from '../models/QuoteDB';
+import { Quote as DBQuote } from '../models/QuoteDB';
+
+type QuoteForPdf = Pick<
+  DBQuote,
+  | 'id'
+  | 'customerName'
+  | 'customerEmail'
+  | 'customerPhone'
+  | 'customerAddress'
+  | 'projectType'
+  | 'glassType'
+  | 'frameMaterial'
+  | 'width'
+  | 'height'
+  | 'quantity'
+  | 'color'
+  | 'estimatedCost'
+  | 'approvedDate'
+> & {
+  quoteNumber?: string;
+};
 
 export interface QuotePDFData {
   companyName: string;
   companyAddress: string;
   companyPhone: string;
   companyEmail: string;
-  quote: Quote;
+  quote: QuoteForPdf;
   validityDays: number;
   issueDate: string;
 }
@@ -22,6 +42,7 @@ export interface QuotePDFData {
  */
 export function generateQuotePDFHtml(data: QuotePDFData): string {
   const { quote, validityDays, issueDate } = data;
+  const quoteNumber = quote.quoteNumber || quote.id;
   const expiryDate = new Date(issueDate);
   expiryDate.setDate(expiryDate.getDate() + validityDays);
 
@@ -61,7 +82,7 @@ export function generateQuotePDFHtml(data: QuotePDFData): string {
   </div>
 
   <div class="quote-title">QUOTATION</div>
-  <div class="quote-id">Quote ID: ${quote.quoteNumber} | Issue Date: ${issueDate}</div>
+  <div class="quote-id">Quote ID: ${quoteNumber} | Issue Date: ${issueDate}</div>
 
   <div class="section">
     <div class="section-title">Customer Information</div>
@@ -102,7 +123,7 @@ export function generateQuotePDFHtml(data: QuotePDFData): string {
  * Returns PDF-ready data object for the quote.
  * In production, this would return a Buffer from pdfkit/puppeteer.
  */
-export function getQuotePDFData(quote: Quote): QuotePDFData {
+export function getQuotePDFData(quote: QuoteForPdf): QuotePDFData {
   return {
     companyName: 'ERMEL',
     companyAddress: 'Metro Manila, Philippines',

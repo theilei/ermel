@@ -31,6 +31,40 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function getClientIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
+async function logAuthAttempt(params: {
+  req: Request;
+  email: string;
+  success: boolean;
+  reason: string;
+  userId?: number;
+  userName?: string;
+}) {
+  try {
+    await addLog({
+      action: params.success ? 'Login success' : 'Login failed',
+      entity: 'auth',
+      entityId: params.userId !== undefined ? String(params.userId) : undefined,
+      userId: params.userId !== undefined ? String(params.userId) : undefined,
+      userRole: 'customer',
+      userName: params.userName || params.email,
+      details: `${params.reason} | email=${params.email} | ip=${getClientIp(params.req)}`,
+    });
+  } catch {
+    // Never block auth flow if logging fails.
+  }
+}
+
 let consentTimestampColumnsSupported: boolean | null = null;
 
 async function hasConsentTimestampColumns(): Promise<boolean> {
@@ -198,6 +232,12 @@ export async function login(req: Request, res: Response) {
     );
 
     if (result.rows.length === 0) {
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: 'User not found',
+      });
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
@@ -208,6 +248,14 @@ export async function login(req: Request, res: Response) {
       const minutesLeft = Math.ceil(
         (new Date(user.lock_until).getTime() - Date.now()) / 60000,
       );
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: `Account locked (${minutesLeft} minute(s) remaining)`,
+        userId: user.id,
+        userName: user.full_name,
+      });
       return res.status(423).json({
         error: `Account is locked due to too many failed attempts. Try again in ${minutesLeft} minute(s).`,
       });
@@ -228,6 +276,15 @@ export async function login(req: Request, res: Response) {
          WHERE id = $3`,
         [attempts, lockUntil, user.id],
       );
+
+      await logAuthAttempt({
+        req,
+        email,
+        success: false,
+        reason: lockUntil ? 'Too many failed attempts; account locked' : 'Password mismatch',
+        userId: user.id,
+        userName: user.full_name,
+      });
 
       if (lockUntil) {
         return res.status(423).json({
@@ -250,6 +307,15 @@ export async function login(req: Request, res: Response) {
     req.session.userEmail = user.email;
     req.session.userName = user.full_name;
     req.session.isVerified = user.is_verified;
+
+    await logAuthAttempt({
+      req,
+      email,
+      success: true,
+      reason: 'Authenticated',
+      userId: user.id,
+      userName: user.full_name,
+    });
 
     return res.json({
       message: 'Login successful.',
