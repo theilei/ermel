@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Bell, FileDown, RefreshCw, Search } from 'lucide-react';
+import qrCodeImage from '../../assets/qr-code.png';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import {
@@ -39,6 +40,9 @@ function statusColor(status?: string) {
   return '#15263c';
 }
 
+const DEFAULT_PROOF_LABEL = 'No file selected yet';
+const API_ORIGIN = (((import.meta as any).env?.VITE_API_URL as string | undefined) || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+
 export default function CheckStatus() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,8 @@ export default function CheckStatus() {
   const [error, setError] = useState('');
   const [paymentMetaByQuote, setPaymentMetaByQuote] = useState<Record<string, { quoteStatus: string; countdown: { deadline: string; remainingMs: number; expired: boolean } }>>({});
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [selectedProofName, setSelectedProofName] = useState(DEFAULT_PROOF_LABEL);
+  const [localProofPreviewUrl, setLocalProofPreviewUrl] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
   const proofInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -136,6 +142,20 @@ export default function CheckStatus() {
   }, [selectedQuoteId, loadPaymentMeta]);
 
   useEffect(() => {
+    const activeQuote = quotes.find((q) => q.id === selectedQuoteId);
+    setSelectedProofName(activeQuote?.payment?.proofFile || DEFAULT_PROOF_LABEL);
+    setLocalProofPreviewUrl(null);
+  }, [quotes, selectedQuoteId]);
+
+  useEffect(() => {
+    return () => {
+      if (localProofPreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(localProofPreviewUrl);
+      }
+    };
+  }, [localProofPreviewUrl]);
+
+  useEffect(() => {
     if (!supabase || !user) return;
     const client = supabase;
 
@@ -204,6 +224,20 @@ export default function CheckStatus() {
   const countdownMs = deadlineMs > 0 ? Math.max(0, deadlineMs - nowMs) : 0;
   const isPaymentExpired = paymentMeta?.countdown?.expired || selectedQuote?.status === 'cancelled' || selectedQuote?.payment?.status === 'expired';
   const canShowPaymentSection = selectedQuote?.status === 'approved' || selectedQuote?.status === 'cancelled';
+  const hasProofForDelete = Boolean(selectedQuote?.payment?.proofFile) || selectedProofName !== DEFAULT_PROOF_LABEL;
+  const uploadedProofUrl = useMemo(() => {
+    const proofPath = selectedQuote?.payment?.proofFile;
+    if (!proofPath) return null;
+    if (/^https?:\/\//i.test(proofPath)) return proofPath;
+    return `${API_ORIGIN}${proofPath.startsWith('/') ? '' : '/'}${proofPath}`;
+  }, [selectedQuote?.payment?.proofFile]);
+  const proofPreviewUrl = localProofPreviewUrl || uploadedProofUrl;
+  const proofLabel = selectedProofName === DEFAULT_PROOF_LABEL
+    ? (selectedQuote?.payment?.proofFile || DEFAULT_PROOF_LABEL)
+    : selectedProofName;
+  const lowerProofName = proofLabel.toLowerCase();
+  const isPreviewPdf = lowerProofName.endsWith('.pdf');
+  const isPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(lowerProofName);
   const countdownLabel = (() => {
     if (!paymentMeta) return 'Loading...';
     const ms = Math.max(0, countdownMs);
@@ -588,7 +622,7 @@ export default function CheckStatus() {
                           }}
                           style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: selectedQuote.payment?.paymentMethod === 'qrph' ? '#15263c' : 'white', color: selectedQuote.payment?.paymentMethod === 'qrph' ? 'white' : '#15263c', cursor: 'pointer' }}
                         >
-                          QRPH
+                          Pay Online
                         </button>
                         <button
                           disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
@@ -604,35 +638,18 @@ export default function CheckStatus() {
                       </div>
 
                       {selectedQuote.payment?.paymentMethod === 'qrph' && (
-                        <div style={{ border: '1px dashed #d9dce3', borderRadius: '8px', padding: '12px' }}>
-                          <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px' }}>Upload proof (jpg, jpeg, png, pdf, max 5MB)</div>
-                          <div
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={async (e) => {
-                              e.preventDefault();
-                              const f = e.dataTransfer.files?.[0];
-                              if (!f) return;
-                              setUploadingProof(true);
-                              try {
-                                await uploadCustomerPaymentProof(selectedQuote.id, f);
-                                await reloadAll();
-                              } finally {
-                                setUploadingProof(false);
-                              }
-                            }}
-                            style={{ border: '1px dashed #c8cfdb', borderRadius: '8px', padding: '10px', marginBottom: '8px', backgroundColor: '#fcfdff' }}
-                          >
-                            <div style={{ color: '#54667d', fontSize: '12px' }}>Drag and drop file here</div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <input
-                              ref={proofInputRef}
-                              type="file"
-                              accept=".jpg,.jpeg,.png,.pdf"
-                              disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
-                              onChange={async (e) => {
-                                const f = e.target.files?.[0];
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                          <div className="lg:col-span-8" style={{ border: '1px dashed #d9dce3', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px' }}>Upload your payment proof (JPG, JPEG, PNG, or PDF, up to 5MB)</div>
+                            <div
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={async (e) => {
+                                e.preventDefault();
+                                const f = e.dataTransfer.files?.[0];
                                 if (!f) return;
+                                setSelectedProofName(f.name);
+                                if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
+                                setLocalProofPreviewUrl(URL.createObjectURL(f));
                                 setUploadingProof(true);
                                 try {
                                   await uploadCustomerPaymentProof(selectedQuote.id, f);
@@ -641,18 +658,143 @@ export default function CheckStatus() {
                                   setUploadingProof(false);
                                 }
                               }}
-                            />
-                            <button
-                              onClick={async () => {
-                                await deleteCustomerPaymentProof(selectedQuote.id);
-                                await reloadAll();
-                              }}
-                              disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
-                              style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '7px 12px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
+                              style={{ border: '1px dashed #c8cfdb', borderRadius: '8px', padding: '10px', marginBottom: '8px', backgroundColor: '#fcfdff' }}
                             >
-                              Delete Proof
-                            </button>
+                              <div style={{ color: '#54667d', fontSize: '12px' }}>Drag and drop file here</div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
+                                onClick={() => proofInputRef.current?.click()}
+                                style={{
+                                  border: '1px solid #e0e4ea',
+                                  borderRadius: '8px',
+                                  padding: '7px 12px',
+                                  backgroundColor: 'white',
+                                  color: '#15263c',
+                                  cursor: isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                Choose File
+                              </button>
+                              <input
+                                ref={proofInputRef}
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
+                                style={{ display: 'none' }}
+                                onChange={async (e) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  setSelectedProofName(f.name);
+                                  if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
+                                  setLocalProofPreviewUrl(URL.createObjectURL(f));
+                                  setUploadingProof(true);
+                                  try {
+                                    await uploadCustomerPaymentProof(selectedQuote.id, f);
+                                    await reloadAll();
+                                  } finally {
+                                    setUploadingProof(false);
+                                  }
+                                }}
+                              />
+                              {hasProofForDelete && (
+                                <button
+                                  onClick={async () => {
+                                    await deleteCustomerPaymentProof(selectedQuote.id);
+                                    setSelectedProofName(DEFAULT_PROOF_LABEL);
+                                    if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
+                                    setLocalProofPreviewUrl(null);
+                                    await reloadAll();
+                                  }}
+                                  disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                                  style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '7px 12px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
+                                >
+                                  Delete Proof
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ marginTop: '6px', color: '#8aa0b8', fontSize: '11px' }}>{proofLabel}</div>
+
+                            {proofPreviewUrl && hasProofForDelete && (
+                              <div style={{ marginTop: '10px', border: '1px solid #e0e4ea', borderRadius: '8px', backgroundColor: '#f8fafc', padding: '8px' }}>
+                                <div style={{ color: '#54667d', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Proof Preview
+                                </div>
+                                {isPreviewImage ? (
+                                  <img
+                                    src={proofPreviewUrl}
+                                    alt="Uploaded payment proof preview"
+                                    style={{ width: '100%', maxHeight: '260px', objectFit: 'contain', borderRadius: '6px', backgroundColor: 'white', border: '1px solid #e0e4ea' }}
+                                  />
+                                ) : isPreviewPdf ? (
+                                  <iframe
+                                    title="Uploaded payment proof preview"
+                                    src={proofPreviewUrl}
+                                    style={{ width: '100%', height: '260px', border: '1px solid #e0e4ea', borderRadius: '6px', backgroundColor: 'white' }}
+                                  />
+                                ) : (
+                                  <a
+                                    href={proofPreviewUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ color: '#7a0000', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}
+                                  >
+                                    Open uploaded proof
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
+
+                          <aside
+                            className="lg:col-span-4"
+                            style={{
+                              border: '1px solid #e0e4ea',
+                              borderRadius: '10px',
+                              overflow: 'hidden',
+                              backgroundColor: 'white',
+                              alignSelf: 'start',
+                            }}
+                          >
+                            <div
+                              style={{
+                                padding: '10px 12px',
+                                background: 'linear-gradient(135deg, #7a0000, #a50000)',
+                                color: 'white',
+                                fontFamily: 'var(--font-heading)',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.07em',
+                                fontSize: '11px',
+                              }}
+                            >
+                              Official QR Payment
+                            </div>
+
+                            <div style={{ padding: '10px' }}>
+                              <div
+                                style={{
+                                  border: '1px solid #e0e4ea',
+                                  borderRadius: '8px',
+                                  padding: '8px',
+                                  backgroundColor: '#f8fafc',
+                                  display: 'flex',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <img
+                                  src={qrCodeImage}
+                                  alt="QR payment code"
+                                  style={{ width: '100%', maxWidth: '220px', height: 'auto', borderRadius: '6px' }}
+                                />
+                              </div>
+                              <div style={{ marginTop: '8px', color: '#54667d', fontSize: '11px', lineHeight: 1.4 }}>
+                                Scan this code with your e-wallet or banking app, then upload your payment proof.
+                              </div>
+                            </div>
+                          </aside>
                         </div>
                       )}
 
@@ -704,6 +846,7 @@ export default function CheckStatus() {
           </div>
         )}
       </div>
+
     </div>
   );
 }
