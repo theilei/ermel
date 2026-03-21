@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Menu, X, ChevronDown, User, LogOut, FileText } from 'lucide-react';
+import { Menu, X, User, LogOut, FileText } from 'lucide-react';
 import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 import { useAuth } from '../context/AuthContext';
 import { useAccountIdentity } from '../hooks/useAccountIdentity';
@@ -10,34 +10,12 @@ export function Header() {
   const account = useAccountIdentity();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Close delay ref — prevents flicker when mouse briefly leaves the wrapper
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountRef = useRef<HTMLDivElement | null>(null);
-
-  const openDropdown = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-    setProductsOpen(true);
-  }, []);
-
-  const closeDropdown = useCallback(() => {
-    closeTimerRef.current = setTimeout(() => {
-      setProductsOpen(false);
-      closeTimerRef.current = null;
-    }, 80);            // 80 ms grace period
-  }, []);
-
-  // Cleanup timer on unmount
-  useEffect(() => () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-  }, []);
+  const pendingHomeSectionRef = useRef<string | null>(null);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -45,6 +23,7 @@ export function Header() {
       if (!accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
       }
+
     };
 
     document.addEventListener('mousedown', onClickOutside);
@@ -58,16 +37,58 @@ export function Header() {
   }, []);
 
   const navLinks = [
-    { label: 'Services', href: '/#services' },
-    { label: 'Projects', href: '/#projects' },
-    { label: 'About', href: '/about', isRoute: true },
+    { label: 'Services', sectionId: 'services' },
+    { label: 'Projects', sectionId: 'projects' },
+    { label: 'About', to: '/about' },
   ];
 
-  const isActive = (href: string) => location.pathname === href.split('#')[0];
   const isLoggedIn = account.isLoggedIn;
   const isAdmin = user?.role === 'admin';
   const initials = account.initials;
   const displayName = account.fullName;
+
+  const scrollToHomeSection = useCallback((sectionId?: string) => {
+    if (!sectionId || sectionId === '__top__') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (window.location.hash) {
+        window.history.replaceState(null, '', '/');
+      }
+      return;
+    }
+
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const goToHomeSection = useCallback((sectionId?: string) => {
+    setMenuOpen(false);
+    setAccountOpen(false);
+
+    const nextSection = sectionId || '__top__';
+    if (location.pathname === '/') {
+      scrollToHomeSection(nextSection);
+      return;
+    }
+
+    pendingHomeSectionRef.current = nextSection;
+    navigate('/');
+  }, [location.pathname, navigate, scrollToHomeSection]);
+
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    if (!pendingHomeSectionRef.current) return;
+
+    const targetSection = pendingHomeSectionRef.current;
+    pendingHomeSectionRef.current = null;
+    window.requestAnimationFrame(() => {
+      scrollToHomeSection(targetSection);
+    });
+  }, [location.pathname, scrollToHomeSection]);
 
   const handleLogout = async () => {
     await logout();
@@ -83,6 +104,7 @@ export function Header() {
         boxShadow: scrolled ? '0 2px 20px rgba(0,0,0,0.3)' : 'none',
         transition: 'all 0.3s ease',
         padding: scrolled ? '0' : '0',
+        zIndex: 5000,
       }}
       className="fixed top-0 left-0 right-0 z-50"
     >
@@ -97,19 +119,8 @@ export function Header() {
           className="flex items-center gap-3 flex-shrink-0 group"
           style={{ cursor: 'pointer', textDecoration: 'none' }}
           onClick={(e) => {
-            // If already on homepage (with or without hash), prevent default
-            // Link behaviour (which would no-op) and scroll to top manually.
-            if (location.pathname === '/') {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              // Clear any hash without a full reload
-              if (window.location.hash) {
-                window.history.replaceState(null, '', '/');
-              }
-            } else {
-              // Navigating from another page — scroll to top after route change
-              window.scrollTo({ top: 0 });
-            }
+            e.preventDefault();
+            goToHomeSection();
           }}
         >
           <div
@@ -162,122 +173,44 @@ export function Header() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
-          {/* Products Dropdown */}
-          <div
-            className="relative"
-            onMouseEnter={openDropdown}
-            onMouseLeave={closeDropdown}
+          <Link
+            to="/products/glass"
+            style={{
+              fontFamily: 'var(--font-heading)',
+              color: location.pathname.startsWith('/products') ? 'white' : '#d9d9d9',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              fontSize: '15px',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+              textDecoration: 'none',
+              textTransform: 'uppercase',
+              backgroundColor: location.pathname.startsWith('/products') ? 'rgba(255,255,255,0.08)' : 'transparent',
+            }}
+            onClick={() => {
+              setMenuOpen(false);
+              setAccountOpen(false);
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = 'white';
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = location.pathname.startsWith('/products') ? 'white' : '#d9d9d9';
+              (e.currentTarget as HTMLElement).style.backgroundColor = location.pathname.startsWith('/products') ? 'rgba(255,255,255,0.08)' : 'transparent';
+            }}
           >
-            <button
-              style={{
-                fontFamily: 'var(--font-heading)',
-                color: productsOpen ? 'white' : '#d9d9d9',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                fontSize: '15px',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                transition: 'color 0.2s, background-color 0.2s',
-                textTransform: 'uppercase',
-                backgroundColor: productsOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.color = 'white';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.color = productsOpen ? 'white' : '#d9d9d9';
-              }}
-            >
-              Products
-              <ChevronDown
-                size={14}
-                style={{
-                  transition: 'transform 0.2s ease',
-                  transform: productsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              />
-            </button>
-
-            {/*
-              Dropdown panel — always mounted, toggled via opacity/visibility/
-              pointer-events so the DOM node stays in the wrapper and cannot
-              create a hover gap.
-
-              The outer shell has transparent padding-top to bridge the
-              physical space between the trigger button and the visible menu.
-            */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                paddingTop: '6px',          // bridge — transparent, but captures hover
-                zIndex: 999,
-                pointerEvents: productsOpen ? 'auto' : 'none',
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: '#0f1e30',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-                  minWidth: '180px',
-                  overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  opacity: productsOpen ? 1 : 0,
-                  transform: productsOpen ? 'translateY(0)' : 'translateY(-6px)',
-                  transition: 'opacity 0.18s ease, transform 0.18s ease',
-                }}
-              >
-                {[
-                  { label: 'Glass', to: '/products/glass' },
-                  { label: 'Aluminum', to: '/products/aluminum' },
-                ].map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    style={{
-                      fontFamily: 'var(--font-heading)',
-                      color: '#d9d9d9',
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      fontSize: '14px',
-                      padding: '12px 16px',
-                      display: 'block',
-                      textDecoration: 'none',
-                      textTransform: 'uppercase',
-                      transition: 'background-color 0.15s, color 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget;
-                      el.style.backgroundColor = 'rgba(122,0,0,0.2)';
-                      el.style.color = 'white';
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget;
-                      el.style.backgroundColor = 'transparent';
-                      el.style.color = '#d9d9d9';
-                    }}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
+            Products
+          </Link>
           {navLinks.map((link) =>
-            link.isRoute ? (
+            link.to ? (
               <Link
                 key={link.label}
-                to={link.href}
+                to={link.to}
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  color: location.pathname === link.href ? 'white' : '#d9d9d9',
+                  color: location.pathname === link.to ? 'white' : '#d9d9d9',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   fontSize: '15px',
@@ -286,23 +219,26 @@ export function Header() {
                   transition: 'all 0.2s',
                   textDecoration: 'none',
                   textTransform: 'uppercase',
-                  backgroundColor: location.pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  backgroundColor: location.pathname === link.to ? 'rgba(255,255,255,0.08)' : 'transparent',
+                }}
+                onClick={() => {
+                  setMenuOpen(false);
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.color = 'white';
                   (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.color = location.pathname === link.href ? 'white' : '#d9d9d9';
-                  (e.currentTarget as HTMLElement).style.backgroundColor = location.pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent';
+                  (e.currentTarget as HTMLElement).style.color = location.pathname === link.to ? 'white' : '#d9d9d9';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = location.pathname === link.to ? 'rgba(255,255,255,0.08)' : 'transparent';
                 }}
               >
                 {link.label}
               </Link>
             ) : (
-              <a
+              <button
                 key={link.label}
-                href={link.href}
+                type="button"
                 style={{
                   fontFamily: 'var(--font-heading)',
                   color: '#d9d9d9',
@@ -312,20 +248,23 @@ export function Header() {
                   padding: '8px 16px',
                   borderRadius: '6px',
                   transition: 'all 0.2s',
-                  textDecoration: 'none',
                   textTransform: 'uppercase',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
                 }}
+                onClick={() => goToHomeSection(link.sectionId)}
                 onMouseEnter={(e) => {
-                  (e.target as HTMLElement).style.color = 'white';
-                  (e.target as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.color = 'white';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.color = '#d9d9d9';
-                  (e.target as HTMLElement).style.backgroundColor = 'transparent';
+                  (e.currentTarget as HTMLElement).style.color = '#d9d9d9';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                 }}
               >
                 {link.label}
-              </a>
+              </button>
             )
           )}
 
@@ -601,10 +540,10 @@ export function Header() {
             </div>
           </div>
           {navLinks.map((link) =>
-            link.isRoute ? (
+            link.to ? (
               <Link
                 key={link.label}
-                to={link.href}
+                to={link.to}
                 style={{
                   fontFamily: 'var(--font-heading)',
                   color: '#d9d9d9',
@@ -622,9 +561,9 @@ export function Header() {
                 {link.label}
               </Link>
             ) : (
-              <a
+              <button
                 key={link.label}
-                href={link.href}
+                type="button"
                 style={{
                   fontFamily: 'var(--font-heading)',
                   color: '#d9d9d9',
@@ -634,13 +573,17 @@ export function Header() {
                   padding: '12px 0',
                   display: 'block',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
-                  textDecoration: 'none',
                   textTransform: 'uppercase',
+                  background: 'transparent',
+                  border: 'none',
+                  textAlign: 'left',
+                  width: '100%',
+                  cursor: 'pointer',
                 }}
-                onClick={() => setMenuOpen(false)}
+                onClick={() => goToHomeSection(link.sectionId)}
               >
                 {link.label}
-              </a>
+              </button>
             )
           )}
 
