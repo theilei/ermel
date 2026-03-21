@@ -17,6 +17,7 @@ import InstallationQueue from './pages/admin/InstallationQueue';
 import OrderLogs from './pages/admin/OrderLogs';
 import MaterialProcurement from './pages/admin/Materialprocurement';
 import AdminSettings from './pages/admin/Adminsettings';
+import PaymentAppoval from './pages/admin/PaymentAppoval';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
       { path: 'quotations', Component: QuotationApproval },
       { path: 'quotations/:id', Component: QuoteDetails },
       { path: 'queue', Component: InstallationQueue },
+      { path: 'payment-appoval', Component: PaymentAppoval },
       { path: 'logs', Component: OrderLogs },
       { path: 'procurement', Component: MaterialProcurement },
       { path: 'settings', Component: AdminSettings },
