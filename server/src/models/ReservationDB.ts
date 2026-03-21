@@ -15,32 +15,6 @@ export interface Reservation {
   updatedAt?: string;
 }
 
-function toDateOnly(value: any): string {
-  if (!value) return '';
-
-  if (typeof value === 'string') {
-    const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (m) return m[1];
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${y}-${mm}-${dd}`;
-    }
-    return value;
-  }
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    const y = value.getFullYear();
-    const mm = String(value.getMonth() + 1).padStart(2, '0');
-    const dd = String(value.getDate()).padStart(2, '0');
-    return `${y}-${mm}-${dd}`;
-  }
-
-  return String(value);
-}
-
 function rowToReservation(row: any): Reservation {
   return {
     id: row.id,
@@ -49,7 +23,7 @@ function rowToReservation(row: any): Reservation {
     customerName: row.customer_name || undefined,
     customerEmail: row.customer_email || undefined,
     projectType: row.project_type || undefined,
-    reservationDate: toDateOnly(row.reservation_date),
+    reservationDate: row.reservation_date?.toISOString?.().split('T')[0] || row.reservation_date,
     status: row.status as ReservationStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at || undefined,
@@ -89,11 +63,15 @@ export async function listReservedDates(): Promise<string[]> {
   const result = await pool.query(
     `SELECT r.reservation_date
      FROM reservations r
-     WHERE r.reservation_date IS NOT NULL
+     JOIN qq_quotes q ON q.id = r.quote_id
+     JOIN payments p ON p.quote_id = q.id
+     WHERE r.status IN ('pending', 'approved')
+       AND q.status = 'approved'
+       AND p.status = 'paid'
      ORDER BY reservation_date ASC`
   );
 
-  return result.rows.map((r) => toDateOnly(r.reservation_date));
+  return result.rows.map((r) => r.reservation_date?.toISOString?.().split('T')[0] || r.reservation_date);
 }
 
 export async function getReservationByQuoteId(quoteId: string): Promise<Reservation | undefined> {
