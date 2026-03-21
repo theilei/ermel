@@ -61,13 +61,12 @@ export async function listReservationsByStatus(status: ReservationStatus): Promi
 
 export async function listReservedDates(): Promise<string[]> {
   const result = await pool.query(
-    `SELECT r.reservation_date
+    `SELECT DISTINCT r.reservation_date
      FROM reservations r
      JOIN qq_quotes q ON q.id = r.quote_id
-     JOIN payments p ON p.quote_id = q.id
      WHERE r.status IN ('pending', 'approved')
-       AND q.status = 'approved'
-       AND p.status = 'paid'
+       AND q.deleted_at IS NULL
+       AND q.status IN ('pending', 'draft', 'approved', 'customer_accepted', 'converted_to_order')
      ORDER BY reservation_date ASC`
   );
 
