@@ -21,6 +21,7 @@ import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
 import authRoutes from './routes/authRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 import * as ReservationModel from './models/ReservationDB';
 import { listReservedDates as listReservedDatesHandler, validateReservationDate } from './controllers/reservationController';
 import { requireAuth, requireVerified } from './middleware/authMiddleware';
@@ -68,6 +69,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api', paymentRoutes);
+app.use('/uploads', express.static('uploads'));
 app.post('/api/analytics/events', requireAuth, postAnalyticsEvent);
 app.get('/api/user/me', me);
 

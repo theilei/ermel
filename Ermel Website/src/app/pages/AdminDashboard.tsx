@@ -238,7 +238,7 @@ export default function AdminDashboard() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   const convertedQuotes = useMemo(
-    () => quotes.filter((q) => q.status === 'converted_to_order'),
+    () => quotes.filter((q) => q.status === 'approved' && q.payment?.status === 'paid'),
     [quotes]
   );
 
