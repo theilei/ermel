@@ -10,14 +10,14 @@ function asIsoDate(offsetDays: number): string {
 }
 
 describe('reservation rules', () => {
-  test('rejects dates earlier than 3 days from today', () => {
-    const date = asIsoDate(2);
+  test('rejects dates earlier than 7 days from today', () => {
+    const date = asIsoDate(6);
     const result = validateReservationDate(date);
     expect(result.ok).toBe(false);
   });
 
-  test('accepts dates from 3 to 60 days from today', () => {
-    expect(validateReservationDate(asIsoDate(3)).ok).toBe(true);
+  test('accepts dates from 7 to 60 days from today', () => {
+    expect(validateReservationDate(asIsoDate(7)).ok).toBe(true);
     expect(validateReservationDate(asIsoDate(60)).ok).toBe(true);
   });
 

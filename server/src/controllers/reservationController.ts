@@ -18,11 +18,11 @@ export function validateReservationDate(dateStr: string): { ok: boolean; message
   if (!selected) return { ok: false, message: 'Reservation date must be in YYYY-MM-DD format.' };
 
   const today = normalizeUtcDay(new Date());
-  const minDate = new Date(today.getTime() + 3 * DAY_MS);
+  const minDate = new Date(today.getTime() + 7 * DAY_MS);
   const maxDate = new Date(today.getTime() + 60 * DAY_MS);
 
   if (selected.getTime() < minDate.getTime()) {
-    return { ok: false, message: 'Reservation date must be at least 3 days from today.' };
+    return { ok: false, message: 'Reservation date must be at least 7 days from today.' };
   }
   if (selected.getTime() > maxDate.getTime()) {
     return { ok: false, message: 'Reservation date must be within 60 days from today.' };

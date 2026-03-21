@@ -270,7 +270,7 @@ export default function QuotationModule() {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }, []);
 
-  const minSelectableDate = useMemo(() => new Date(today.getTime() + 3 * DAY_MS), [today]);
+  const minSelectableDate = useMemo(() => new Date(today.getTime() + 7 * DAY_MS), [today]);
   const maxSelectableDate = useMemo(() => new Date(today.getTime() + 60 * DAY_MS), [today]);
 
   const isDateSelectable = useCallback((date: Date) => {
@@ -845,7 +845,7 @@ export default function QuotationModule() {
                 RESERVATION DATE
               </h2>
               <p style={{ color: '#54667d', fontSize: '14px', textAlign: 'center', marginBottom: '20px' }}>
-                Select one installation date. Booking starts 3 days from today and is limited to the next 60 days.
+                Select one installation date. Booking starts 7 days from today and is limited to the next 60 days.
               </p>
 
               <div className="mb-4 flex flex-wrap items-center gap-3" style={{ fontSize: '12px' }}>
