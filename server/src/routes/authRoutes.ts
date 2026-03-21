@@ -10,9 +10,20 @@ import {
   me,
   verifyEmail,
   resendVerification,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  verifyResetToken,
 } from '../controllers/authController';
-import { loginLimiter, registerLimiter, resendLimiter } from '../middleware/rateLimiter';
+import {
+  loginLimiter,
+  registerLimiter,
+  resendLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
+} from '../middleware/rateLimiter';
 import { csrfProtection } from '../middleware/csrf';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -23,5 +34,9 @@ router.post('/logout', csrfProtection, logout);
 router.get('/me', me);
 router.post('/verify-email', csrfProtection, verifyEmail);
 router.post('/resend-verification', csrfProtection, resendLimiter, resendVerification);
+router.post('/change-password', csrfProtection, requireAuth, changePassword);
+router.post('/forgot-password', csrfProtection, forgotPasswordLimiter, forgotPassword);
+router.get('/verify-reset-token', verifyResetToken);
+router.post('/reset-password', csrfProtection, resetPasswordLimiter, resetPassword);
 
 export default router;

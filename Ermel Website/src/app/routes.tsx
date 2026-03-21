@@ -18,6 +18,8 @@ import OrderLogs from './pages/admin/OrderLogs';
 import MaterialProcurement from './pages/admin/Materialprocurement';
 import AdminSettings from './pages/admin/Adminsettings';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Register from './pages/Register';
 import VerifyEmailResult from './pages/VerifyEmailResult';
 import VerificationRequired from './pages/VerificationRequired';
@@ -63,6 +65,8 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/login', Component: Login },
+  { path: '/forgot-password', Component: ForgotPassword },
+  { path: '/reset-password', Component: ResetPassword },
   { path: '/register', Component: Register },
   { path: '/verify-email', Component: VerifyEmailResult },
   { path: '/verification-required', Component: VerificationRequired },

@@ -1,12 +1,79 @@
+import { FormEvent, useState } from 'react';
 import { Link } from 'react-router';
-import { ShieldCheck, UserCircle2 } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { useAccountIdentity } from '../hooks/useAccountIdentity';
+import { getCsrfToken } from '../services/csrf';
+
+const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export default function Profile() {
   const account = useAccountIdentity();
+  const [form, setForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmNewPassword: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [submittingPassword, setSubmittingPassword] = useState(false);
 
   const fullName = account.fullName;
   const email = account.email || 'N/A';
+
+  const onPasswordInput = (key: 'currentPassword' | 'newPassword' | 'confirmNewPassword', value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handlePasswordSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!form.currentPassword || !form.newPassword || !form.confirmNewPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+
+    if (form.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters.');
+      return;
+    }
+
+    if (form.newPassword !== form.confirmNewPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    try {
+      setSubmittingPassword(true);
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`${API_ROOT}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPasswordError(data.error || 'Unable to update password.');
+        return;
+      }
+
+      setPasswordSuccess(data.message || 'Password updated successfully.');
+      setForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    } catch {
+      setPasswordError('Network error. Please try again.');
+    } finally {
+      setSubmittingPassword(false);
+    }
+  };
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', paddingTop: '96px', fontFamily: 'var(--font-body)' }}>
@@ -48,18 +115,111 @@ export default function Profile() {
             </div>
           </div>
 
-          <div style={{ marginTop: '18px', backgroundColor: '#e8ecf0', border: '1px solid #d2dae3', borderRadius: '8px', padding: '12px' }}>
-            <div className="flex items-start gap-2">
+          <div style={{ marginTop: '18px', backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '14px' }}>
+            <div className="flex items-start gap-2" style={{ marginBottom: '12px' }}>
               <ShieldCheck size={17} color="#15263c" style={{ marginTop: '1px', flexShrink: 0 }} />
               <div>
                 <div style={{ color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
                   Change Password
                 </div>
                 <div style={{ color: '#54667d', fontSize: '13px', marginTop: '2px' }}>
-                  Password management UI is reserved for backend-supported account settings.
+                  Update your account password securely.
                 </div>
               </div>
             </div>
+
+            {passwordError && (
+              <div style={{ marginBottom: '10px', backgroundColor: '#fdecea', border: '1px solid #f5c6cb', borderRadius: '8px', padding: '10px 12px', color: '#721c24', fontSize: '13px' }}>
+                {passwordError}
+              </div>
+            )}
+            {passwordSuccess && (
+              <div style={{ marginBottom: '10px', backgroundColor: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: '8px', padding: '10px 12px', color: '#2e7d32', fontSize: '13px' }}>
+                {passwordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3" noValidate>
+              <div>
+                <label style={{ display: 'block', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }} htmlFor="profile-current-password">
+                  Current Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="profile-current-password"
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={form.currentPassword}
+                    onChange={(e) => onPasswordInput('currentPassword', e.target.value)}
+                    autoComplete="current-password"
+                    style={{ width: '100%', border: '1px solid #d2dae3', borderRadius: '8px', padding: '10px 44px 10px 12px', fontSize: '14px', color: '#15263c', backgroundColor: 'white' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword((value) => !value)}
+                    aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#54667d', cursor: 'pointer' }}
+                  >
+                    {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }} htmlFor="profile-new-password">
+                  New Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="profile-new-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={form.newPassword}
+                    onChange={(e) => onPasswordInput('newPassword', e.target.value)}
+                    autoComplete="new-password"
+                    style={{ width: '100%', border: '1px solid #d2dae3', borderRadius: '8px', padding: '10px 44px 10px 12px', fontSize: '14px', color: '#15263c', backgroundColor: 'white' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((value) => !value)}
+                    aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#54667d', cursor: 'pointer' }}
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }} htmlFor="profile-confirm-password">
+                  Confirm New Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="profile-confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={form.confirmNewPassword}
+                    onChange={(e) => onPasswordInput('confirmNewPassword', e.target.value)}
+                    autoComplete="new-password"
+                    style={{ width: '100%', border: '1px solid #d2dae3', borderRadius: '8px', padding: '10px 44px 10px 12px', fontSize: '14px', color: '#15263c', backgroundColor: 'white' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#54667d', cursor: 'pointer' }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingPassword}
+                style={{ marginTop: '4px', border: 'none', borderRadius: '8px', padding: '10px 14px', background: 'linear-gradient(135deg, #7a0000, #a50000)', color: 'white', fontFamily: 'var(--font-heading)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, cursor: submittingPassword ? 'not-allowed' : 'pointer', opacity: submittingPassword ? 0.6 : 1 }}
+              >
+                {submittingPassword ? 'Updating Password...' : 'Update Password'}
+              </button>
+            </form>
           </div>
 
           <div style={{ marginTop: '18px' }}>

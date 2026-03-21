@@ -116,6 +116,11 @@ export default function Login() {
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <div style={{ marginTop: '8px', textAlign: 'right' }}>
+              <Link to="/forgot-password" className="auth-link">
+                Forgot Password?
+              </Link>
+            </div>
           </div>
 
           <button
