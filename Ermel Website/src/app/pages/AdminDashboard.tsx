@@ -26,6 +26,23 @@ interface MetricCardProps {
   trend?: string;
 }
 
+function PesoSignIcon({ size = 20, color = '#005c7a' }: { size?: number; color?: string }) {
+  return (
+    <span
+      style={{
+        color,
+        fontSize: `${size}px`,
+        fontFamily: 'var(--font-heading)',
+        fontWeight: 800,
+        lineHeight: 1,
+      }}
+      aria-hidden="true"
+    >
+      ₱
+    </span>
+  );
+}
+
 function MetricCard({ label, value, icon: Icon, color, bg, trend }: MetricCardProps) {
   return (
     <div

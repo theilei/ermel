@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import {
-  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight
+  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight, CreditCard
 } from 'lucide-react';
 import { useQuotes } from '../context/QuoteContext';
 import { supabase } from '../services/supabaseClient';
@@ -23,6 +23,7 @@ export default function AdminLayout() {
   const { quotes, refreshQuotes } = useQuotes();
 
   const pendingCount = quotes.filter((q) => q.status === 'pending' || q.status === 'draft').length;
+  const pendingPaymentCount = quotes.filter((q) => q.status === 'customer_accepted').length;
 
   const sortedQuotes = useMemo(
     () => [...quotes].sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()),
@@ -146,6 +147,7 @@ export default function AdminLayout() {
       items: [
         { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: pendingCount || undefined },
         { id: 'queue', label: 'Installation Queue', icon: Trello, path: '/admin/queue', category: 'operations' },
+        { id: 'payment-appoval', label: 'Payment Appoval', icon: CreditCard, path: '/admin/payment-appoval', category: 'operations', badge: pendingPaymentCount || undefined },
       ]
     },
     {
