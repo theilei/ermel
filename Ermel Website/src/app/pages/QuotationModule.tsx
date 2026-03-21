@@ -37,6 +37,58 @@ const PROJECT_CATEGORIES = [
   { id: 'other', label: 'Other', desc: 'Other – Please specify', img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&q=80', baseRate: 1200 },
 ];
 
+type CategoryMaterialGuide = {
+  glassType: string;
+  colorTint: string;
+  frameMaterial: string;
+  reason: string;
+};
+
+const CATEGORY_MATERIAL_GUIDE: Record<string, CategoryMaterialGuide> = {
+  storefront: {
+    glassType: 'Frosted Glass',
+    colorTint: 'Clear',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Balanced privacy and visibility, durable for high-traffic entrances.',
+  },
+  'sliding-window': {
+    glassType: 'Clear Glass',
+    colorTint: 'Gray',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Lets in natural light while reducing heat and keeping maintenance low.',
+  },
+  'glass-door': {
+    glassType: 'Tempered Glass',
+    colorTint: 'Clear',
+    frameMaterial: 'Stainless Frame',
+    reason: 'Safety-grade panel with stronger frame support for frequent opening and closing.',
+  },
+  'glass-partition': {
+    glassType: 'Frosted Glass',
+    colorTint: 'Clear',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Popular for office and interior privacy while keeping spaces bright.',
+  },
+  'awning-window': {
+    glassType: 'Tempered Glass',
+    colorTint: 'Bronze',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Handles weather exposure well and helps reduce direct glare from above.',
+  },
+  'fixed-window': {
+    glassType: 'Clear Glass',
+    colorTint: 'Blue',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Common choice for clean views with improved daytime comfort.',
+  },
+  other: {
+    glassType: 'Clear Glass',
+    colorTint: 'Clear',
+    frameMaterial: 'Aluminum Frame',
+    reason: 'Default baseline option that is cost-efficient and easy to customize.',
+  },
+};
+
 const GLASS_TYPES = [
   { id: 'clear', label: 'Clear Glass', desc: 'Standard transparency, maximum light', color: 'rgba(200,230,255,0.5)', border: '#90caf9', multiplier: 1.0, thickness: '6mm standard' },
   { id: 'bronze', label: 'Bronze Glass', desc: 'Warm tint, reduces glare & heat', color: 'rgba(205,152,70,0.3)', border: '#cd9846', multiplier: 1.25, thickness: '6mm tinted' },
@@ -285,6 +337,16 @@ export default function QuotationModule() {
   const selectedGlass = GLASS_TYPES.find((g) => g.id === glassType);
   const selectedFrame = FRAME_MATERIALS.find((f) => f.id === frameMaterial);
   const selectedColor = COLOR_OPTIONS.find((c) => c.id === colorChoice);
+  const selectedCategoryGuide = category ? CATEGORY_MATERIAL_GUIDE[category] : null;
+  const recommendedGlassId = selectedCategoryGuide
+    ? GLASS_TYPES.find((g) => g.label === selectedCategoryGuide.glassType)?.id ?? null
+    : null;
+  const recommendedColorId = selectedCategoryGuide
+    ? COLOR_OPTIONS.find((c) => c.label === selectedCategoryGuide.colorTint)?.id ?? null
+    : null;
+  const recommendedFrameId = selectedCategoryGuide
+    ? FRAME_MATERIALS.find((f) => f.label === selectedCategoryGuide.frameMaterial)?.id ?? null
+    : null;
 
   const w = parseFloat(width) || 0;
   const h = parseFloat(height) || 0;
@@ -656,9 +718,28 @@ export default function QuotationModule() {
               <p style={{ color: '#54667d', fontSize: '14px', textAlign: 'center', marginBottom: '20px', fontFamily: 'var(--font-body)' }}>
                 Choose the glass, color, and frame material for your project
               </p>
+
+              {selectedCategoryGuide && (
+                <div className="mb-5 p-4 rounded-xl" style={{ backgroundColor: '#eef7ff', border: '1px solid #bfd8ee' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Popular Choice for {selectedCategory?.label || 'this category'}
+                  </div>
+                  <div style={{ color: '#35506d', fontSize: '13px', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
+                    <strong>Glass:</strong> {selectedCategoryGuide.glassType} | <strong>Tint:</strong> {selectedCategoryGuide.colorTint} | <strong>Frame:</strong> {selectedCategoryGuide.frameMaterial}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-                {GLASS_TYPES.map((g) => (
-                  <div key={g.id} onClick={() => setGlassType(g.id)} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200" style={{ border: glassType === g.id ? '3px solid #7a0000' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : 'none', minHeight: '60px' }}>
+                {GLASS_TYPES.map((g) => {
+                  const isTopPick = !!recommendedGlassId && g.id === recommendedGlassId;
+                  return (
+                  <div key={g.id} onClick={() => setGlassType(g.id)} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: glassType === g.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : isTopPick ? '0 4px 20px rgba(240,192,64,0.25)' : 'none', minHeight: '60px' }}>
+                    {isTopPick && (
+                      <div style={{ position: 'absolute', top: '8px', left: '8px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '10px', fontWeight: 800, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '999px', textTransform: 'uppercase', zIndex: 3 }}>
+                        POPULAR CHOICE!
+                      </div>
+                    )}
                     {g.img ? (
                       <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', border: `1px solid ${g.border}` }}>
                         <img src={g.img} alt={g.label} className="w-full h-full object-cover" />
@@ -676,7 +757,7 @@ export default function QuotationModule() {
                     <div style={{ fontSize: '11px', color: '#7a0000', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>{g.thickness}</div>
                     {glassType === g.id && <div className="mt-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#7a0000' }}><Check size={12} color="white" strokeWidth={3} /></div>}
                   </div>
-                ))}
+                );})}
               </div>
               {glassType === 'other' && <div className="mb-6 max-w-md mx-auto"><OtherTextInput value={glassTypeOther} onChange={setGlassTypeOther} placeholder="Describe the glass type..." /></div>}
 
@@ -684,14 +765,21 @@ export default function QuotationModule() {
                 COLOR / TINT
               </h3>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
-                {COLOR_OPTIONS.map((c) => (
-                  <div key={c.id} onClick={() => setColorChoice(c.id)} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : 'none', minHeight: '60px' }}>
+                {COLOR_OPTIONS.map((c) => {
+                  const isTopPick = !!recommendedColorId && c.id === recommendedColorId;
+                  return (
+                  <div key={c.id} onClick={() => setColorChoice(c.id)} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : isTopPick ? '0 2px 12px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                    {isTopPick && (
+                      <div style={{ position: 'absolute', top: '6px', left: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
+                        POPULAR CHOICE!
+                      </div>
+                    )}
                     <div className="w-10 h-10 rounded-full mb-2" style={{ backgroundColor: c.swatch, border: colorChoice === c.id ? '2px solid #7a0000' : '1px solid #ccc' }} />
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 700, color: '#15263c', textTransform: 'uppercase' }}>{c.label}</div>
                     <div style={{ fontSize: '10px', color: '#54667d', fontFamily: 'var(--font-body)' }}>{c.desc}</div>
                     {colorChoice === c.id && <div className="mt-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: '#7a0000' }}><Check size={10} color="white" strokeWidth={3} /></div>}
                   </div>
-                ))}
+                );})}
               </div>
               {colorChoice === 'other' && <div className="mb-6 max-w-md mx-auto"><OtherTextInput value={colorOther} onChange={setColorOther} placeholder="Describe the color / tint..." /></div>}
 
@@ -701,8 +789,14 @@ export default function QuotationModule() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {FRAME_MATERIALS.map((f) => {
                   const isSelected = frameMaterial === f.id;
+                  const isTopPick = !!recommendedFrameId && f.id === recommendedFrameId;
                   return (
-                    <div key={f.id} onClick={() => setFrameMaterial(f.id)} className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200" style={{ border: isSelected ? '2px solid #15263c' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', minHeight: '60px' }}>
+                    <div key={f.id} onClick={() => setFrameMaterial(f.id)} className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200 relative overflow-hidden" style={{ border: isSelected ? '2px solid #15263c' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', boxShadow: isTopPick && !isSelected ? '0 4px 20px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                      {isTopPick && (
+                        <div style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
+                          POPULAR CHOICE!
+                        </div>
+                      )}
                       <div className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.15)' : '#f0f2f5' }}>
                         <div className="w-5 h-5 rounded flex items-center justify-center" style={{ borderWidth: '2px', borderStyle: 'solid', borderColor: isSelected ? 'white' : '#54667d', backgroundColor: isSelected ? 'white' : 'transparent', transition: 'all 0.15s ease' }}>
                           {isSelected && <Check size={14} color="#15263c" strokeWidth={3} />}
@@ -849,9 +943,9 @@ export default function QuotationModule() {
               </p>
 
               <div className="mb-4 flex flex-wrap items-center gap-3" style={{ fontSize: '12px' }}>
-                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#e8f5e9', color: '#1a5c1a' }}>Green = Available</span>
-                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#fff0f0', color: '#7a0000' }}>Red = Booked</span>
-                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#f0f2f5', color: '#54667d' }}>Grey = Disabled</span>
+                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#b7efc5', color: '#14532d', border: '1px solid #2e7d32', fontWeight: 700 }}>Green = Available</span>
+                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#ffc9c9', color: '#7f1d1d', border: '1px solid #b91c1c', fontWeight: 700 }}>Red = Booked</span>
+                <span className="px-2 py-1 rounded" style={{ backgroundColor: '#e2e8f0', color: '#334155', border: '1px solid #64748b', fontWeight: 700 }}>Grey = Disabled</span>
               </div>
 
               <div style={{ backgroundColor: 'white', border: '1px solid #d9d9d9', borderRadius: '8px', padding: '10px' }}>
@@ -874,25 +968,37 @@ export default function QuotationModule() {
                     const cellDate = new Date(arg.date.getFullYear(), arg.date.getMonth(), arg.date.getDate());
                     const dateStr = isoDate(cellDate);
                     const dayNumberEl = arg.el.querySelector('.fc-daygrid-day-number') as HTMLElement | null;
+                    let dayState: 'booked' | 'disabled' | 'available' = 'available';
                     if (reservedDates.has(dateStr)) {
-                      arg.el.style.backgroundColor = '#fff0f0';
-                      arg.el.style.color = '#7a0000';
+                      dayState = 'booked';
+                      arg.el.style.backgroundColor = '#ffc9c9';
+                      arg.el.style.color = '#7f1d1d';
+                      arg.el.style.border = '1px solid #b91c1c';
                       arg.el.style.cursor = 'not-allowed';
                     } else if (!isDateSelectable(cellDate)) {
-                      arg.el.style.backgroundColor = '#f0f2f5';
-                      arg.el.style.color = '#9aa5b1';
+                      dayState = 'disabled';
+                      arg.el.style.backgroundColor = '#e2e8f0';
+                      arg.el.style.color = '#334155';
+                      arg.el.style.border = '1px solid #64748b';
                       arg.el.style.cursor = 'not-allowed';
                     } else {
-                      arg.el.style.backgroundColor = '#e8f5e9';
-                      arg.el.style.color = '#1a5c1a';
+                      dayState = 'available';
+                      arg.el.style.backgroundColor = '#b7efc5';
+                      arg.el.style.color = '#14532d';
+                      arg.el.style.border = '1px solid #2e7d32';
                       arg.el.style.cursor = 'pointer';
                     }
 
                     if (dayNumberEl) {
                       dayNumberEl.style.borderRadius = '6px';
                       dayNumberEl.style.padding = '2px 6px';
-                      dayNumberEl.style.backgroundColor = 'transparent';
-                      dayNumberEl.style.color = 'inherit';
+                      dayNumberEl.style.backgroundColor = dayState === 'booked'
+                        ? '#b91c1c'
+                        : dayState === 'disabled'
+                          ? '#64748b'
+                          : '#2e7d32';
+                      dayNumberEl.style.color = 'white';
+                      dayNumberEl.style.fontWeight = '700';
                     }
 
                     if (reservationDate && dateStr === reservationDate) {
@@ -901,7 +1007,7 @@ export default function QuotationModule() {
                       arg.el.style.outline = '2px solid #15263c';
                       arg.el.style.outlineOffset = '-2px';
                       if (dayNumberEl) {
-                        dayNumberEl.style.backgroundColor = '#0f1d30';
+                        dayNumberEl.style.backgroundColor = '#15263c';
                         dayNumberEl.style.color = 'white';
                         dayNumberEl.style.fontWeight = '700';
                       }

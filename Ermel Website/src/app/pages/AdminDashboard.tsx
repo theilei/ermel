@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
-import { TrendingUp, AlertTriangle, DollarSign, Package, Calendar } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { useQuotes } from '../context/QuoteContext';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { TrendingUp, AlertTriangle, Package, Calendar, ClipboardCheck, FileText } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { fetchAdminDashboardMetrics } from '../services/api';
+import type { DashboardActiveInstallation } from '../services/api';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -23,6 +24,23 @@ interface MetricCardProps {
   color: string;
   bg: string;
   trend?: string;
+}
+
+function PesoSignIcon({ size = 20, color = '#005c7a' }: { size?: number; color?: string }) {
+  return (
+    <span
+      style={{
+        color,
+        fontSize: `${size}px`,
+        fontFamily: 'var(--font-heading)',
+        fontWeight: 800,
+        lineHeight: 1,
+      }}
+      aria-hidden="true"
+    >
+      ₱
+    </span>
+  );
 }
 
 function MetricCard({ label, value, icon: Icon, color, bg, trend }: MetricCardProps) {
@@ -233,13 +251,62 @@ function FabricationCapacityGauge() {
 }
 
 export default function AdminDashboard() {
-  const { orders } = useApp();
-  const { quotes } = useQuotes();
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [pendingInquiries, setPendingInquiries] = useState(0);
+  const [activeInstallations, setActiveInstallations] = useState(0);
+  const [totalQuotes, setTotalQuotes] = useState(0);
+  const [approvedQuotes, setApprovedQuotes] = useState(0);
+  const [activeInstallationEntries, setActiveInstallationEntries] = useState<DashboardActiveInstallation[]>([]);
+
+  const loadDashboardMetrics = useCallback(async () => {
+    try {
+      const metrics = await fetchAdminDashboardMetrics();
+      setPendingInquiries(metrics.pendingInquiries || 0);
+      setActiveInstallations(metrics.activeInstallations || 0);
+      setTotalQuotes(metrics.totalQuotes || 0);
+      setApprovedQuotes(metrics.approvedQuotes || 0);
+      setActiveInstallationEntries(metrics.activeInstallationEntries || []);
+    } catch (err) {
+      console.error('[AdminDashboard] Failed to fetch dashboard metrics:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardMetrics();
+  }, [loadDashboardMetrics]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    const channel = client
+      .channel('admin-dashboard-metrics-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, () => {
+        loadDashboardMetrics();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, () => {
+        loadDashboardMetrics();
+      })
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [loadDashboardMetrics]);
 
   const convertedQuotes = useMemo(
-    () => quotes.filter((q) => q.status === 'approved' && q.payment?.status === 'paid'),
-    [quotes]
+    () => activeInstallationEntries.map((entry) => ({
+      id: entry.id,
+      customerName: entry.customerName,
+      projectType: entry.projectType,
+      width: entry.width,
+      height: entry.height,
+      quantity: entry.quantity,
+      color: entry.color,
+      estimatedCost: entry.estimatedCost,
+      status: entry.status,
+      reservationDate: entry.reservationDate,
+    })),
+    [activeInstallationEntries]
   );
 
   const convertedByDate = useMemo(() => {
@@ -269,20 +336,13 @@ export default function AdminDashboard() {
     ? (convertedByDate.get(selectedCalendarDate) || [])
     : [];
 
-  // Calculate metrics
-  const totalInquiries = orders.filter(o => o.status === 'inquiry').length;
-  const activeInstallations = orders.filter(o => o.status === 'installation').length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.approvedCost || o.estimatedCost), 0);
-  const predictedRevenue = Math.round(totalRevenue * 1.18); // 18% growth projection
-
   const metrics = [
     {
       label: 'Pending Inquiries',
-      value: totalInquiries,
+      value: pendingInquiries,
       icon: Package,
       color: '#7a0000',
       bg: '#fff0f0',
-      trend: '+12%',
     },
     {
       label: 'Active Installations',
@@ -292,12 +352,18 @@ export default function AdminDashboard() {
       bg: '#e8f5e9',
     },
     {
-      label: 'Predicted Revenue',
-      value: `₱${Math.round(predictedRevenue / 1000)}k`,
-      icon: DollarSign,
+      label: 'Total Quotes',
+      value: totalQuotes,
+      icon: FileText,
       color: '#005c7a',
       bg: '#e0f4ff',
-      trend: '+18%',
+    },
+    {
+      label: 'Approved Quotes',
+      value: approvedQuotes,
+      icon: ClipboardCheck,
+      color: '#7a5200',
+      bg: '#fff8e1',
     },
   ];
 
@@ -305,7 +371,7 @@ export default function AdminDashboard() {
     <div style={{ backgroundColor: '#fafafa', minHeight: '100%', fontFamily: 'var(--font-body)' }}>
       <div className="max-w-screen-2xl mx-auto px-6 py-8">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
           {metrics.map((m) => (
             <MetricCard key={m.label} {...m} />
           ))}

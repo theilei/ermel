@@ -460,3 +460,14 @@ export async function createQuoteUpdate(req: Request, res: Response) {
     return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 }
+
+// GET /api/admin/dashboard/metrics
+export async function getDashboardMetrics(req: Request, res: Response) {
+  try {
+    const metrics = await QuoteModel.getDashboardMetrics();
+    return res.json({ success: true, data: metrics });
+  } catch (err: any) {
+    console.error('[QUOTE CTRL] getDashboardMetrics error:', err.message);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+}
