@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import {
-  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight, DollarSign
+  Menu, TrendingUp, ClipboardCheck, Trello, FileText, Package, Settings, Bell, LogOut, User, ChevronRight
 } from 'lucide-react';
 import { useQuotes } from '../context/QuoteContext';
 import { supabase } from '../services/supabaseClient';
@@ -138,13 +138,11 @@ export default function AdminLayout() {
       title: 'Intelligence',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: TrendingUp, path: '/admin/dashboard', category: 'intelligence' },
-        { id: 'analytics', label: 'Analytics', icon: TrendingUp, path: '/admin/analytics', category: 'intelligence' },
       ]
     },
     {
       title: 'Operations',
       items: [
-        { id: 'price-approval', label: 'Price Approval', icon: DollarSign, path: '/admin/price-approval', category: 'operations' },
         { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: pendingCount || undefined },
         { id: 'queue', label: 'Installation Queue', icon: Trello, path: '/admin/queue', category: 'operations' },
       ]
@@ -207,7 +205,7 @@ export default function AdminLayout() {
                   ERMEL
                 </div>
                 <div style={{ color: '#9ab0c4', fontSize: '10px', fontFamily: 'var(--font-body)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Admin DSS
+                  Admin
                 </div>
               </div>
             </div>
@@ -230,7 +228,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Menu Items */}
-        <nav className="flex-1 py-6 px-3 overflow-y-auto">
+        <nav className="admin-sidebar-scroll flex-1 py-6 px-3 overflow-y-auto">
           {menuCategories.map((category) => (
             <div key={category.title} className="mb-6">
               {!sidebarCollapsed && (
@@ -378,7 +376,7 @@ export default function AdminLayout() {
 
               <div>
                 <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, letterSpacing: '0.04em' }}>
-                  Decision Support System
+                  Ermel's Glass and Aluminum Works
                 </div>
                 <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

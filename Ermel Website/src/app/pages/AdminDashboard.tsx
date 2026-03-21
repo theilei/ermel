@@ -1,12 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { TrendingUp, AlertTriangle, DollarSign, Package, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useQuotes } from '../context/QuoteContext';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import * as api from '../services/api';
-import type { Reservation } from '../types/quotation';
 
 // Mock forecast data - 3-month moving average
 const FORECAST_DATA = [
@@ -237,41 +235,7 @@ function FabricationCapacityGauge() {
 export default function AdminDashboard() {
   const { orders } = useApp();
   const { quotes } = useQuotes();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [rescheduleDate, setRescheduleDate] = useState<Record<string, string>>({});
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-
-  const loadReservations = async () => {
-    try {
-      const data = await api.fetchReservations();
-      setReservations(Array.isArray(data) ? data : []);
-    } catch {
-      setReservations([]);
-    }
-  };
-
-  useEffect(() => {
-    loadReservations();
-  }, []);
-
-  const handleApproveReservation = async (id: string) => {
-    await api.approveReservation(id);
-    await loadReservations();
-  };
-
-  const handleRejectReservation = async (id: string) => {
-    await api.rejectReservation(id);
-    await loadReservations();
-  };
-
-  const handleRescheduleReservation = async (id: string) => {
-    const date = rescheduleDate[id];
-    if (!date) return;
-    await api.rescheduleReservation(id, date);
-    await loadReservations();
-  };
-
-  const pendingReservations = reservations.filter((r) => r.status === 'pending');
 
   const convertedQuotes = useMemo(
     () => quotes.filter((q) => q.status === 'converted_to_order'),
@@ -359,43 +323,7 @@ export default function AdminDashboard() {
             <FabricationCapacityGauge />
           </div>
         </div>
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
-          <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px' }}>
-              Pending Reservation List
-            </div>
-            {pendingReservations.length === 0 && (
-              <div style={{ color: '#54667d', fontSize: '13px' }}>No pending reservations.</div>
-            )}
-            {pendingReservations.map((r) => (
-              <div key={r.id} className="mb-3 p-3" style={{ border: '1px solid #e0e4ea', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontWeight: 700, fontSize: '13px' }}>
-                  {r.quoteNumber} • {r.customerName}
-                </div>
-                <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px' }}>
-                  Date: {r.reservationDate}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={() => handleApproveReservation(r.id)} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#1a5c1a', color: 'white', fontSize: '12px', cursor: 'pointer' }}>
-                    Approve
-                  </button>
-                  <button onClick={() => handleRejectReservation(r.id)} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#7a0000', color: 'white', fontSize: '12px', cursor: 'pointer' }}>
-                    Reject
-                  </button>
-                  <input
-                    type="date"
-                    value={rescheduleDate[r.id] || ''}
-                    onChange={(e) => setRescheduleDate((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                    style={{ border: '1px solid #d9d9d9', borderRadius: '6px', padding: '5px 8px', fontSize: '12px' }}
-                  />
-                  <button onClick={() => handleRescheduleReservation(r.id)} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #15263c', backgroundColor: 'white', color: '#15263c', fontSize: '12px', cursor: 'pointer' }}>
-                    Reschedule
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
+        <div className="mb-8">
           <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
             <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px' }}>
               Installation Calendar
