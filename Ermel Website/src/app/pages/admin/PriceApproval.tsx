@@ -3,12 +3,13 @@ import { Edit2, Save, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as api from '../../services/api';
 import { supabase } from '../../services/supabaseClient';
 import { useQuotes } from '../../context/QuoteContext';
+import type { Quote } from '../../types/quotation';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function PriceApproval() {
   const { updateQuote, approveQuote } = useQuotes();
-  const [quotes, setQuotes] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -135,6 +136,12 @@ export default function PriceApproval() {
                 )}
                 {quotes.map((quote) => {
                   const isEditing = editingId === quote.id;
+                  const customerName = (quote as any).customerName || (quote as any).customer || 'N/A';
+                  const projectType = (quote as any).projectType || (quote as any).project || 'N/A';
+                  const dimensions =
+                    typeof (quote as any).dimensions === 'string' && (quote as any).dimensions.trim().length > 0
+                      ? (quote as any).dimensions
+                      : `${quote.width}cm × ${quote.height}cm × ${quote.quantity}`;
 
                   return (
                     <tr key={quote.id} style={{ borderBottom: '1px solid #e0e4ea' }}>
@@ -145,17 +152,17 @@ export default function PriceApproval() {
                       </td>
                       <td className="py-4 px-4">
                         <span style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '14px' }}>
-                          {quote.customer}
+                          {customerName}
                         </span>
                       </td>
                       <td className="py-4 px-4">
                         <span style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '13px' }}>
-                          {quote.project}
+                          {projectType}
                         </span>
                       </td>
                       <td className="py-4 px-4">
                         <span style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '13px' }}>
-                          {quote.dimensions}
+                          {dimensions}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-right">
