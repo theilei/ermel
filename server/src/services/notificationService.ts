@@ -116,3 +116,50 @@ export async function notifyAdminCustomerAction(quoteNumber: string, customerNam
     );
   }
 }
+
+export async function notifyPaymentSubmitted(customerEmail: string, quoteNumber: string) {
+  const userId = await findUserIdByEmail(customerEmail);
+  if (!userId) return;
+  await NotificationModel.createNotification(
+    userId,
+    'Payment Submitted',
+    `Your payment for quotation ${quoteNumber} was submitted and is pending verification.`,
+    { type: 'payment', relatedQuoteNumber: quoteNumber }
+  );
+}
+
+export async function notifyPaymentVerified(customerEmail: string, quoteNumber: string) {
+  const userId = await findUserIdByEmail(customerEmail);
+  if (!userId) return;
+  await NotificationModel.createNotification(
+    userId,
+    'Payment Verified',
+    `Your payment for quotation ${quoteNumber} has been verified.`,
+    { type: 'payment', relatedQuoteNumber: quoteNumber }
+  );
+}
+
+export async function notifyPaymentExpired(customerEmail: string, quoteNumber: string) {
+  const userId = await findUserIdByEmail(customerEmail);
+  if (!userId) return;
+  await NotificationModel.createNotification(
+    userId,
+    'Payment Expired',
+    `Payment window for quotation ${quoteNumber} expired. Please submit a new quote request.`,
+    { type: 'payment', relatedQuoteNumber: quoteNumber }
+  );
+}
+
+export async function notifyAdminsPaymentSubmitted(quoteNumber: string, customerName: string) {
+  const admins = await pool.query(
+    `SELECT id FROM users WHERE role = 'admin' AND deleted_at IS NULL`
+  );
+  for (const admin of admins.rows) {
+    await NotificationModel.createNotification(
+      admin.id,
+      'Payment Submitted',
+      `${customerName} submitted payment proof for quotation ${quoteNumber}.`,
+      { type: 'admin_payment', relatedQuoteNumber: quoteNumber }
+    );
+  }
+}

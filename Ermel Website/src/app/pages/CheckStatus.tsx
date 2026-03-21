@@ -1,15 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Bell, FileDown, RefreshCw, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import {
+  deleteCustomerPaymentProof,
   fetchCheckStatusQuotes,
+  fetchCustomerPayment,
   fetchNotifications,
   fetchQuoteUpdates,
+  getCustomerCashReceiptUrl,
   getCustomerQuotePDFUrl,
   markAllNotificationsRead,
   markNotificationRead,
+  setCustomerPaymentMethod,
+  uploadCustomerPaymentProof,
 } from '../services/api';
 import type { Quote, QuoteUpdate, SystemNotification } from '../types/quotation';
 
@@ -45,6 +50,10 @@ export default function CheckStatus() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [paymentMetaByQuote, setPaymentMetaByQuote] = useState<Record<string, { quoteStatus: string; countdown: { deadline: string; remainingMs: number; expired: boolean } }>>({});
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const proofInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -62,6 +71,21 @@ export default function CheckStatus() {
       setUpdatesByQuote((prev) => ({ ...prev, [quoteId]: data.updates || [] }));
     } catch {
       setUpdatesByQuote((prev) => ({ ...prev, [quoteId]: [] }));
+    }
+  }, []);
+
+  const loadPaymentMeta = useCallback(async (quoteId: string) => {
+    try {
+      const data = await fetchCustomerPayment(quoteId);
+      setPaymentMetaByQuote((prev) => ({
+        ...prev,
+        [quoteId]: {
+          quoteStatus: data.quoteStatus,
+          countdown: data.countdown,
+        },
+      }));
+    } catch {
+      // Keep payment panel resilient.
     }
   }, []);
 
@@ -95,7 +119,21 @@ export default function CheckStatus() {
     if (!selectedQuoteId) return;
     if (updatesByQuote[selectedQuoteId]) return;
     loadUpdates(selectedQuoteId);
-  }, [selectedQuoteId, loadUpdates, updatesByQuote]);
+    loadPaymentMeta(selectedQuoteId);
+  }, [selectedQuoteId, loadUpdates, loadPaymentMeta, updatesByQuote]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedQuoteId) return;
+    const poller = window.setInterval(() => {
+      loadPaymentMeta(selectedQuoteId);
+    }, 30000);
+    return () => window.clearInterval(poller);
+  }, [selectedQuoteId, loadPaymentMeta]);
 
   useEffect(() => {
     if (!supabase || !user) return;
@@ -120,6 +158,14 @@ export default function CheckStatus() {
       })
       .subscribe();
 
+    const paymentChannel = client
+      .channel('customer-check-status-payments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        loadQuotes();
+        if (selectedQuoteId) loadPaymentMeta(selectedQuoteId);
+      })
+      .subscribe();
+
     const notifChannel = client
       .channel('customer-check-status-notifications')
       .on(
@@ -134,9 +180,10 @@ export default function CheckStatus() {
     return () => {
       client.removeChannel(quoteChannel);
       client.removeChannel(updateChannel);
+      client.removeChannel(paymentChannel);
       client.removeChannel(notifChannel);
     };
-  }, [loadNotifications, loadQuotes, loadUpdates, selectedQuoteId, user]);
+  }, [loadNotifications, loadQuotes, loadUpdates, loadPaymentMeta, selectedQuoteId, user]);
 
   const filteredQuotes = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -152,6 +199,20 @@ export default function CheckStatus() {
   const selectedUpdates = selectedQuote ? updatesByQuote[selectedQuote.id] || [] : [];
   const latestUpdate = selectedUpdates[0];
   const latestStatus = latestUpdate?.status || selectedQuote?.status;
+  const paymentMeta = selectedQuote ? paymentMetaByQuote[selectedQuote.id] : undefined;
+  const deadlineMs = paymentMeta?.countdown?.deadline ? new Date(paymentMeta.countdown.deadline).getTime() : 0;
+  const countdownMs = deadlineMs > 0 ? Math.max(0, deadlineMs - nowMs) : 0;
+  const isPaymentExpired = paymentMeta?.countdown?.expired || selectedQuote?.status === 'cancelled' || selectedQuote?.payment?.status === 'expired';
+  const canShowPaymentSection = selectedQuote?.status === 'approved' || selectedQuote?.status === 'cancelled';
+  const countdownLabel = (() => {
+    if (!paymentMeta) return 'Loading...';
+    const ms = Math.max(0, countdownMs);
+    const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((ms % (1000 * 60)) / 1000);
+    return `${days}d ${hours}h ${mins}m ${secs}s`;
+  })();
 
   const handleNotificationClick = async (notification: SystemNotification) => {
     if (!notification.read) {
@@ -489,6 +550,124 @@ export default function CheckStatus() {
                   <div style={{ marginBottom: '14px', color: '#54667d', fontSize: '13px' }}>
                     <strong>Last Updated:</strong> {formatDate(latestUpdate?.updatedAt || selectedQuote.submissionDate)}
                   </div>
+
+                  {canShowPaymentSection && (
+                    <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: '14px', marginBottom: '16px' }}>
+                      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '12px', marginBottom: '10px' }}>
+                        Payment
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: '10px' }}>
+                        <div style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '10px' }}>
+                          <div style={{ color: '#9ab0c4', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Approved Price</div>
+                          <div style={{ color: '#15263c', fontSize: '18px', fontWeight: 800, marginTop: '4px' }}>
+                            {formatCurrency(selectedQuote.updatedCost ?? selectedQuote.estimatedCost)}
+                          </div>
+                        </div>
+                        <div style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '10px' }}>
+                          <div style={{ color: '#9ab0c4', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
+                          <div style={{ color: '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px', textTransform: 'lowercase' }}>
+                            {selectedQuote.payment?.status || 'pending'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ backgroundColor: isPaymentExpired ? '#fff0f0' : '#fff8e1', border: `1px solid ${isPaymentExpired ? '#7a000044' : '#f0c04066'}`, borderRadius: '8px', padding: '10px', marginBottom: '10px' }}>
+                        <div style={{ color: isPaymentExpired ? '#7a0000' : '#7a5200', fontSize: '12px', fontWeight: 700 }}>
+                          {isPaymentExpired ? 'Payment window expired' : `Time left to pay: ${countdownLabel}`}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2" style={{ marginBottom: '10px' }}>
+                        <button
+                          disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                          onClick={async () => {
+                            await setCustomerPaymentMethod(selectedQuote.id, 'qrph');
+                            await reloadAll();
+                            await loadPaymentMeta(selectedQuote.id);
+                          }}
+                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: selectedQuote.payment?.paymentMethod === 'qrph' ? '#15263c' : 'white', color: selectedQuote.payment?.paymentMethod === 'qrph' ? 'white' : '#15263c', cursor: 'pointer' }}
+                        >
+                          QRPH
+                        </button>
+                        <button
+                          disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                          onClick={async () => {
+                            await setCustomerPaymentMethod(selectedQuote.id, 'cash');
+                            await reloadAll();
+                            await loadPaymentMeta(selectedQuote.id);
+                          }}
+                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: selectedQuote.payment?.paymentMethod === 'cash' ? '#15263c' : 'white', color: selectedQuote.payment?.paymentMethod === 'cash' ? 'white' : '#15263c', cursor: 'pointer' }}
+                        >
+                          Cash
+                        </button>
+                      </div>
+
+                      {selectedQuote.payment?.paymentMethod === 'qrph' && (
+                        <div style={{ border: '1px dashed #d9dce3', borderRadius: '8px', padding: '12px' }}>
+                          <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px' }}>Upload proof (jpg, jpeg, png, pdf, max 5MB)</div>
+                          <div
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              const f = e.dataTransfer.files?.[0];
+                              if (!f) return;
+                              setUploadingProof(true);
+                              try {
+                                await uploadCustomerPaymentProof(selectedQuote.id, f);
+                                await reloadAll();
+                              } finally {
+                                setUploadingProof(false);
+                              }
+                            }}
+                            style={{ border: '1px dashed #c8cfdb', borderRadius: '8px', padding: '10px', marginBottom: '8px', backgroundColor: '#fcfdff' }}
+                          >
+                            <div style={{ color: '#54667d', fontSize: '12px' }}>Drag and drop file here</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <input
+                              ref={proofInputRef}
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                setUploadingProof(true);
+                                try {
+                                  await uploadCustomerPaymentProof(selectedQuote.id, f);
+                                  await reloadAll();
+                                } finally {
+                                  setUploadingProof(false);
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={async () => {
+                                await deleteCustomerPaymentProof(selectedQuote.id);
+                                await reloadAll();
+                              }}
+                              disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                              style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '7px 12px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
+                            >
+                              Delete Proof
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedQuote.payment?.paymentMethod === 'cash' && (
+                        <a
+                          href={getCustomerCashReceiptUrl(selectedQuote.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ display: 'inline-block', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', color: '#15263c', textDecoration: 'none' }}
+                        >
+                          Generate Receipt PDF
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: '14px' }}>
                     <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '12px', marginBottom: '10px' }}>

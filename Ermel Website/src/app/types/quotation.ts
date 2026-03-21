@@ -7,10 +7,23 @@ export type QuoteStatus =
   | 'rejected'
   | 'draft'
   | 'approved'
+  | 'cancelled'
   | 'customer_accepted'
   | 'customer_declined'
   | 'converted_to_order'
   | 'expired';
+
+export type PaymentMethod = 'qrph' | 'cash';
+export type PaymentStatus = 'pending' | 'paid' | 'expired';
+
+export interface QuotePayment {
+  paymentMethod: PaymentMethod;
+  status: PaymentStatus;
+  proofFile?: string;
+  adminRejectionReason?: string;
+  submittedAt?: string;
+  createdAt?: string;
+}
 
 export type InstallationStatus =
   | 'materials_ordered'
@@ -45,6 +58,7 @@ export interface Quote {
   notes?: string;
   reservationDate?: string;
   reservationStatus?: ReservationStatus;
+  payment?: QuotePayment | null;
 }
 
 export interface QuoteUpdate {
@@ -111,6 +125,7 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   rejected: 'Rejected',
   draft: 'Draft',
   approved: 'Approved',
+  cancelled: 'Cancelled',
   customer_accepted: 'Customer Accepted',
   customer_declined: 'Customer Declined',
   converted_to_order: 'Converted to Order',
@@ -122,6 +137,7 @@ export const QUOTE_STATUS_COLORS: Record<QuoteStatus, { bg: string; text: string
   rejected: { bg: '#fff0f0', text: '#7a0000', border: '#7a000044' },
   draft: { bg: '#e8ecf0', text: '#15263c', border: '#15263c44' },
   approved: { bg: '#e8f5e9', text: '#1a5c1a', border: '#1a5c1a44' },
+  cancelled: { bg: '#fff0f0', text: '#7a0000', border: '#7a000044' },
   customer_accepted: { bg: '#e0f2fe', text: '#0369a1', border: '#0369a144' },
   customer_declined: { bg: '#fff0f0', text: '#7a0000', border: '#7a000044' },
   converted_to_order: { bg: '#f3e8ff', text: '#6b21a8', border: '#6b21a844' },

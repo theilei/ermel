@@ -40,6 +40,7 @@ function toFrontendQuote(q: QuoteModel.Quote) {
     notes: q.notes,
     reservationDate: q.reservationDate,
     reservationStatus: q.reservationStatus,
+    payment: q.payment,
   };
 }
 
@@ -123,6 +124,9 @@ export async function updateQuote(req: Request, res: Response) {
 
     const updates: Partial<QuoteModel.Quote> = {};
     if (estimatedCost !== undefined) {
+      if (existing.status === 'approved') {
+        return res.status(400).json({ success: false, message: 'Approved quote price cannot be changed.' });
+      }
       updates.updatedCost = Number(estimatedCost);
     }
     if (customerName) updates.customerName = String(customerName);

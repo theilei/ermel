@@ -8,6 +8,7 @@ export type QuoteStatus =
   | 'rejected'
   | 'draft'
   | 'approved'
+  | 'cancelled'
   | 'customer_accepted'
   | 'customer_declined'
   | 'converted_to_order'
@@ -42,6 +43,12 @@ export interface Quote {
   notes?: string;
   reservationDate?: string;
   reservationStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
+  payment?: {
+    paymentMethod?: 'qrph' | 'cash';
+    status?: 'pending' | 'paid' | 'expired';
+    proofFile?: string;
+    adminRejectionReason?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +88,14 @@ function rowToQuote(row: any): Quote {
     notes: row.notes || undefined,
     reservationDate: row.reservation_date?.toISOString?.().split('T')[0] || row.reservation_date || undefined,
     reservationStatus: row.reservation_status || undefined,
+    payment: row.payment_method || row.payment_status || row.payment_proof_file
+      ? {
+          paymentMethod: row.payment_method || undefined,
+          status: row.payment_status || undefined,
+          proofFile: row.payment_proof_file || undefined,
+          adminRejectionReason: row.payment_admin_rejection_reason || undefined,
+        }
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -134,9 +149,12 @@ async function nextQuoteNumber(): Promise<string> {
 
 export async function getAllQuotes(): Promise<Quote[]> {
   const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
+    `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+            p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+            p.admin_rejection_reason AS payment_admin_rejection_reason
      FROM qq_quotes q
      LEFT JOIN reservations r ON r.quote_id = q.id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL
      ORDER BY q.submission_date DESC, q.created_at DESC`
   );
@@ -147,9 +165,12 @@ export async function getQuoteById(id: string): Promise<Quote | undefined> {
   try {
     // Support lookup by UUID or quote_number
     const result = await pool.query(
-      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+              p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+              p.admin_rejection_reason AS payment_admin_rejection_reason
        FROM qq_quotes q
        LEFT JOIN reservations r ON r.quote_id = q.id
+       LEFT JOIN payments p ON p.quote_id = q.id
        WHERE q.deleted_at IS NULL AND (q.id::text = $1 OR q.quote_number = $1)`,
       [id]
     );
@@ -176,9 +197,12 @@ export async function getQuoteById(id: string): Promise<Quote | undefined> {
 export async function getQuotesByEmail(email: string): Promise<Quote[]> {
   try {
     const result = await pool.query(
-      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+              p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+              p.admin_rejection_reason AS payment_admin_rejection_reason
        FROM qq_quotes q
        LEFT JOIN reservations r ON r.quote_id = q.id
+       LEFT JOIN payments p ON p.quote_id = q.id
        WHERE q.deleted_at IS NULL AND LOWER(q.customer_email) = LOWER($1)
        ORDER BY q.submission_date DESC, q.created_at DESC`,
       [email]
@@ -206,9 +230,12 @@ export async function getQuotesByEmail(email: string): Promise<Quote[]> {
 
 export async function getQuotesByCustomerId(customerId: string): Promise<Quote[]> {
   const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
+    `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+            p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+            p.admin_rejection_reason AS payment_admin_rejection_reason
      FROM qq_quotes q
      LEFT JOIN reservations r ON r.quote_id = q.id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL AND q.customer_id = $1
      ORDER BY q.submission_date DESC, q.created_at DESC`,
     [customerId]
