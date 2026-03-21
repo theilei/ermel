@@ -40,6 +40,7 @@ function toFrontendQuote(q: QuoteModel.Quote) {
     notes: q.notes,
     reservationDate: q.reservationDate,
     reservationStatus: q.reservationStatus,
+    payment: q.payment,
   };
 }
 
@@ -123,6 +124,9 @@ export async function updateQuote(req: Request, res: Response) {
 
     const updates: Partial<QuoteModel.Quote> = {};
     if (estimatedCost !== undefined) {
+      if (existing.status === 'approved') {
+        return res.status(400).json({ success: false, message: 'Approved quote price cannot be changed.' });
+      }
       updates.updatedCost = Number(estimatedCost);
     }
     if (customerName) updates.customerName = String(customerName);
@@ -453,6 +457,17 @@ export async function createQuoteUpdate(req: Request, res: Response) {
     return res.json({ success: true, data: { update: created, quote: updatedQuote ? toFrontendQuote(updatedQuote) : null } });
   } catch (err: any) {
     console.error('[QUOTE CTRL] createQuoteUpdate error:', err.message);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+}
+
+// GET /api/admin/dashboard/metrics
+export async function getDashboardMetrics(req: Request, res: Response) {
+  try {
+    const metrics = await QuoteModel.getDashboardMetrics();
+    return res.json({ success: true, data: metrics });
+  } catch (err: any) {
+    console.error('[QUOTE CTRL] getDashboardMetrics error:', err.message);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 }

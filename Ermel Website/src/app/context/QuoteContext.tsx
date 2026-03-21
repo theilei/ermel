@@ -113,9 +113,16 @@ export function QuoteProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, queueRefresh)
       .subscribe();
 
+    const paymentChannel = client
+      .channel('quote-context-payments')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, queueRefresh)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'payments' }, queueRefresh)
+      .subscribe();
+
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       client.removeChannel(quoteChannel);
+      client.removeChannel(paymentChannel);
     };
   }, [refreshLogs, refreshOrders, refreshQuotes]);
 

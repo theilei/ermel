@@ -35,7 +35,10 @@ export async function listReservations(): Promise<Reservation[]> {
     `SELECT r.*, q.quote_number, q.customer_name, q.customer_email, q.project_type
      FROM reservations r
      JOIN qq_quotes q ON q.id = r.quote_id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL
+       AND q.status = 'approved'
+       AND p.status = 'paid'
      ORDER BY r.reservation_date ASC, r.created_at DESC`
   );
   return result.rows.map(rowToReservation);
@@ -46,7 +49,10 @@ export async function listReservationsByStatus(status: ReservationStatus): Promi
     `SELECT r.*, q.quote_number, q.customer_name, q.customer_email, q.project_type
      FROM reservations r
      JOIN qq_quotes q ON q.id = r.quote_id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL AND r.status = $1
+       AND q.status = 'approved'
+       AND p.status = 'paid'
      ORDER BY r.reservation_date ASC, r.created_at DESC`,
     [status]
   );
@@ -55,9 +61,13 @@ export async function listReservationsByStatus(status: ReservationStatus): Promi
 
 export async function listReservedDates(): Promise<string[]> {
   const result = await pool.query(
-    `SELECT reservation_date
-     FROM reservations
-     WHERE status IN ('pending', 'approved')
+    `SELECT r.reservation_date
+     FROM reservations r
+     JOIN qq_quotes q ON q.id = r.quote_id
+     JOIN payments p ON p.quote_id = q.id
+     WHERE r.status IN ('pending', 'approved')
+       AND q.status = 'approved'
+       AND p.status = 'paid'
      ORDER BY reservation_date ASC`
   );
 

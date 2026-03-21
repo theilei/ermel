@@ -8,6 +8,7 @@ export type QuoteStatus =
   | 'rejected'
   | 'draft'
   | 'approved'
+  | 'cancelled'
   | 'customer_accepted'
   | 'customer_declined'
   | 'converted_to_order'
@@ -42,8 +43,35 @@ export interface Quote {
   notes?: string;
   reservationDate?: string;
   reservationStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
+  payment?: {
+    paymentMethod?: 'qrph' | 'cash';
+    status?: 'pending' | 'paid' | 'expired';
+    proofFile?: string;
+    adminRejectionReason?: string;
+  };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DashboardActiveInstallation {
+  id: string;
+  customerName: string;
+  projectType: string;
+  width: number;
+  height: number;
+  quantity: number;
+  color: string;
+  estimatedCost: number;
+  status: QuoteStatus;
+  reservationDate: string;
+}
+
+export interface DashboardMetrics {
+  pendingInquiries: number;
+  activeInstallations: number;
+  totalQuotes: number;
+  approvedQuotes: number;
+  activeInstallationEntries: DashboardActiveInstallation[];
 }
 
 function rowToQuote(row: any): Quote {
@@ -81,6 +109,14 @@ function rowToQuote(row: any): Quote {
     notes: row.notes || undefined,
     reservationDate: row.reservation_date?.toISOString?.().split('T')[0] || row.reservation_date || undefined,
     reservationStatus: row.reservation_status || undefined,
+    payment: row.payment_method || row.payment_status || row.payment_proof_file
+      ? {
+          paymentMethod: row.payment_method || undefined,
+          status: row.payment_status || undefined,
+          proofFile: row.payment_proof_file || undefined,
+          adminRejectionReason: row.payment_admin_rejection_reason || undefined,
+        }
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -134,9 +170,12 @@ async function nextQuoteNumber(): Promise<string> {
 
 export async function getAllQuotes(): Promise<Quote[]> {
   const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
+    `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+            p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+            p.admin_rejection_reason AS payment_admin_rejection_reason
      FROM qq_quotes q
      LEFT JOIN reservations r ON r.quote_id = q.id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL
      ORDER BY q.submission_date DESC, q.created_at DESC`
   );
@@ -147,9 +186,12 @@ export async function getQuoteById(id: string): Promise<Quote | undefined> {
   try {
     // Support lookup by UUID or quote_number
     const result = await pool.query(
-      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+              p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+              p.admin_rejection_reason AS payment_admin_rejection_reason
        FROM qq_quotes q
        LEFT JOIN reservations r ON r.quote_id = q.id
+       LEFT JOIN payments p ON p.quote_id = q.id
        WHERE q.deleted_at IS NULL AND (q.id::text = $1 OR q.quote_number = $1)`,
       [id]
     );
@@ -176,9 +218,12 @@ export async function getQuoteById(id: string): Promise<Quote | undefined> {
 export async function getQuotesByEmail(email: string): Promise<Quote[]> {
   try {
     const result = await pool.query(
-      `SELECT q.*, r.reservation_date, r.status AS reservation_status
+      `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+              p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+              p.admin_rejection_reason AS payment_admin_rejection_reason
        FROM qq_quotes q
        LEFT JOIN reservations r ON r.quote_id = q.id
+       LEFT JOIN payments p ON p.quote_id = q.id
        WHERE q.deleted_at IS NULL AND LOWER(q.customer_email) = LOWER($1)
        ORDER BY q.submission_date DESC, q.created_at DESC`,
       [email]
@@ -206,9 +251,12 @@ export async function getQuotesByEmail(email: string): Promise<Quote[]> {
 
 export async function getQuotesByCustomerId(customerId: string): Promise<Quote[]> {
   const result = await pool.query(
-    `SELECT q.*, r.reservation_date, r.status AS reservation_status
+    `SELECT q.*, r.reservation_date, r.status AS reservation_status,
+            p.payment_method, p.status AS payment_status, p.proof_file AS payment_proof_file,
+            p.admin_rejection_reason AS payment_admin_rejection_reason
      FROM qq_quotes q
      LEFT JOIN reservations r ON r.quote_id = q.id
+     LEFT JOIN payments p ON p.quote_id = q.id
      WHERE q.deleted_at IS NULL AND q.customer_id = $1
      ORDER BY q.submission_date DESC, q.created_at DESC`,
     [customerId]
@@ -333,4 +381,99 @@ export async function expireOldQuotes(): Promise<number> {
       return 0;
     }
   }
+}
+
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  const hasPaymentStatus = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'qq_quotes'
+        AND column_name = 'payment_status'
+    ) AS exists`
+  );
+
+  const paymentStatusExists = Boolean(hasPaymentStatus.rows[0]?.exists);
+
+  const hasReservationDate = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'qq_quotes'
+        AND column_name = 'reservation_date'
+    ) AS exists`
+  );
+
+  const reservationDateExists = Boolean(hasReservationDate.rows[0]?.exists);
+  const reservationExpr = reservationDateExists
+    ? 'COALESCE(q.reservation_date, r.reservation_date)'
+    : 'r.reservation_date';
+
+  const countsQuery = paymentStatusExists
+    ? `SELECT
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
+         COUNT(*) FILTER (
+           WHERE q.deleted_at IS NULL
+             AND q.status = 'approved'
+             AND q.payment_status = 'paid'
+             AND ${reservationExpr} IS NOT NULL
+         )::int AS active_installations
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id`
+    : `SELECT
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
+         0::int AS active_installations
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id`;
+
+  const countsResult = await pool.query(countsQuery);
+  const counts = countsResult.rows[0] || {};
+
+  const activeRows = paymentStatusExists
+    ? await pool.query(
+        `SELECT
+           q.quote_number,
+           q.customer_name,
+           q.project_type,
+           q.width,
+           q.height,
+           q.quantity,
+           q.color,
+           COALESCE(q.updated_cost, q.estimated_cost, 0) AS effective_cost,
+           q.status,
+           ${reservationExpr}::text AS reservation_date
+         FROM qq_quotes q
+         LEFT JOIN reservations r ON r.quote_id = q.id
+         WHERE q.deleted_at IS NULL
+           AND q.status = 'approved'
+           AND q.payment_status = 'paid'
+           AND ${reservationExpr} IS NOT NULL
+         ORDER BY ${reservationExpr} ASC, q.created_at DESC`
+      )
+    : { rows: [] as any[] };
+
+  return {
+    pendingInquiries: Number(counts.pending_inquiries || 0),
+    activeInstallations: Number(counts.active_installations || 0),
+    totalQuotes: Number(counts.total_quotes || 0),
+    approvedQuotes: Number(counts.approved_quotes || 0),
+    activeInstallationEntries: activeRows.rows.map((row) => ({
+      id: row.quote_number,
+      customerName: row.customer_name,
+      projectType: row.project_type,
+      width: Number(row.width || 0),
+      height: Number(row.height || 0),
+      quantity: Number(row.quantity || 0),
+      color: row.color,
+      estimatedCost: Number(row.effective_cost || 0),
+      status: row.status as QuoteStatus,
+      reservationDate: row.reservation_date,
+    })),
+  };
 }

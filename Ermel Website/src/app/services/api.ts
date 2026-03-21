@@ -10,7 +10,29 @@ import type {
   Reservation,
   QuoteUpdate,
   SystemNotification,
+  PaymentMethod,
 } from '../types/quotation';
+
+export interface DashboardActiveInstallation {
+  id: string;
+  customerName: string;
+  projectType: string;
+  width: number;
+  height: number;
+  quantity: number;
+  color: string;
+  estimatedCost: number;
+  status: QuoteStatus;
+  reservationDate: string;
+}
+
+export interface AdminDashboardMetrics {
+  pendingInquiries: number;
+  activeInstallations: number;
+  totalQuotes: number;
+  approvedQuotes: number;
+  activeInstallationEntries: DashboardActiveInstallation[];
+}
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -153,6 +175,14 @@ export async function fetchActivityLogs(params?: { quoteId?: string; orderId?: s
   return handleResponse<ActivityLog[]>(res);
 }
 
+export async function fetchAdminDashboardMetrics() {
+  const res = await fetch(`${API_BASE}/admin/dashboard/metrics`, {
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<AdminDashboardMetrics>(res);
+}
+
 // ---- Reservation API ----
 export async function fetchReservedDates() {
   const res = await fetch(`${API_BASE}/reservations/dates`, {
@@ -261,6 +291,80 @@ export async function fetchCheckStatusQuotes() {
     credentials: 'include',
   });
   return handleResponse<Quote[]>(res);
+}
+
+export async function fetchCustomerPayment(quoteId: string) {
+  const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(quoteId)}/payment`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<{
+    quoteId: string;
+    quoteStatus: string;
+    payment: any | null;
+    countdown: { deadline: string; remainingMs: number; expired: boolean };
+  }>(res);
+}
+
+export async function setCustomerPaymentMethod(quoteId: string, paymentMethod: PaymentMethod) {
+  const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(quoteId)}/payment/method`, {
+    method: 'POST',
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ paymentMethod }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function uploadCustomerPaymentProof(quoteId: string, file: File) {
+  const form = new FormData();
+  form.append('proof', file);
+  const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(quoteId)}/payment/proof`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  return handleResponse<any>(res);
+}
+
+export async function deleteCustomerPaymentProof(quoteId: string) {
+  const res = await fetch(`${API_BASE}/customer/quotes/${encodeURIComponent(quoteId)}/payment/proof`, {
+    method: 'DELETE',
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<any>(res);
+}
+
+export function getCustomerCashReceiptUrl(quoteId: string): string {
+  return `${API_BASE}/customer/quotes/${encodeURIComponent(quoteId)}/payment/receipt`;
+}
+
+export async function fetchAdminPayments() {
+  const res = await fetch(`${API_BASE}/admin/payments`, {
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<any[]>(res);
+}
+
+export async function adminApprovePayment(quoteId: string) {
+  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/approve`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<any>(res);
+}
+
+export async function adminRejectPayment(quoteId: string, reason: string) {
+  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/reject`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ reason }),
+  });
+  return handleResponse<any>(res);
 }
 
 export async function fetchQuoteUpdates(quoteId: string) {
