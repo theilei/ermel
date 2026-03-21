@@ -12,6 +12,27 @@ import type {
   SystemNotification,
 } from '../types/quotation';
 
+export interface DashboardActiveInstallation {
+  id: string;
+  customerName: string;
+  projectType: string;
+  width: number;
+  height: number;
+  quantity: number;
+  color: string;
+  estimatedCost: number;
+  status: QuoteStatus;
+  reservationDate: string;
+}
+
+export interface AdminDashboardMetrics {
+  pendingInquiries: number;
+  activeInstallations: number;
+  totalQuotes: number;
+  approvedQuotes: number;
+  activeInstallationEntries: DashboardActiveInstallation[];
+}
+
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
 function getAdminHeaders(): HeadersInit {
@@ -151,6 +172,14 @@ export async function fetchActivityLogs(params?: { quoteId?: string; orderId?: s
   if (params?.orderId) query.set('orderId', params.orderId);
   const res = await fetch(`${API_BASE}/admin/activity-logs?${query}`, { headers: getAdminHeaders(), credentials: 'include' });
   return handleResponse<ActivityLog[]>(res);
+}
+
+export async function fetchAdminDashboardMetrics() {
+  const res = await fetch(`${API_BASE}/admin/dashboard/metrics`, {
+    headers: getAdminHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<AdminDashboardMetrics>(res);
 }
 
 // ---- Reservation API ----
