@@ -6,12 +6,14 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import pool from '../config/database';
 import { sendVerificationEmail } from '../services/verificationEmailService';
+import { sendPasswordResetEmail } from '../services/passwordResetEmailService';
 import { addLog } from '../models/ActivityLogDB';
 
 const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 // Helpers
 function sanitize(val: unknown): string {
@@ -49,6 +51,24 @@ async function logAuthAttempt(email: string, ipAddress: string, success: boolean
   } catch (err: any) {
     console.warn('[AUTH LOG] failed to write auth_logs:', err.message);
   }
+}
+
+async function invalidateUserSessions(userId: string, keepSid?: string) {
+  if (keepSid) {
+    await pool.query(
+      `DELETE FROM session
+       WHERE COALESCE(sess->>'userId', '') = $1
+         AND sid <> $2`,
+      [userId, keepSid],
+    );
+    return;
+  }
+
+  await pool.query(
+    `DELETE FROM session
+     WHERE COALESCE(sess->>'userId', '') = $1`,
+    [userId],
+  );
 }
 
 export function csrfToken(req: Request, res: Response) {
@@ -508,6 +528,306 @@ export async function resendVerification(req: Request, res: Response) {
     return res.json({ message: 'Verification email sent. Please check your inbox.' });
   } catch (err: any) {
     console.error('[AUTH ERROR] Resend verification:', err.message);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+// ============================================================
+// POST /api/auth/change-password
+// ============================================================
+export async function changePassword(req: Request, res: Response) {
+  try {
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const userId = req.session.userId;
+    const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+    const confirmNewPassword = typeof req.body.confirmNewPassword === 'string' ? req.body.confirmNewPassword : '';
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      return res.status(400).json({ error: 'Please fill in all password fields.' });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ error: 'New passwords do not match.' });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ error: 'New password must be different from your current password.' });
+    }
+
+    const userResult = await pool.query(
+      `SELECT id, full_name, email, role, password_hash
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [userId],
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ error: 'Current password is incorrect.' });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           failed_login_attempts = 0,
+           lock_until = NULL,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [newPasswordHash, userId],
+    );
+
+    await pool.query(
+      `UPDATE password_resets
+       SET used_at = NOW()
+       WHERE user_id = $1
+         AND used_at IS NULL`,
+      [userId],
+    );
+
+    await invalidateUserSessions(userId, req.sessionID);
+
+    await addLog({
+      action: 'Password changed',
+      entity: 'auth',
+      userId,
+      userRole: user.role === 'admin' ? 'admin' : 'customer',
+      userName: user.full_name,
+      details: `Password updated from profile for ${user.email}`,
+    });
+
+    return res.json({ message: 'Password updated successfully.' });
+  } catch (err: any) {
+    console.error('[AUTH ERROR] Change password:', err.message);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+// ============================================================
+// POST /api/auth/forgot-password
+// ============================================================
+export async function forgotPassword(req: Request, res: Response) {
+  const genericResponse = {
+    message: 'If an account with that email exists, a password reset link has been sent.',
+  };
+
+  try {
+    const email = sanitize(req.body.email).toLowerCase();
+    const ipAddress = getClientIp(req);
+
+    if (!isValidEmail(email)) {
+      return res.json(genericResponse);
+    }
+
+    const userResult = await pool.query(
+      `SELECT id, full_name, email, role
+       FROM users
+       WHERE LOWER(email) = LOWER($1)
+       LIMIT 1`,
+      [email],
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.json(genericResponse);
+    }
+
+    const user = userResult.rows[0];
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+
+    await pool.query(
+      `UPDATE password_resets
+       SET used_at = NOW()
+       WHERE user_id = $1
+         AND used_at IS NULL`,
+      [user.id],
+    );
+
+    await pool.query(
+      `INSERT INTO password_resets (user_id, token_hash, expires_at, ip_address)
+       VALUES ($1, $2, $3, $4)`,
+      [user.id, tokenHash, expiresAt, ipAddress],
+    );
+
+    await sendPasswordResetEmail(user.email, user.full_name, rawToken);
+
+    await addLog({
+      action: 'Password reset requested',
+      entity: 'auth',
+      userId: user.id,
+      userRole: user.role === 'admin' ? 'admin' : 'customer',
+      userName: user.full_name,
+      details: `Reset requested from IP ${ipAddress}`,
+    });
+
+    return res.json(genericResponse);
+  } catch (err: any) {
+    console.error('[AUTH ERROR] Forgot password:', err.message);
+    return res.json(genericResponse);
+  }
+}
+
+// ============================================================
+// GET /api/auth/verify-reset-token
+// ============================================================
+export async function verifyResetToken(req: Request, res: Response) {
+  try {
+    const rawToken = sanitize(req.query.token);
+
+    if (!rawToken || rawToken.length < 20) {
+      return res.status(400).json({ valid: false, error: 'Invalid reset token.' });
+    }
+
+    const tokenHash = hashToken(rawToken);
+    const tokenResult = await pool.query(
+      `SELECT id, user_id, expires_at, used_at
+       FROM password_resets
+       WHERE token_hash = $1
+       LIMIT 1`,
+      [tokenHash],
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ valid: false, error: 'Invalid or expired reset token.' });
+    }
+
+    const token = tokenResult.rows[0];
+    if (token.used_at) {
+      return res.status(400).json({ valid: false, error: 'This reset link has already been used.' });
+    }
+
+    if (new Date(token.expires_at) < new Date()) {
+      return res.status(400).json({ valid: false, error: 'This reset link has expired.' });
+    }
+
+    return res.json({ valid: true });
+  } catch (err: any) {
+    console.error('[AUTH ERROR] Verify reset token:', err.message);
+    return res.status(500).json({ valid: false, error: 'Internal server error.' });
+  }
+}
+
+// ============================================================
+// POST /api/auth/reset-password
+// ============================================================
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const rawToken = typeof req.body.token === 'string' ? req.body.token : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+    const confirmNewPassword = typeof req.body.confirmNewPassword === 'string' ? req.body.confirmNewPassword : '';
+
+    if (!rawToken || rawToken.length < 20) {
+      return res.status(400).json({ error: 'Invalid reset token.' });
+    }
+
+    if (!newPassword || !confirmNewPassword) {
+      return res.status(400).json({ error: 'Please fill in all password fields.' });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ error: 'New passwords do not match.' });
+    }
+
+    const tokenHash = hashToken(rawToken);
+    const tokenResult = await pool.query(
+      `SELECT pr.id, pr.user_id, pr.expires_at, pr.used_at, u.full_name, u.email, u.role
+       FROM password_resets pr
+       JOIN users u ON u.id = pr.user_id
+       WHERE pr.token_hash = $1
+       LIMIT 1`,
+      [tokenHash],
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token.' });
+    }
+
+    const tokenRow = tokenResult.rows[0];
+    if (tokenRow.used_at) {
+      return res.status(400).json({ error: 'This reset link has already been used.' });
+    }
+
+    if (new Date(tokenRow.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'This reset link has expired.' });
+    }
+
+    const nextPasswordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `UPDATE users
+         SET password_hash = $1,
+             failed_login_attempts = 0,
+             lock_until = NULL,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [nextPasswordHash, tokenRow.user_id],
+      );
+
+      await client.query(
+        `UPDATE password_resets
+         SET used_at = NOW()
+         WHERE id = $1`,
+        [tokenRow.id],
+      );
+
+      await client.query(
+        `UPDATE password_resets
+         SET used_at = NOW()
+         WHERE user_id = $1
+           AND used_at IS NULL`,
+        [tokenRow.user_id],
+      );
+
+      await client.query(
+        `DELETE FROM session
+         WHERE COALESCE(sess->>'userId', '') = $1`,
+        [tokenRow.user_id],
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    await addLog({
+      action: 'Password reset completed',
+      entity: 'auth',
+      userId: tokenRow.user_id,
+      userRole: tokenRow.role === 'admin' ? 'admin' : 'customer',
+      userName: tokenRow.full_name,
+      details: `Password reset via token for ${tokenRow.email}`,
+    });
+
+    return res.json({ message: 'Password reset successful. Please sign in with your new password.' });
+  } catch (err: any) {
+    console.error('[AUTH ERROR] Reset password:', err.message);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 }

@@ -32,3 +32,23 @@ export const resendLimiter = rateLimit({
   message: { error: 'Resend limit reached. Please try again later.' },
   statusCode: 429,
 });
+
+/** Forgot password: 5 requests per hour per IP */
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please try again later.' },
+  statusCode: 429,
+});
+
+/** Reset password: 10 attempts per hour per IP */
+export const resetPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many reset attempts. Please try again later.' },
+  statusCode: 429,
+});
