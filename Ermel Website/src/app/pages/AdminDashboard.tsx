@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, AlertTriangle, DollarSign, Package, Calendar } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Package, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useQuotes } from '../context/QuoteContext';
 import FullCalendar from '@fullcalendar/react';
@@ -23,6 +23,23 @@ interface MetricCardProps {
   color: string;
   bg: string;
   trend?: string;
+}
+
+function PesoSignIcon({ size = 20, color = '#005c7a' }: { size?: number; color?: string }) {
+  return (
+    <span
+      style={{
+        color,
+        fontSize: `${size}px`,
+        fontFamily: 'var(--font-heading)',
+        fontWeight: 800,
+        lineHeight: 1,
+      }}
+      aria-hidden="true"
+    >
+      ₱
+    </span>
+  );
 }
 
 function MetricCard({ label, value, icon: Icon, color, bg, trend }: MetricCardProps) {
@@ -294,7 +311,7 @@ export default function AdminDashboard() {
     {
       label: 'Predicted Revenue',
       value: `₱${Math.round(predictedRevenue / 1000)}k`,
-      icon: DollarSign,
+      icon: PesoSignIcon,
       color: '#005c7a',
       bg: '#e0f4ff',
       trend: '+18%',
