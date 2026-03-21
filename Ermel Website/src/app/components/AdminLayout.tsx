@@ -147,7 +147,7 @@ export default function AdminLayout() {
       items: [
         { id: 'quotations', label: 'Quotation Approval', icon: ClipboardCheck, path: '/admin/quotations', category: 'operations', badge: pendingCount || undefined },
         { id: 'queue', label: 'Installation Queue', icon: Trello, path: '/admin/queue', category: 'operations' },
-        { id: 'payment-appoval', label: 'Payment Appoval', icon: CreditCard, path: '/admin/payment-appoval', category: 'operations', badge: pendingPaymentCount || undefined },
+        { id: 'payment-appoval', label: 'Payment Approval', icon: CreditCard, path: '/admin/payment-appoval', category: 'operations', badge: pendingPaymentCount || undefined },
       ]
     },
     {
