@@ -6,6 +6,7 @@ import {
 import { useQuotes } from '../context/QuoteContext';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import dashImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 
 const ADMIN_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const ADMIN_WARNING_LEAD_MS = 2 * 60 * 1000;
@@ -193,19 +194,16 @@ export default function AdminLayout() {
                 className="flex items-center justify-center flex-shrink-0"
                 style={{ 
                   width: '44px', 
-                  height: '44px', 
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: '8px'
+                  height: '44px',
+                  borderRadius: '10%',
+                  overflow: 'hidden',   
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '20px', fontWeight: 800 }}>EM</div>
+                <img src={dashImg} alt="ERMEL Admin" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '18px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: 1 }}>
-                  ERMEL
-                </div>
-                <div style={{ color: '#9ab0c4', fontSize: '10px', fontFamily: 'var(--font-body)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Admin
+                <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '24px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: 1 }}>
+                  ADMIN
                 </div>
               </div>
             </div>
@@ -218,10 +216,11 @@ export default function AdminLayout() {
                   width: '48px', 
                   height: '48px', 
                   backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: '8px'
+                  borderRadius: '10%',
+                  overflow: 'hidden',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-heading)', color: 'white', fontSize: '24px', fontWeight: 800 }}>EM</div>
+                <img src={dashImg} alt="ERMEL Admin" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             </div>
           )}
