@@ -976,6 +976,7 @@ export default function QuotationModule() {
                   key={`reservation-calendar-${reservationDate || 'none'}-${reservedDates.size}`}
                   plugins={[dayGridPlugin, interactionPlugin]}
                   initialView="dayGridMonth"
+                  initialDate={reservationDate || undefined}
                   fixedWeekCount={false}
                   height="auto"
                   dateClick={(info) => {
@@ -991,13 +992,9 @@ export default function QuotationModule() {
                     const cellDate = new Date(arg.date.getFullYear(), arg.date.getMonth(), arg.date.getDate());
                     const dateStr = isoDate(cellDate);
                     const dayNumberEl = arg.el.querySelector('.fc-daygrid-day-number') as HTMLElement | null;
-<<<<<<< Updated upstream
                     let dayState: 'booked' | 'disabled' | 'available' = 'available';
-=======
                     const existingBadge = arg.el.querySelector('.ermel-booked-badge');
                     if (existingBadge) existingBadge.remove();
-
->>>>>>> Stashed changes
                     if (reservedDates.has(dateStr)) {
                       dayState = 'booked';
                       arg.el.style.backgroundColor = '#ffc9c9';
@@ -1056,18 +1053,14 @@ export default function QuotationModule() {
                     }
 
                     if (reservationDate && dateStr === reservationDate) {
-                      arg.el.style.backgroundColor = '#cfe8d2';
-                      arg.el.style.color = '#1a5c1a';
-                      arg.el.style.outline = '2px solid #2e7d32';
+                      arg.el.style.backgroundColor = '#9fdfb1';
+                      arg.el.style.color = '#0f3f22';
+                      arg.el.style.outline = '2px solid #15263c';
                       arg.el.style.outlineOffset = '-2px';
+                      arg.el.style.boxShadow = 'inset 0 0 0 1px #2e7d32';
                       if (dayNumberEl) {
-<<<<<<< Updated upstream
                         dayNumberEl.style.backgroundColor = '#15263c';
                         dayNumberEl.style.color = 'white';
-=======
-                        dayNumberEl.style.backgroundColor = '#b8dbbc';
-                        dayNumberEl.style.color = '#1a5c1a';
->>>>>>> Stashed changes
                         dayNumberEl.style.fontWeight = '700';
                       }
                     }
