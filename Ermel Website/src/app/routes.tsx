@@ -14,7 +14,6 @@ import AluminumProducts from './pages/AluminumProducts';
 import QuotationApproval from './pages/admin/QuotationApproval';
 import QuoteDetails from './pages/admin/QuoteDetails';
 import InstallationQueue from './pages/admin/InstallationQueue';
-import PriceApproval from './pages/admin/PriceApproval';
 import OrderLogs from './pages/admin/OrderLogs';
 import MaterialProcurement from './pages/admin/Materialprocurement';
 import AdminSettings from './pages/admin/Adminsettings';
@@ -80,7 +79,7 @@ export const router = createBrowserRouter([
       { index: true, Component: AdminDashboard },
       { path: 'dashboard', Component: AdminDashboard },
       { path: 'analytics', Component: AnalyticsDSS },
-      { path: 'price-approval', Component: PriceApproval },
+      { path: 'price-approval', Component: QuotationApproval },
       { path: 'quotations', Component: QuotationApproval },
       { path: 'quotations/:id', Component: QuoteDetails },
       { path: 'queue', Component: InstallationQueue },

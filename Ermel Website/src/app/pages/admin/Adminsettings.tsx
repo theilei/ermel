@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import {
-  User, Bell, Shield, Globe, Palette, Database,
+  User, Bell, Shield,
   Save, Eye, EyeOff, CheckCircle, ChevronRight, Mail,
-  Phone, Building, Lock, LogOut, Trash2, RefreshCw,
+  Phone, Building, Lock, LogOut,
 } from 'lucide-react';
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'business' | 'appearance' | 'system';
+type SettingsSection = 'profile' | 'notifications' | 'security' | 'business';
 
 const SECTIONS: { key: SettingsSection; label: string; icon: any; description: string }[] = [
   { key: 'profile',       label: 'Profile',       icon: User,     description: 'Manage your admin profile information' },
   { key: 'notifications', label: 'Notifications', icon: Bell,     description: 'Configure alerts and email notifications' },
   { key: 'security',      label: 'Security',      icon: Shield,   description: 'Password, sessions, and access control' },
   { key: 'business',      label: 'Business Info',  icon: Building, description: 'Company details, pricing, and terms' },
-  { key: 'appearance',    label: 'Appearance',    icon: Palette,  description: 'Theme preferences and display settings' },
-  { key: 'system',        label: 'System',        icon: Database, description: 'Data management and system utilities' },
 ];
 
 // ── Reusable Components ──
@@ -299,160 +297,6 @@ function BusinessSection() {
   );
 }
 
-// ── Appearance Section ──
-function AppearanceSection() {
-  const [theme, setTheme] = useState('light');
-  const [density, setDensity] = useState('comfortable');
-  const [language, setLanguage] = useState('en-PH');
-  const [dateFormat, setDateFormat] = useState('MMM D, YYYY');
-
-  return (
-    <div>
-      <SettingRow label="Theme" description="Choose the admin panel color scheme">
-        <div className="flex gap-2">
-          {['light', 'dark'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTheme(t)}
-              style={{
-                padding: '6px 16px', borderRadius: '6px', cursor: 'pointer',
-                border: theme === t ? '1.5px solid #15263c' : '1.5px solid #e0e4ea',
-                background: theme === t ? '#15263c' : 'white',
-                color: theme === t ? 'white' : '#54667d',
-                fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '13px',
-                textTransform: 'capitalize',
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </SettingRow>
-
-      <SettingRow label="Display Density" description="Adjust table and content spacing">
-        <div className="flex gap-2">
-          {['compact', 'comfortable', 'spacious'].map((d) => (
-            <button
-              key={d}
-              onClick={() => setDensity(d)}
-              style={{
-                padding: '6px 14px', borderRadius: '6px', cursor: 'pointer',
-                border: density === d ? '1.5px solid #15263c' : '1.5px solid #e0e4ea',
-                background: density === d ? '#15263c' : 'white',
-                color: density === d ? 'white' : '#54667d',
-                fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '12px',
-                textTransform: 'capitalize',
-              }}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </SettingRow>
-
-      <SettingRow label="Language & Region" description="Set interface language and locale">
-        <select value={language} onChange={(e) => setLanguage(e.target.value)} style={{ borderRadius: '6px', border: '1px solid #e0e4ea', padding: '7px 12px', fontSize: '13px', color: '#15263c', cursor: 'pointer', background: 'white', fontFamily: 'var(--font-body)' }}>
-          <option value="en-PH">English (Philippines)</option>
-          <option value="fil">Filipino</option>
-          <option value="en-US">English (US)</option>
-        </select>
-      </SettingRow>
-
-      <SettingRow label="Date Format" description="How dates are displayed across the admin panel">
-        <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} style={{ borderRadius: '6px', border: '1px solid #e0e4ea', padding: '7px 12px', fontSize: '13px', color: '#15263c', cursor: 'pointer', background: 'white', fontFamily: 'var(--font-body)' }}>
-          <option value="MMM D, YYYY">Mar 10, 2026</option>
-          <option value="DD/MM/YYYY">10/03/2026</option>
-          <option value="YYYY-MM-DD">2026-03-10</option>
-        </select>
-      </SettingRow>
-
-      <div className="mt-6">
-        <SaveButton label="Save Appearance" />
-      </div>
-    </div>
-  );
-}
-
-// ── System Section ──
-function SystemSection() {
-  const [backupRunning, setBackupRunning] = useState(false);
-
-  return (
-    <div>
-      {/* System Info */}
-      <div className="p-5 mb-6" style={{ border: '1px solid #e0e4ea', borderRadius: '8px', backgroundColor: '#f8f9fb' }}>
-        <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>System Information</div>
-        {[
-          { label: 'Application Version', value: 'v2.1.4' },
-          { label: 'Database', value: 'PostgreSQL 15.2' },
-          { label: 'Last Backup', value: 'March 9, 2026 at 2:00 AM' },
-          { label: 'Total Orders', value: '247 records' },
-          { label: 'Total Customers', value: '183 accounts' },
-          { label: 'Storage Used', value: '1.2 GB / 10 GB' },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex justify-between py-3" style={{ borderBottom: '1px solid #e0e4ea' }}>
-            <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>{label}</span>
-            <span style={{ color: '#15263c', fontSize: '13px', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{value}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        {[
-          { label: 'Backup Database', desc: 'Create a full backup of all system data', icon: Database, action: 'Run Backup' },
-          { label: 'Export All Orders', desc: 'Download all order data as CSV', icon: Globe, action: 'Export CSV' },
-          { label: 'Clear Cache', desc: 'Clear system cache and temporary files', icon: RefreshCw, action: 'Clear Cache' },
-          { label: 'View Audit Logs', desc: 'Review all admin actions and system events', icon: Shield, action: 'View Logs' },
-        ].map(({ label, desc, icon: Icon, action }) => (
-          <div key={label} className="flex items-start justify-between p-4" style={{ border: '1px solid #e0e4ea', borderRadius: '8px', backgroundColor: 'white' }}>
-            <div className="flex items-start gap-3">
-              <div style={{ width: 36, height: 36, backgroundColor: '#e8ecf1', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={16} color="#15263c" />
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 700 }}>{label}</div>
-                <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)', marginTop: '2px' }}>{desc}</div>
-              </div>
-            </div>
-            <button
-              onClick={() => label === 'Backup Database' && setBackupRunning(true)}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e0e4ea', background: 'white', cursor: 'pointer', fontSize: '12px', color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}
-            >
-              {action}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Danger Zone */}
-      <div className="p-5" style={{ border: '1.5px solid #f0c0c0', borderRadius: '8px', backgroundColor: '#fffafa' }}>
-        <div style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: '14px', fontWeight: 700, marginBottom: '16px' }}>Danger Zone</div>
-        <div className="flex items-center justify-between py-4" style={{ borderBottom: '1px solid #fde0e0' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600 }}>Reset Demo Data</div>
-            <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>Restore all mock/demo data to its original state</div>
-          </div>
-          <button style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #f0c040', background: 'white', color: '#7a5200', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <RefreshCw size={13} />
-            Reset
-          </button>
-        </div>
-        <div className="flex items-center justify-between pt-4">
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600 }}>Delete All Orders</div>
-            <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>Permanently remove all order records — this cannot be undone</div>
-          </div>
-          <button style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #d4183d', background: 'white', color: '#d4183d', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Trash2 size={13} />
-            Delete All
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Settings Page ──
 export default function AdminSettings() {
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
@@ -527,8 +371,6 @@ export default function AdminSettings() {
             {activeSection === 'notifications' && <NotificationsSection />}
             {activeSection === 'security'      && <SecuritySection />}
             {activeSection === 'business'      && <BusinessSection />}
-            {activeSection === 'appearance'    && <AppearanceSection />}
-            {activeSection === 'system'        && <SystemSection />}
           </div>
         </div>
       </div>
