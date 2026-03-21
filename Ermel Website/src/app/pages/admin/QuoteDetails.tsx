@@ -11,6 +11,7 @@ import {
 import { useQuotes } from '../../context/QuoteContext';
 import type { Quote } from '../../types/quotation';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS } from '../../types/quotation';
+import { adminApprovePayment, adminRejectPayment } from '../../services/api';
 
 export default function QuoteDetails() {
   const { id } = useParams();
@@ -92,6 +93,7 @@ export default function QuoteDetails() {
   const canApprove = quote.status === 'pending' || quote.status === 'draft';
   const canReject = quote.status === 'pending' || quote.status === 'draft' || quote.status === 'approved';
   const canConvert = quote.status === 'customer_accepted';
+  const payment = quote.payment;
 
   // PDF Preview HTML (same logic as backend)
   const pdfHtml = `
@@ -263,7 +265,7 @@ export default function QuoteDetails() {
                 <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Customer Information
                 </div>
-                {!editing && (
+                {!editing && quote.status !== 'approved' && (
                   <button
                     onClick={() => setEditing(true)}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors"
@@ -382,6 +384,42 @@ export default function QuoteDetails() {
                   <div style={{ fontSize: '14px', color: '#54667d', fontFamily: 'var(--font-body)' }}>{quote.notes}</div>
                 </div>
               )}
+
+              <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
+                <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Payment</div>
+                <div style={{ fontSize: '13px', color: '#15263c' }}>
+                  Method: {payment?.paymentMethod || 'N/A'} | Status: {payment?.status || 'pending'}
+                </div>
+                {payment?.proofFile && (
+                  <div style={{ marginTop: '8px' }}>
+                    <a href={payment.proofFile} target="_blank" rel="noreferrer" style={{ color: '#7a0000', fontSize: '13px' }}>View Proof</a>
+                  </div>
+                )}
+                {payment?.status !== 'paid' && quote.status === 'approved' && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      onClick={async () => {
+                        await adminApprovePayment(quote.id);
+                        window.location.reload();
+                      }}
+                      style={{ padding: '8px 10px', border: 'none', borderRadius: '8px', backgroundColor: '#1a5c1a', color: 'white', cursor: 'pointer' }}
+                    >
+                      Approve Payment
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const reason = prompt('Rejection reason');
+                        if (!reason) return;
+                        await adminRejectPayment(quote.id, reason);
+                        window.location.reload();
+                      }}
+                      style={{ padding: '8px 10px', border: 'none', borderRadius: '8px', backgroundColor: '#7a0000', color: 'white', cursor: 'pointer' }}
+                    >
+                      Reject Payment
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Pricing */}

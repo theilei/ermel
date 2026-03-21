@@ -9,6 +9,7 @@ import * as NotificationService from '../services/notificationService';
 import * as AnalyticsService from '../services/analyticsService';
 import { generateQuotePDFHtml, getQuotePDFData } from '../services/pdfService';
 import pool from '../config/database';
+import * as PaymentModel from '../models/PaymentDB';
 
 async function getUserRoleById(userId?: string): Promise<string | null> {
   if (!userId) return null;
@@ -55,6 +56,22 @@ function toFrontendQuote(q: QuoteModel.Quote) {
     reservationDate: q.reservationDate,
     reservationStatus: q.reservationStatus,
   };
+}
+
+async function toFrontendQuoteWithPayment(q: QuoteModel.Quote) {
+  const base = toFrontendQuote(q) as any;
+  const payment = await PaymentModel.getPaymentByQuoteId(q.id);
+  base.payment = payment
+    ? {
+        paymentMethod: payment.paymentMethod,
+        status: payment.status,
+        proofFile: payment.proofFile,
+        adminRejectionReason: payment.adminRejectionReason,
+        submittedAt: payment.submittedAt,
+        createdAt: payment.createdAt,
+      }
+    : null;
+  return base;
 }
 
 // GET /api/customer/quotes
@@ -187,8 +204,9 @@ export async function getMyStatusQuotes(req: Request, res: Response) {
 
     await QuoteModel.expireOldQuotes();
     const quotes = await QuoteModel.getQuotesByEmail(email);
+    const withPayments = await Promise.all(quotes.map((q) => toFrontendQuoteWithPayment(q)));
 
-    return res.json({ success: true, data: quotes.map(toFrontendQuote) });
+    return res.json({ success: true, data: withPayments });
   } catch (err: any) {
     console.error('[CUSTOMER CTRL] getMyStatusQuotes error:', err.message);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
