@@ -46,6 +46,27 @@ export interface Quote {
   updatedAt: string;
 }
 
+export interface DashboardActiveInstallation {
+  id: string;
+  customerName: string;
+  projectType: string;
+  width: number;
+  height: number;
+  quantity: number;
+  color: string;
+  estimatedCost: number;
+  status: QuoteStatus;
+  reservationDate: string;
+}
+
+export interface DashboardMetrics {
+  pendingInquiries: number;
+  activeInstallations: number;
+  totalQuotes: number;
+  approvedQuotes: number;
+  activeInstallationEntries: DashboardActiveInstallation[];
+}
+
 function rowToQuote(row: any): Quote {
   const originalEstimatedCost = parseFloat(row.estimated_cost);
   const updatedCost = row.updated_cost !== null && row.updated_cost !== undefined
@@ -333,4 +354,99 @@ export async function expireOldQuotes(): Promise<number> {
       return 0;
     }
   }
+}
+
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  const hasPaymentStatus = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'qq_quotes'
+        AND column_name = 'payment_status'
+    ) AS exists`
+  );
+
+  const paymentStatusExists = Boolean(hasPaymentStatus.rows[0]?.exists);
+
+  const hasReservationDate = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'qq_quotes'
+        AND column_name = 'reservation_date'
+    ) AS exists`
+  );
+
+  const reservationDateExists = Boolean(hasReservationDate.rows[0]?.exists);
+  const reservationExpr = reservationDateExists
+    ? 'COALESCE(q.reservation_date, r.reservation_date)'
+    : 'r.reservation_date';
+
+  const countsQuery = paymentStatusExists
+    ? `SELECT
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
+         COUNT(*) FILTER (
+           WHERE q.deleted_at IS NULL
+             AND q.status = 'approved'
+             AND q.payment_status = 'paid'
+             AND ${reservationExpr} IS NOT NULL
+         )::int AS active_installations
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id`
+    : `SELECT
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
+         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
+         0::int AS active_installations
+       FROM qq_quotes q
+       LEFT JOIN reservations r ON r.quote_id = q.id`;
+
+  const countsResult = await pool.query(countsQuery);
+  const counts = countsResult.rows[0] || {};
+
+  const activeRows = paymentStatusExists
+    ? await pool.query(
+        `SELECT
+           q.quote_number,
+           q.customer_name,
+           q.project_type,
+           q.width,
+           q.height,
+           q.quantity,
+           q.color,
+           COALESCE(q.updated_cost, q.estimated_cost, 0) AS effective_cost,
+           q.status,
+           ${reservationExpr}::text AS reservation_date
+         FROM qq_quotes q
+         LEFT JOIN reservations r ON r.quote_id = q.id
+         WHERE q.deleted_at IS NULL
+           AND q.status = 'approved'
+           AND q.payment_status = 'paid'
+           AND ${reservationExpr} IS NOT NULL
+         ORDER BY ${reservationExpr} ASC, q.created_at DESC`
+      )
+    : { rows: [] as any[] };
+
+  return {
+    pendingInquiries: Number(counts.pending_inquiries || 0),
+    activeInstallations: Number(counts.active_installations || 0),
+    totalQuotes: Number(counts.total_quotes || 0),
+    approvedQuotes: Number(counts.approved_quotes || 0),
+    activeInstallationEntries: activeRows.rows.map((row) => ({
+      id: row.quote_number,
+      customerName: row.customer_name,
+      projectType: row.project_type,
+      width: Number(row.width || 0),
+      height: Number(row.height || 0),
+      quantity: Number(row.quantity || 0),
+      color: row.color,
+      estimatedCost: Number(row.effective_cost || 0),
+      status: row.status as QuoteStatus,
+      reservationDate: row.reservation_date,
+    })),
+  };
 }

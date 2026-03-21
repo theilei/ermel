@@ -47,6 +47,9 @@ router.put('/legacy-orders/:id/payment', legacyOrderCtrl.markPaymentUploaded);
 // ---- Activity Logs ----
 router.get('/activity-logs', quoteCtrl.getActivityLogs);
 
+// ---- Dashboard Metrics ----
+router.get('/dashboard/metrics', quoteCtrl.getDashboardMetrics);
+
 // ---- Analytics ----
 router.get('/analytics/summary', analyticsCtrl.getAdminAnalytics);
 
