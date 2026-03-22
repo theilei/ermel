@@ -502,6 +502,12 @@ export default function QuotationModule() {
         setSubmitError('Too many quote requests. Please try again later.');
         return;
       }
+      if (res.status === 409) {
+        const body = await res.json().catch(() => null);
+        setReservationError(body?.error || body?.message || 'The selected reservation date is already booked. Please choose another date.');
+        loadReservedDates();
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         setSubmitError(body?.error || body?.message || 'Unable to submit your quote right now. Please try again.');
