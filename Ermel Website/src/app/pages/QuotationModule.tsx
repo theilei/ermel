@@ -522,7 +522,7 @@ export default function QuotationModule() {
           setStep(4);
           setReservationDate('');
           setReservationError(body?.error || body?.message || 'The selected reservation date is already booked. Please choose another date.');
-          await refreshReservedDates();
+          loadReservedDates();
           return;
         }
         setSubmitError(body?.error || body?.message || 'Unable to submit your quote right now. Please try again.');
