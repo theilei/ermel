@@ -160,7 +160,10 @@ export async function setPaymentMethod(req: Request, res: Response) {
     return res.json({ success: true, data: payment });
   } catch (err: any) {
     console.error('[PAYMENT CTRL] setPaymentMethod error:', err.message);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Internal server error.' : (err?.message || 'Internal server error.'),
+    });
   }
 }
 
@@ -223,7 +226,10 @@ export async function submitQrphProof(req: Request, res: Response) {
     return res.json({ success: true, data: saved });
   } catch (err: any) {
     console.error('[PAYMENT CTRL] submitQrphProof error:', err.message);
-    return res.status(500).json({ success: false, message: 'Internal server error.' });
+    return res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Internal server error.' : (err?.message || 'Internal server error.'),
+    });
   }
 }
 

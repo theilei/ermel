@@ -3,6 +3,22 @@ import pool from '../config/database';
 export type PaymentMethod = 'qrph' | 'cash';
 export type PaymentStatus = 'waiting_approval' | 'paid' | 'expired';
 
+const STATUS_WAITING_APPROVAL = 'waiting_approval';
+const STATUS_LEGACY_PENDING = 'pending';
+
+function normalizePaymentStatusForRead(status: string | undefined | null): PaymentStatus {
+  if (status === STATUS_LEGACY_PENDING) return STATUS_WAITING_APPROVAL;
+  if (status === 'paid') return 'paid';
+  if (status === 'expired') return 'expired';
+  return STATUS_WAITING_APPROVAL;
+}
+
+function isLegacyStatusConstraintError(err: any): boolean {
+  if (err?.code === '22001') return true;
+  if (err?.code === '23514') return true;
+  return false;
+}
+
 export interface Payment {
   id: string;
   quoteId: string;
@@ -38,7 +54,7 @@ function rowToPayment(row: any): Payment {
     paymentMethod: row.payment_method as PaymentMethod,
     proofFile: row.proof_file || undefined,
     proofMime: row.proof_mime || undefined,
-    status: row.status as PaymentStatus,
+    status: normalizePaymentStatusForRead(row.status),
     adminRejectionReason: row.admin_rejection_reason || undefined,
     submittedAt: row.submitted_at || undefined,
     verifiedAt: row.verified_at || undefined,
@@ -74,24 +90,47 @@ export async function getPaymentByQuoteIdentifier(quoteIdentifier: string): Prom
 }
 
 export async function createPayment(quoteId: string, paymentMethod: PaymentMethod): Promise<Payment> {
-  const result = await pool.query(
-    `INSERT INTO payments (quote_id, payment_method, status)
-     VALUES ($1, $2, 'waiting_approval')
-     ON CONFLICT (quote_id) DO UPDATE
-       SET payment_method = EXCLUDED.payment_method,
-           status = CASE
-             WHEN payments.status = 'paid' THEN 'paid'
-             WHEN payments.status = 'expired' THEN 'expired'
-             ELSE 'waiting_approval'
-           END,
-           admin_rejection_reason = CASE
-             WHEN payments.status IN ('paid', 'expired') THEN payments.admin_rejection_reason
-             ELSE NULL
-           END,
-           updated_at = NOW()
-     RETURNING *`,
-    [quoteId, paymentMethod]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO payments (quote_id, payment_method, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (quote_id) DO UPDATE
+         SET payment_method = EXCLUDED.payment_method,
+             status = CASE
+               WHEN payments.status = 'paid' THEN 'paid'
+               WHEN payments.status = 'expired' THEN 'expired'
+               ELSE $3
+             END,
+             admin_rejection_reason = CASE
+               WHEN payments.status IN ('paid', 'expired') THEN payments.admin_rejection_reason
+               ELSE NULL
+             END,
+             updated_at = NOW()
+       RETURNING *`,
+      [quoteId, paymentMethod, STATUS_WAITING_APPROVAL]
+    );
+  } catch (err: any) {
+    if (!isLegacyStatusConstraintError(err)) throw err;
+    result = await pool.query(
+      `INSERT INTO payments (quote_id, payment_method, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (quote_id) DO UPDATE
+         SET payment_method = EXCLUDED.payment_method,
+             status = CASE
+               WHEN payments.status = 'paid' THEN 'paid'
+               WHEN payments.status = 'expired' THEN 'expired'
+               ELSE $3
+             END,
+             admin_rejection_reason = CASE
+               WHEN payments.status IN ('paid', 'expired') THEN payments.admin_rejection_reason
+               ELSE NULL
+             END,
+             updated_at = NOW()
+       RETURNING *`,
+      [quoteId, paymentMethod, STATUS_LEGACY_PENDING]
+    );
+  }
 
   const row = result.rows[0];
   return rowToPayment(row);
@@ -101,32 +140,64 @@ export async function markPaymentSubmitted(
   quoteId: string,
   payload: { proofFile?: string; proofMime?: string }
 ): Promise<Payment | undefined> {
-  const result = await pool.query(
-    `UPDATE payments
-     SET proof_file = $2,
-         proof_mime = $3,
-         status = 'waiting_approval',
-         admin_rejection_reason = NULL,
-         submitted_at = NOW()
-     WHERE quote_id = $1
-     RETURNING *`,
-    [quoteId, payload.proofFile || null, payload.proofMime || null]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `UPDATE payments
+       SET proof_file = $2,
+           proof_mime = $3,
+           status = $4,
+           admin_rejection_reason = NULL,
+           submitted_at = NOW()
+       WHERE quote_id = $1
+       RETURNING *`,
+      [quoteId, payload.proofFile || null, payload.proofMime || null, STATUS_WAITING_APPROVAL]
+    );
+  } catch (err: any) {
+    if (!isLegacyStatusConstraintError(err)) throw err;
+    result = await pool.query(
+      `UPDATE payments
+       SET proof_file = $2,
+           proof_mime = $3,
+           status = $4,
+           admin_rejection_reason = NULL,
+           submitted_at = NOW()
+       WHERE quote_id = $1
+       RETURNING *`,
+      [quoteId, payload.proofFile || null, payload.proofMime || null, STATUS_LEGACY_PENDING]
+    );
+  }
   return result.rows.length > 0 ? rowToPayment(result.rows[0]) : undefined;
 }
 
 export async function clearPaymentProof(quoteId: string): Promise<Payment | undefined> {
-  const result = await pool.query(
-    `UPDATE payments
-     SET proof_file = NULL,
-         proof_mime = NULL,
-         submitted_at = NULL,
-         admin_rejection_reason = NULL,
-         status = 'waiting_approval'
-     WHERE quote_id = $1 AND status <> 'paid'
-     RETURNING *`,
-    [quoteId]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `UPDATE payments
+       SET proof_file = NULL,
+           proof_mime = NULL,
+           submitted_at = NULL,
+           admin_rejection_reason = NULL,
+           status = $2
+       WHERE quote_id = $1 AND status <> 'paid'
+       RETURNING *`,
+      [quoteId, STATUS_WAITING_APPROVAL]
+    );
+  } catch (err: any) {
+    if (!isLegacyStatusConstraintError(err)) throw err;
+    result = await pool.query(
+      `UPDATE payments
+       SET proof_file = NULL,
+           proof_mime = NULL,
+           submitted_at = NULL,
+           admin_rejection_reason = NULL,
+           status = $2
+       WHERE quote_id = $1 AND status <> 'paid'
+       RETURNING *`,
+      [quoteId, STATUS_LEGACY_PENDING]
+    );
+  }
   return result.rows.length > 0 ? rowToPayment(result.rows[0]) : undefined;
 }
 
@@ -144,15 +215,29 @@ export async function markPaymentPaid(quoteId: string): Promise<Payment | undefi
 }
 
 export async function rejectPayment(quoteId: string, reason: string): Promise<Payment | undefined> {
-  const result = await pool.query(
-    `UPDATE payments
-     SET status = 'waiting_approval',
-         admin_rejection_reason = $2,
-         verified_at = NULL
-     WHERE quote_id = $1
-     RETURNING *`,
-    [quoteId, reason]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `UPDATE payments
+       SET status = $3,
+           admin_rejection_reason = $2,
+           verified_at = NULL
+       WHERE quote_id = $1
+       RETURNING *`,
+      [quoteId, reason, STATUS_WAITING_APPROVAL]
+    );
+  } catch (err: any) {
+    if (!isLegacyStatusConstraintError(err)) throw err;
+    result = await pool.query(
+      `UPDATE payments
+       SET status = $3,
+           admin_rejection_reason = $2,
+           verified_at = NULL
+       WHERE quote_id = $1
+       RETURNING *`,
+      [quoteId, reason, STATUS_LEGACY_PENDING]
+    );
+  }
   return result.rows.length > 0 ? rowToPayment(result.rows[0]) : undefined;
 }
 
