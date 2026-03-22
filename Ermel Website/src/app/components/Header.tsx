@@ -138,6 +138,7 @@ export function Header() {
                 height: '100%', 
                 objectFit: 'contain',
                 transition: 'all 0.3s ease',
+                borderRadius: '10%',
               }}
             />
           </div>
