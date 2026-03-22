@@ -45,7 +45,7 @@ export interface Quote {
   reservationStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
   payment?: {
     paymentMethod?: 'qrph' | 'cash';
-    status?: 'pending' | 'paid' | 'expired';
+    status?: 'waiting_approval' | 'paid' | 'expired';
     proofFile?: string;
     adminRejectionReason?: string;
   };
@@ -80,6 +80,10 @@ function rowToQuote(row: any): Quote {
     ? parseFloat(row.updated_cost)
     : undefined;
 
+  const normalizedPaymentStatus = row.payment_status === 'pending'
+    ? 'waiting_approval'
+    : row.payment_status;
+
   return {
     id: row.id,
     quoteNumber: row.quote_number,
@@ -112,7 +116,7 @@ function rowToQuote(row: any): Quote {
     payment: row.payment_method || row.payment_status || row.payment_proof_file
       ? {
           paymentMethod: row.payment_method || undefined,
-          status: row.payment_status || undefined,
+          status: normalizedPaymentStatus || undefined,
           proofFile: row.payment_proof_file || undefined,
           adminRejectionReason: row.payment_admin_rejection_reason || undefined,
         }
