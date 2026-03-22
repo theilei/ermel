@@ -126,6 +126,14 @@ function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function normalizeDateOnly(value: string): string {
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
 function Tooltip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
   return (
@@ -299,13 +307,10 @@ export default function QuotationModule() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const refreshReservedDates = useCallback(async () => {
-    try {
-      const rows = await api.fetchReservedDates();
-      setReservedDates(new Set(rows));
-    } catch {
-      setReservedDates(new Set());
-    }
+  const loadReservedDates = useCallback(() => {
+    api.fetchReservedDates()
+      .then((rows) => setReservedDates(new Set(rows.map(normalizeDateOnly))))
+      .catch(() => setReservedDates(new Set()));
   }, []);
 
   useEffect(() => {
@@ -314,21 +319,19 @@ export default function QuotationModule() {
   }, [user]);
 
   useEffect(() => {
-    refreshReservedDates();
-  }, [refreshReservedDates]);
+    loadReservedDates();
+  }, [loadReservedDates]);
 
   useEffect(() => {
     if (step !== 4) return;
-    refreshReservedDates();
 
-    const intervalId = window.setInterval(() => {
-      refreshReservedDates();
-    }, 20000);
+    loadReservedDates();
+    const timer = window.setInterval(() => {
+      loadReservedDates();
+    }, 30000);
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [step, refreshReservedDates]);
+    return () => window.clearInterval(timer);
+  }, [step, loadReservedDates]);
 
   useEffect(() => {
     api.trackAnalyticsEvent('quote_started', {
@@ -507,13 +510,19 @@ export default function QuotationModule() {
         setSubmitError('Too many quote requests. Please try again later.');
         return;
       }
+      if (res.status === 409) {
+        const body = await res.json().catch(() => null);
+        setReservationError(body?.error || body?.message || 'The selected reservation date is already booked. Please choose another date.');
+        loadReservedDates();
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         if (res.status === 409) {
           setStep(4);
           setReservationDate('');
           setReservationError(body?.error || body?.message || 'The selected reservation date is already booked. Please choose another date.');
-          await refreshReservedDates();
+          loadReservedDates();
           return;
         }
         setSubmitError(body?.error || body?.message || 'Unable to submit your quote right now. Please try again.');
@@ -988,6 +997,7 @@ export default function QuotationModule() {
                   key={`reservation-calendar-${reservationDate || 'none'}-${reservedDates.size}`}
                   plugins={[dayGridPlugin, interactionPlugin]}
                   initialView="dayGridMonth"
+                  initialDate={reservationDate || undefined}
                   fixedWeekCount={false}
                   height="auto"
                   dateClick={(info) => {
@@ -1004,24 +1014,51 @@ export default function QuotationModule() {
                     const dateStr = isoDate(cellDate);
                     const dayNumberEl = arg.el.querySelector('.fc-daygrid-day-number') as HTMLElement | null;
                     let dayState: 'booked' | 'disabled' | 'available' = 'available';
+                    const existingBadge = arg.el.querySelector('.ermel-booked-badge');
+                    if (existingBadge) existingBadge.remove();
                     if (reservedDates.has(dateStr)) {
                       dayState = 'booked';
                       arg.el.style.backgroundColor = '#ffc9c9';
                       arg.el.style.color = '#7f1d1d';
                       arg.el.style.border = '1px solid #b91c1c';
                       arg.el.style.cursor = 'not-allowed';
+                      arg.el.style.pointerEvents = 'none';
+                      arg.el.style.position = 'relative';
+
+                      const bookedBadge = document.createElement('div');
+                      bookedBadge.className = 'ermel-booked-badge';
+                      bookedBadge.textContent = 'Booked';
+                      bookedBadge.style.position = 'absolute';
+                      bookedBadge.style.left = '4px';
+                      bookedBadge.style.right = '4px';
+                      bookedBadge.style.bottom = '4px';
+                      bookedBadge.style.borderRadius = '6px';
+                      bookedBadge.style.padding = '1px 4px';
+                      bookedBadge.style.background = 'linear-gradient(135deg, #7a0000, #a50000)';
+                      bookedBadge.style.color = 'white';
+                      bookedBadge.style.fontFamily = 'var(--font-heading)';
+                      bookedBadge.style.fontSize = '10px';
+                      bookedBadge.style.fontWeight = '700';
+                      bookedBadge.style.letterSpacing = '0.06em';
+                      bookedBadge.style.textAlign = 'center';
+                      bookedBadge.style.textTransform = 'uppercase';
+                      bookedBadge.style.lineHeight = '1.2';
+                      bookedBadge.style.pointerEvents = 'none';
+                      arg.el.appendChild(bookedBadge);
                     } else if (!isDateSelectable(cellDate)) {
                       dayState = 'disabled';
                       arg.el.style.backgroundColor = '#e2e8f0';
                       arg.el.style.color = '#334155';
                       arg.el.style.border = '1px solid #64748b';
                       arg.el.style.cursor = 'not-allowed';
+                      arg.el.style.pointerEvents = 'none';
                     } else {
                       dayState = 'available';
                       arg.el.style.backgroundColor = '#b7efc5';
                       arg.el.style.color = '#14532d';
                       arg.el.style.border = '1px solid #2e7d32';
                       arg.el.style.cursor = 'pointer';
+                      arg.el.style.pointerEvents = 'auto';
                     }
 
                     if (dayNumberEl) {
@@ -1037,10 +1074,11 @@ export default function QuotationModule() {
                     }
 
                     if (reservationDate && dateStr === reservationDate) {
-                      arg.el.style.backgroundColor = '#15263c';
-                      arg.el.style.color = 'white';
+                      arg.el.style.backgroundColor = '#9fdfb1';
+                      arg.el.style.color = '#0f3f22';
                       arg.el.style.outline = '2px solid #15263c';
                       arg.el.style.outlineOffset = '-2px';
+                      arg.el.style.boxShadow = 'inset 0 0 0 1px #2e7d32';
                       if (dayNumberEl) {
                         dayNumberEl.style.backgroundColor = '#15263c';
                         dayNumberEl.style.color = 'white';
