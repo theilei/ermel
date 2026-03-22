@@ -139,6 +139,17 @@ export async function notifyPaymentVerified(customerEmail: string, quoteNumber: 
   );
 }
 
+export async function notifyPaymentRejected(customerEmail: string, quoteNumber: string, reason: string) {
+  const userId = await findUserIdByEmail(customerEmail);
+  if (!userId) return;
+  await NotificationModel.createNotification(
+    userId,
+    'Payment Rejected',
+    `Your payment proof for quotation ${quoteNumber} was rejected. Reason: ${reason}`,
+    { type: 'payment', relatedQuoteNumber: quoteNumber }
+  );
+}
+
 export async function notifyPaymentExpired(customerEmail: string, quoteNumber: string) {
   const userId = await findUserIdByEmail(customerEmail);
   if (!userId) return;

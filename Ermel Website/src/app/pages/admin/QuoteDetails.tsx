@@ -388,7 +388,7 @@ export default function QuoteDetails() {
               <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
                 <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Payment</div>
                 <div style={{ fontSize: '13px', color: '#15263c' }}>
-                  Method: {payment?.paymentMethod || 'N/A'} | Status: {payment?.status || 'pending'}
+                  Method: {payment?.paymentMethod || 'N/A'} | Status: {payment?.status || 'waiting_approval'}
                 </div>
                 {payment?.proofFile && (
                   <div style={{ marginTop: '8px' }}>

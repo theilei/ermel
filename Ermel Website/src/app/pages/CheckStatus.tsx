@@ -19,6 +19,10 @@ import {
 } from '../services/api';
 import type { Quote, QuoteUpdate, SystemNotification } from '../types/quotation';
 
+const MAX_PROOF_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf'];
+const ALLOWED_PROOF_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
 function formatCurrency(value?: number) {
   if (value === undefined || value === null || Number.isNaN(value)) return 'N/A';
   return `Php ${value.toLocaleString()}`;
@@ -37,7 +41,32 @@ function statusColor(status?: string) {
   if (key === 'rejected') return '#7a0000';
   if (key === 'expired') return '#8a8a8a';
   if (key === 'pending') return '#7a5200';
+  if (key === 'waiting_approval') return '#7a5200';
   return '#15263c';
+}
+
+function validatePaymentProofFile(file: File): string | null {
+  const fileName = file.name || '';
+  const lowerName = fileName.toLowerCase();
+  const ext = lowerName.includes('.') ? lowerName.split('.').pop() || '' : '';
+
+  if (!ext || !ALLOWED_PROOF_EXTENSIONS.includes(ext)) {
+    return 'Invalid file type. Allowed: jpg, jpeg, png, pdf.';
+  }
+
+  if (/\.(jpg|jpeg|png|pdf)\.[a-z0-9]+$/i.test(lowerName)) {
+    return 'Invalid file name. Double extensions are not allowed.';
+  }
+
+  if (!ALLOWED_PROOF_MIME_TYPES.includes((file.type || '').toLowerCase())) {
+    return 'Invalid file type. Allowed: jpg, jpeg, png, pdf.';
+  }
+
+  if (file.size > MAX_PROOF_FILE_SIZE) {
+    return 'File exceeds 5MB limit.';
+  }
+
+  return null;
 }
 
 const DEFAULT_PROOF_LABEL = 'No file selected yet';
@@ -55,8 +84,11 @@ export default function CheckStatus() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [paymentMetaByQuote, setPaymentMetaByQuote] = useState<Record<string, { quoteStatus: string; countdown: { deadline: string; remainingMs: number; expired: boolean } }>>({});
-  const [uploadingProof, setUploadingProof] = useState(false);
+  const [submittingProof, setSubmittingProof] = useState(false);
   const [selectedProofName, setSelectedProofName] = useState(DEFAULT_PROOF_LABEL);
+  const [selectedProofFile, setSelectedProofFile] = useState<File | null>(null);
+  const [proofValidationError, setProofValidationError] = useState('');
+  const [paymentMessage, setPaymentMessage] = useState('');
   const [localProofPreviewUrl, setLocalProofPreviewUrl] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
   const proofInputRef = useRef<HTMLInputElement | null>(null);
@@ -143,6 +175,9 @@ export default function CheckStatus() {
 
   useEffect(() => {
     const activeQuote = quotes.find((q) => q.id === selectedQuoteId);
+    setSelectedProofFile(null);
+    setProofValidationError('');
+    setPaymentMessage('');
     setSelectedProofName(activeQuote?.payment?.proofFile || DEFAULT_PROOF_LABEL);
     setLocalProofPreviewUrl(null);
   }, [quotes, selectedQuoteId]);
@@ -238,6 +273,11 @@ export default function CheckStatus() {
   const lowerProofName = proofLabel.toLowerCase();
   const isPreviewPdf = lowerProofName.endsWith('.pdf');
   const isPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(lowerProofName);
+  const canModifyPayment = !isPaymentExpired && selectedQuote?.payment?.status !== 'paid';
+  const canSubmitSelectedProof = Boolean(selectedProofFile) && !proofValidationError && canModifyPayment;
+  const paymentStatusLabel = selectedQuote?.payment?.status === 'waiting_approval'
+    ? (selectedQuote?.payment?.proofFile ? 'Waiting for approval' : 'No submission yet')
+    : (selectedQuote?.payment?.status || 'No submission yet');
   const countdownLabel = (() => {
     if (!paymentMeta) return 'Loading...';
     const ms = Math.max(0, countdownMs);
@@ -264,6 +304,50 @@ export default function CheckStatus() {
         setSelectedQuoteId(found.id);
         setNotifOpen(false);
       }
+    }
+  };
+
+  const handleProofFileSelected = (file: File | null) => {
+    setPaymentMessage('');
+    if (!file) {
+      setSelectedProofFile(null);
+      setProofValidationError('');
+      return;
+    }
+
+    const validationError = validatePaymentProofFile(file);
+    if (validationError) {
+      setSelectedProofFile(null);
+      setProofValidationError(validationError);
+      setSelectedProofName(DEFAULT_PROOF_LABEL);
+      if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
+      setLocalProofPreviewUrl(null);
+      return;
+    }
+
+    setProofValidationError('');
+    setSelectedProofFile(file);
+    setSelectedProofName(file.name);
+    if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
+    setLocalProofPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!selectedQuote || !selectedProofFile) return;
+    if (proofValidationError) return;
+
+    setSubmittingProof(true);
+    setPaymentMessage('');
+    try {
+      await uploadCustomerPaymentProof(selectedQuote.id, selectedProofFile);
+      setSelectedProofFile(null);
+      setPaymentMessage('Payment submitted successfully. Waiting for approval.');
+      await reloadAll();
+      await loadPaymentMeta(selectedQuote.id);
+    } catch (err: any) {
+      setPaymentMessage(err?.message || 'Failed to submit payment proof. Please try again.');
+    } finally {
+      setSubmittingProof(false);
     }
   };
 
@@ -601,8 +685,13 @@ export default function CheckStatus() {
                         <div style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '10px' }}>
                           <div style={{ color: '#9ab0c4', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
                           <div style={{ color: '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px', textTransform: 'lowercase' }}>
-                            {selectedQuote.payment?.status || 'pending'}
+                            {paymentStatusLabel}
                           </div>
+                          {selectedQuote.payment?.adminRejectionReason && (
+                            <div style={{ marginTop: '6px', color: '#7a0000', fontSize: '11px' }}>
+                              Rejection reason: {selectedQuote.payment.adminRejectionReason}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -646,17 +735,8 @@ export default function CheckStatus() {
                               onDrop={async (e) => {
                                 e.preventDefault();
                                 const f = e.dataTransfer.files?.[0];
-                                if (!f) return;
-                                setSelectedProofName(f.name);
-                                if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
-                                setLocalProofPreviewUrl(URL.createObjectURL(f));
-                                setUploadingProof(true);
-                                try {
-                                  await uploadCustomerPaymentProof(selectedQuote.id, f);
-                                  await reloadAll();
-                                } finally {
-                                  setUploadingProof(false);
-                                }
+                                if (!f || !canModifyPayment) return;
+                                handleProofFileSelected(f);
                               }}
                               style={{ border: '1px dashed #c8cfdb', borderRadius: '8px', padding: '10px', marginBottom: '8px', backgroundColor: '#fcfdff' }}
                             >
@@ -665,7 +745,7 @@ export default function CheckStatus() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
+                                disabled={!canModifyPayment || submittingProof}
                                 onClick={() => proofInputRef.current?.click()}
                                 style={{
                                   border: '1px solid #e0e4ea',
@@ -673,7 +753,7 @@ export default function CheckStatus() {
                                   padding: '7px 12px',
                                   backgroundColor: 'white',
                                   color: '#15263c',
-                                  cursor: isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof ? 'not-allowed' : 'pointer',
+                                  cursor: !canModifyPayment || submittingProof ? 'not-allowed' : 'pointer',
                                 }}
                               >
                                 Choose File
@@ -682,33 +762,43 @@ export default function CheckStatus() {
                                 ref={proofInputRef}
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.pdf"
-                                disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid' || uploadingProof}
+                                disabled={!canModifyPayment || submittingProof}
                                 style={{ display: 'none' }}
                                 onChange={async (e) => {
                                   const f = e.target.files?.[0];
                                   if (!f) return;
-                                  setSelectedProofName(f.name);
-                                  if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
-                                  setLocalProofPreviewUrl(URL.createObjectURL(f));
-                                  setUploadingProof(true);
-                                  try {
-                                    await uploadCustomerPaymentProof(selectedQuote.id, f);
-                                    await reloadAll();
-                                  } finally {
-                                    setUploadingProof(false);
-                                  }
+                                  handleProofFileSelected(f);
+                                  e.currentTarget.value = '';
                                 }}
                               />
+                              <button
+                                onClick={handleSubmitPayment}
+                                disabled={!canSubmitSelectedProof || submittingProof}
+                                style={{
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '7px 12px',
+                                  background: 'linear-gradient(135deg, #7a0000, #a50000)',
+                                  color: 'white',
+                                  cursor: !canSubmitSelectedProof || submittingProof ? 'not-allowed' : 'pointer',
+                                  opacity: !canSubmitSelectedProof || submittingProof ? 0.6 : 1,
+                                }}
+                              >
+                                {submittingProof ? 'Submitting...' : 'Submit Payment'}
+                              </button>
                               {hasProofForDelete && (
                                 <button
                                   onClick={async () => {
                                     await deleteCustomerPaymentProof(selectedQuote.id);
+                                    setSelectedProofFile(null);
+                                    setProofValidationError('');
+                                    setPaymentMessage('Payment proof deleted. You can upload a new one.');
                                     setSelectedProofName(DEFAULT_PROOF_LABEL);
                                     if (localProofPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(localProofPreviewUrl);
                                     setLocalProofPreviewUrl(null);
                                     await reloadAll();
                                   }}
-                                  disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                                  disabled={!canModifyPayment || submittingProof}
                                   style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '7px 12px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
                                 >
                                   Delete Proof
@@ -716,6 +806,14 @@ export default function CheckStatus() {
                               )}
                             </div>
                             <div style={{ marginTop: '6px', color: '#8aa0b8', fontSize: '11px' }}>{proofLabel}</div>
+                            {proofValidationError && (
+                              <div style={{ marginTop: '6px', color: '#7a0000', fontSize: '11px' }}>{proofValidationError}</div>
+                            )}
+                            {paymentMessage && (
+                              <div style={{ marginTop: '6px', color: paymentMessage.toLowerCase().includes('failed') ? '#7a0000' : '#1a5c1a', fontSize: '11px' }}>
+                                {paymentMessage}
+                              </div>
+                            )}
 
                             {proofPreviewUrl && hasProofForDelete && (
                               <div style={{ marginTop: '10px', border: '1px solid #e0e4ea', borderRadius: '8px', backgroundColor: '#f8fafc', padding: '8px' }}>

@@ -1,7 +1,7 @@
 import pool from '../config/database';
 
 export type PaymentMethod = 'qrph' | 'cash';
-export type PaymentStatus = 'pending' | 'paid' | 'expired';
+export type PaymentStatus = 'waiting_approval' | 'paid' | 'expired';
 
 export interface Payment {
   id: string;
@@ -11,6 +11,8 @@ export interface Payment {
   customerName?: string;
   reservationDate?: string;
   quoteStatus?: string;
+  projectType?: string;
+  amountDue?: number;
   paymentMethod: PaymentMethod;
   proofFile?: string;
   proofMime?: string;
@@ -31,6 +33,8 @@ function rowToPayment(row: any): Payment {
     customerName: row.customer_name || undefined,
     reservationDate: row.reservation_date?.toISOString?.().split('T')[0] || row.reservation_date || undefined,
     quoteStatus: row.quote_status || undefined,
+    projectType: row.project_type || undefined,
+    amountDue: row.amount_due !== undefined && row.amount_due !== null ? Number(row.amount_due) : undefined,
     paymentMethod: row.payment_method as PaymentMethod,
     proofFile: row.proof_file || undefined,
     proofMime: row.proof_mime || undefined,
@@ -72,15 +76,16 @@ export async function getPaymentByQuoteIdentifier(quoteIdentifier: string): Prom
 export async function createPayment(quoteId: string, paymentMethod: PaymentMethod): Promise<Payment> {
   const result = await pool.query(
     `INSERT INTO payments (quote_id, payment_method, status)
-     VALUES ($1, $2, 'pending')
+     VALUES ($1, $2, 'waiting_approval')
      ON CONFLICT (quote_id) DO UPDATE
        SET payment_method = EXCLUDED.payment_method,
            status = CASE
              WHEN payments.status = 'paid' THEN 'paid'
-             ELSE 'pending'
+             WHEN payments.status = 'expired' THEN 'expired'
+             ELSE 'waiting_approval'
            END,
            admin_rejection_reason = CASE
-             WHEN payments.status = 'paid' THEN payments.admin_rejection_reason
+             WHEN payments.status IN ('paid', 'expired') THEN payments.admin_rejection_reason
              ELSE NULL
            END,
            updated_at = NOW()
@@ -100,7 +105,7 @@ export async function markPaymentSubmitted(
     `UPDATE payments
      SET proof_file = $2,
          proof_mime = $3,
-         status = 'pending',
+         status = 'waiting_approval',
          admin_rejection_reason = NULL,
          submitted_at = NOW()
      WHERE quote_id = $1
@@ -117,7 +122,7 @@ export async function clearPaymentProof(quoteId: string): Promise<Payment | unde
          proof_mime = NULL,
          submitted_at = NULL,
          admin_rejection_reason = NULL,
-         status = 'pending'
+         status = 'waiting_approval'
      WHERE quote_id = $1 AND status <> 'paid'
      RETURNING *`,
     [quoteId]
@@ -141,7 +146,7 @@ export async function markPaymentPaid(quoteId: string): Promise<Payment | undefi
 export async function rejectPayment(quoteId: string, reason: string): Promise<Payment | undefined> {
   const result = await pool.query(
     `UPDATE payments
-     SET status = 'pending',
+     SET status = 'waiting_approval',
          admin_rejection_reason = $2,
          verified_at = NULL
      WHERE quote_id = $1
@@ -183,10 +188,14 @@ export async function expireOldPendingPayments(): Promise<number> {
 
 export async function listPaymentsForAdmin(): Promise<Payment[]> {
   const result = await pool.query(
-    `SELECT p.*, q.quote_number, q.customer_email, q.customer_name, q.status AS quote_status, r.reservation_date
+    `SELECT p.*, q.quote_number, q.customer_email, q.customer_name, q.status AS quote_status,
+            q.project_type, COALESCE(q.updated_cost, q.estimated_cost) AS amount_due,
+            r.reservation_date
      FROM payments p
      JOIN qq_quotes q ON q.id = p.quote_id
      LEFT JOIN reservations r ON r.quote_id = q.id
+     WHERE p.payment_method = 'qrph'
+       AND p.proof_file IS NOT NULL
      ORDER BY p.created_at DESC`
   );
 
