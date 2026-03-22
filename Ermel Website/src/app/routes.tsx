@@ -17,7 +17,7 @@ import InstallationQueue from './pages/admin/InstallationQueue';
 import OrderLogs from './pages/admin/OrderLogs';
 import MaterialProcurement from './pages/admin/Materialprocurement';
 import AdminSettings from './pages/admin/Adminsettings';
-import PaymentAppoval from './pages/admin/PaymentAppoval';
+import PaymentAppoval from './pages/admin/PaymentApproval';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';

@@ -356,6 +356,14 @@ export default function QuotationModule() {
     return true;
   }, [minSelectableDate, maxSelectableDate, reservedDates]);
 
+  useEffect(() => {
+    if (!reservationDate) return;
+    if (!reservedDates.has(reservationDate)) return;
+
+    setReservationDate('');
+    setReservationError('This date has just been booked by another customer. Please choose another date.');
+  }, [reservationDate, reservedDates]);
+
   const selectedCategory = PROJECT_CATEGORIES.find((c) => c.id === category);
   const selectedGlass = GLASS_TYPES.find((g) => g.id === glassType);
   const selectedFrame = FRAME_MATERIALS.find((f) => f.id === frameMaterial);
@@ -510,6 +518,13 @@ export default function QuotationModule() {
       }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        if (res.status === 409) {
+          setStep(4);
+          setReservationDate('');
+          setReservationError(body?.error || body?.message || 'The selected reservation date is already booked. Please choose another date.');
+          await refreshReservedDates();
+          return;
+        }
         setSubmitError(body?.error || body?.message || 'Unable to submit your quote right now. Please try again.');
         return;
       }
@@ -576,15 +591,15 @@ export default function QuotationModule() {
             Your quote request has been received. Our team will review it and get back to you within <strong>48 hours</strong>.
           </p>
           <p style={{ color: '#54667d', fontSize: '14px', marginBottom: '32px', fontFamily: 'var(--font-body)' }}>
-            Check your dashboard to track your project status.
+            Check your status page to view your quote progress.
           </p>
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/check-status')}
               className="min-h-[52px]"
               style={{ fontFamily: 'var(--font-heading)', background: 'linear-gradient(135deg, #15263c, #1e3655)', color: 'white', fontWeight: 700, letterSpacing: '0.06em', fontSize: '16px', padding: '14px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
             >
-              Track My Project
+              Check My Status
             </button>
             <button
               onClick={resetForm}

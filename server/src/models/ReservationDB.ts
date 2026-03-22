@@ -87,7 +87,7 @@ export async function listReservationsByStatus(status: ReservationStatus): Promi
 
 export async function listReservedDates(): Promise<string[]> {
   const result = await pool.query(
-    `SELECT r.reservation_date
+    `SELECT DISTINCT r.reservation_date
      FROM reservations r
      WHERE r.reservation_date IS NOT NULL
      ORDER BY reservation_date ASC`
