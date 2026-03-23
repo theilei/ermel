@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { TrendingUp, AlertTriangle, Package, Calendar, ClipboardCheck, FileText } from 'lucide-react';
+import { TrendingUp, Package, Calendar, ClipboardCheck, FileText } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { fetchAdminDashboardMetrics } from '../services/api';
 import type { DashboardActiveInstallation } from '../services/api';
@@ -168,88 +168,6 @@ function SalesForecastChart() {
   );
 }
 
-function FabricationCapacityGauge() {
-  const capacity = 76; // 76%
-  const booked = 420;
-  const maxCapacity = 320;
-  const isOverbooked = booked > maxCapacity;
-
-  const circumference = 2 * Math.PI * 90;
-  const strokeDashoffset = circumference - (capacity / 100) * circumference;
-
-  return (
-    <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
-      <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-        Fabrication Capacity
-      </div>
-      <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)', marginBottom: '24px' }}>
-        Current month workload
-      </div>
-
-      <div className="flex flex-col items-center">
-        <div className="relative" style={{ width: '200px', height: '200px' }}>
-          <svg className="transform -rotate-90" width="200" height="200">
-            {/* Background circle */}
-            <circle
-              cx="100"
-              cy="100"
-              r="90"
-              stroke="#e0e4ea"
-              strokeWidth="16"
-              fill="none"
-            />
-            {/* Progress circle */}
-            <circle
-              cx="100"
-              cy="100"
-              r="90"
-              stroke={isOverbooked ? '#7a0000' : '#1a5c1a'}
-              strokeWidth="16"
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div style={{ fontFamily: 'var(--font-heading)', color: isOverbooked ? '#7a0000' : '#15263c', fontSize: '48px', fontWeight: 800, lineHeight: 1 }}>
-              {capacity}%
-            </div>
-            <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 600, marginTop: '4px' }}>
-              CAPACITY
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 w-full space-y-2">
-          <div className="flex justify-between items-center">
-            <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>Booked Hours</span>
-            <span style={{ color: '#15263c', fontSize: '14px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{booked} hrs</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)' }}>Max Capacity</span>
-            <span style={{ color: '#15263c', fontSize: '14px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{maxCapacity} hrs</span>
-          </div>
-          {isOverbooked && (
-            <div className="flex items-start gap-2 mt-3 p-3" style={{ backgroundColor: '#fff0f0', borderRadius: '8px', border: '1px solid #7a000044' }}>
-              <AlertTriangle size={16} color="#7a0000" className="flex-shrink-0 mt-0.5" />
-              <div>
-                <div style={{ color: '#7a0000', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
-                  Overbooked by {booked - maxCapacity} hours
-                </div>
-                <div style={{ color: '#7a0000', fontSize: '11px', fontFamily: 'var(--font-body)', marginTop: '2px' }}>
-                  Consider extending deadlines or adding resources
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function AdminDashboard() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [pendingInquiries, setPendingInquiries] = useState(0);
@@ -377,17 +295,8 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          {/* Left: Sales Forecast (2/3) */}
-          <div className="lg:col-span-2">
-            <SalesForecastChart />
-          </div>
-
-          {/* Right: Fabrication Capacity (1/3) */}
-          <div>
-            <FabricationCapacityGauge />
-          </div>
+        <div className="mb-8">
+          <SalesForecastChart />
         </div>
         <div className="mb-8">
           <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
