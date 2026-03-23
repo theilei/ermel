@@ -1,7 +1,7 @@
 import pool from '../config/database';
 
 export type PaymentMethod = 'qrph' | 'cash';
-export type PaymentStatus = 'pending' | 'paid' | 'expired';
+export type PaymentStatus = 'waiting_approval' | 'pending' | 'paid' | 'expired';
 
 export interface Payment {
   id: string;
@@ -23,6 +23,8 @@ export interface Payment {
 }
 
 function rowToPayment(row: any): Payment {
+  const normalizedStatus = row.status === 'pending' ? 'waiting_approval' : row.status;
+
   return {
     id: row.id,
     quoteId: row.quote_id,
@@ -34,7 +36,7 @@ function rowToPayment(row: any): Payment {
     paymentMethod: row.payment_method as PaymentMethod,
     proofFile: row.proof_file || undefined,
     proofMime: row.proof_mime || undefined,
-    status: row.status as PaymentStatus,
+    status: normalizedStatus as PaymentStatus,
     adminRejectionReason: row.admin_rejection_reason || undefined,
     submittedAt: row.submitted_at || undefined,
     verifiedAt: row.verified_at || undefined,
@@ -72,12 +74,12 @@ export async function getPaymentByQuoteIdentifier(quoteIdentifier: string): Prom
 export async function createPayment(quoteId: string, paymentMethod: PaymentMethod): Promise<Payment> {
   const result = await pool.query(
     `INSERT INTO payments (quote_id, payment_method, status)
-     VALUES ($1, $2, 'pending')
+     VALUES ($1, $2, 'waiting_approval')
      ON CONFLICT (quote_id) DO UPDATE
        SET payment_method = EXCLUDED.payment_method,
            status = CASE
              WHEN payments.status = 'paid' THEN 'paid'
-             ELSE 'pending'
+             ELSE 'waiting_approval'
            END,
            admin_rejection_reason = CASE
              WHEN payments.status = 'paid' THEN payments.admin_rejection_reason
@@ -100,7 +102,7 @@ export async function markPaymentSubmitted(
     `UPDATE payments
      SET proof_file = $2,
          proof_mime = $3,
-         status = 'pending',
+         status = 'waiting_approval',
          admin_rejection_reason = NULL,
          submitted_at = NOW()
      WHERE quote_id = $1
@@ -117,7 +119,7 @@ export async function clearPaymentProof(quoteId: string): Promise<Payment | unde
          proof_mime = NULL,
          submitted_at = NULL,
          admin_rejection_reason = NULL,
-         status = 'pending'
+         status = 'waiting_approval'
      WHERE quote_id = $1 AND status <> 'paid'
      RETURNING *`,
     [quoteId]
@@ -141,7 +143,7 @@ export async function markPaymentPaid(quoteId: string): Promise<Payment | undefi
 export async function rejectPayment(quoteId: string, reason: string): Promise<Payment | undefined> {
   const result = await pool.query(
     `UPDATE payments
-     SET status = 'pending',
+     SET status = 'waiting_approval',
          admin_rejection_reason = $2,
          verified_at = NULL
      WHERE quote_id = $1

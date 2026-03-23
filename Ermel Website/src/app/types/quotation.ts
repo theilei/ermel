@@ -14,7 +14,7 @@ export type QuoteStatus =
   | 'expired';
 
 export type PaymentMethod = 'qrph' | 'cash';
-export type PaymentStatus = 'pending' | 'paid' | 'expired';
+export type PaymentStatus = 'waiting_approval' | 'pending' | 'paid' | 'expired';
 
 export interface QuotePayment {
   paymentMethod: PaymentMethod;

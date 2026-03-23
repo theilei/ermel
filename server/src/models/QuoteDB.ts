@@ -45,7 +45,7 @@ export interface Quote {
   reservationStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
   payment?: {
     paymentMethod?: 'qrph' | 'cash';
-    status?: 'pending' | 'paid' | 'expired';
+    status?: 'waiting_approval' | 'pending' | 'paid' | 'expired';
     proofFile?: string;
     adminRejectionReason?: string;
   };

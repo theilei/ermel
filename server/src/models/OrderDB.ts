@@ -77,6 +77,20 @@ export async function createOrder(
   projectType: string,
   dimensions: string
 ): Promise<InstallationOrder> {
+  // Guard at application level to prevent duplicate active orders for the same quote.
+  const existing = await pool.query(
+    `SELECT *
+     FROM qq_orders
+     WHERE quote_id = $1 AND deleted_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [quoteId]
+  );
+
+  if (existing.rows.length > 0) {
+    return rowToOrder(existing.rows[0]);
+  }
+
   const orderNumber = await nextOrderNumber();
   const result = await pool.query(
     `INSERT INTO qq_orders (order_number, quote_id, customer_id, customer_name, project_type, dimensions)
