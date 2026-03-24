@@ -1,23 +1,23 @@
 import { useState } from 'react';
 import {
-  User, Bell, Shield,
+  User, Shield,
   Save, Eye, EyeOff, CheckCircle, ChevronRight, Mail,
-  Phone, Building, Lock, LogOut,
+  Phone, Building, Lock,
 } from 'lucide-react';
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'business';
+type SettingsSection = 'profile' | 'security' | 'business';
+const SESSION_TIMEOUT_STORAGE_KEY = 'ermel.admin.session.timeout';
 
 const SECTIONS: { key: SettingsSection; label: string; icon: any; description: string }[] = [
   { key: 'profile',       label: 'Profile',       icon: User,     description: 'Manage your admin profile information' },
-  { key: 'notifications', label: 'Notifications', icon: Bell,     description: 'Configure alerts and email notifications' },
   { key: 'security',      label: 'Security',      icon: Shield,   description: 'Password, sessions, and access control' },
   { key: 'business',      label: 'Business Info',  icon: Building, description: 'Company details, pricing, and terms' },
 ];
 
 // ── Reusable Components ──
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+function SettingRow({ label, description, children, showBorder = true }: { label: string; description?: string; children: React.ReactNode; showBorder?: boolean }) {
   return (
-    <div className="flex items-start justify-between py-5" style={{ borderBottom: '1px solid #f0f3f7' }}>
+    <div className="flex items-start justify-between py-5" style={{ borderBottom: showBorder ? '1px solid #f0f3f7' : 'none' }}>
       <div style={{ maxWidth: '60%' }}>
         <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 600 }}>{label}</div>
         {description && <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '3px', lineHeight: 1.5 }}>{description}</div>}
@@ -27,31 +27,10 @@ function SettingRow({ label, description, children }: { label: string; descripti
   );
 }
 
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      style={{
-        width: 44, height: 24, borderRadius: 12,
-        backgroundColor: value ? '#15263c' : '#e0e4ea',
-        border: 'none', cursor: 'pointer', position: 'relative',
-        transition: 'background 0.2s',
-      }}
-    >
-      <div style={{
-        position: 'absolute', top: 3,
-        left: value ? 23 : 3, width: 18, height: 18,
-        borderRadius: '50%', backgroundColor: 'white',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transition: 'left 0.2s',
-      }} />
-    </button>
-  );
-}
-
-function SaveButton({ label = 'Save Changes', onClick }: { label?: string; onClick?: () => void }) {
+function SaveButton({ label = 'Save Changes', onClick, disabled = false }: { label?: string; onClick?: () => void; disabled?: boolean }) {
   const [saved, setSaved] = useState(false);
   const handleClick = () => {
+    if (disabled) return;
     setSaved(true);
     onClick?.();
     setTimeout(() => setSaved(false), 2000);
@@ -59,8 +38,9 @@ function SaveButton({ label = 'Save Changes', onClick }: { label?: string; onCli
   return (
     <button
       onClick={handleClick}
+      disabled={disabled}
       className="flex items-center gap-2 px-4 py-2"
-      style={{ borderRadius: '6px', background: saved ? '#1a5c1a' : '#15263c', border: 'none', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '13px', transition: 'background 0.2s' }}
+      style={{ borderRadius: '6px', background: saved ? '#1a5c1a' : '#15263c', border: 'none', color: 'white', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '13px', transition: 'background 0.2s' }}
     >
       {saved ? <CheckCircle size={14} /> : <Save size={14} />}
       {saved ? 'Saved!' : label}
@@ -70,7 +50,7 @@ function SaveButton({ label = 'Save Changes', onClick }: { label?: string; onCli
 
 // ── Profile Section ──
 function ProfileSection() {
-  const [form, setForm] = useState({ name: 'Ermel Admin', email: 'admin@ermelglass.com', phone: '09171234567', role: 'Super Admin' });
+  const [form, setForm] = useState({ name: 'Ermel Admin', email: 'ermelglassaluminum@gmail.com', phone: '09171234567', role: 'Super Admin' });
   return (
     <div>
       <div className="flex items-center gap-4 p-5 mb-6" style={{ backgroundColor: '#f8f9fb', borderRadius: '8px', border: '1px solid #e0e4ea' }}>
@@ -88,9 +68,9 @@ function ProfileSection() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {[
-          { label: 'Full Name', key: 'name', icon: User },
-          { label: 'Email Address', key: 'email', icon: Mail },
-          { label: 'Phone Number', key: 'phone', icon: Phone },
+          { label: 'Full Name', key: 'name', icon: User, disabled: true  },
+          { label: 'Email Address', key: 'email', icon: Mail, disabled: true  },
+          { label: 'Phone Number', key: 'phone', icon: Phone, disabled: true  },
           { label: 'Role', key: 'role', icon: Shield, disabled: true },
         ].map(({ label, key, icon: Icon, disabled }) => (
           <div key={key}>
@@ -107,52 +87,21 @@ function ProfileSection() {
           </div>
         ))}
       </div>
-      <SaveButton />
-    </div>
-  );
-}
-
-// ── Notifications Section ──
-function NotificationsSection() {
-  const [notifs, setNotifs] = useState({
-    newQuote: true, quoteApproved: true, paymentReceived: true,
-    installationUpdate: false, lowStock: true, weeklyReport: false,
-    emailDigest: true, smsAlerts: false,
-  });
-  const toggle = (k: keyof typeof notifs) => setNotifs((prev) => ({ ...prev, [k]: !prev[k] }));
-
-  const rows = [
-    { key: 'newQuote', label: 'New Quote Request', desc: 'Notify when a customer submits a new quotation' },
-    { key: 'quoteApproved', label: 'Quote Approved', desc: 'Alert when a quote gets approved or rejected' },
-    { key: 'paymentReceived', label: 'Payment Received', desc: 'Notify when a customer uploads payment proof' },
-    { key: 'installationUpdate', label: 'Installation Updates', desc: 'Status changes in the installation queue' },
-    { key: 'lowStock', label: 'Low Stock Alerts', desc: 'Warn when materials fall below minimum stock levels' },
-    { key: 'weeklyReport', label: 'Weekly Summary Report', desc: 'Email digest of weekly operations and revenue' },
-    { key: 'emailDigest', label: 'Email Notifications', desc: 'Receive alerts via email' },
-    { key: 'smsAlerts', label: 'SMS Alerts', desc: 'Receive urgent alerts via SMS' },
-  ];
-
-  return (
-    <div>
-      {rows.map(({ key, label, desc }) => (
-        <SettingRow key={key} label={label} description={desc}>
-          <Toggle value={(notifs as any)[key]} onChange={() => toggle(key as any)} />
-        </SettingRow>
-      ))}
-      <div className="mt-6">
-        <SaveButton label="Save Notification Preferences" />
-      </div>
     </div>
   );
 }
 
 // ── Security Section ──
 function SecuritySection() {
+  const initialSessionTimeout = (() => {
+    const saved = localStorage.getItem(SESSION_TIMEOUT_STORAGE_KEY);
+    return saved && ['15', '30', '60', '120'].includes(saved) ? saved : '30';
+  })();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
-  const [twoFA, setTwoFA] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState('30');
+  const [sessionTimeout, setSessionTimeout] = useState(initialSessionTimeout);
+  const canUpdatePassword = passwords.newPass.trim().length > 0 && passwords.confirm.trim().length > 0;
 
   return (
     <div>
@@ -181,38 +130,25 @@ function SecuritySection() {
               </div>
             </div>
           ))}
-          <SaveButton label="Update Password" />
+          <SaveButton label="Update Password" disabled={!canUpdatePassword} />
         </div>
       </div>
 
       {/* Access Settings */}
-      <SettingRow label="Two-Factor Authentication" description="Add an extra layer of security to your admin account">
-        <Toggle value={twoFA} onChange={setTwoFA} />
-      </SettingRow>
-      <SettingRow label="Session Timeout" description="Automatically log out after inactivity period">
+
+      <SettingRow label="Session Timeout" description="Automatically log out after inactivity period" showBorder={false}>
         <select
           value={sessionTimeout}
-          onChange={(e) => setSessionTimeout(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSessionTimeout(value);
+            localStorage.setItem(SESSION_TIMEOUT_STORAGE_KEY, value);
+          }}
           style={{ borderRadius: '6px', border: '1px solid #e0e4ea', padding: '7px 12px', fontSize: '13px', color: '#15263c', cursor: 'pointer', background: 'white', fontFamily: 'var(--font-body)' }}
         >
           {['15', '30', '60', '120'].map((v) => <option key={v} value={v}>{v} minutes</option>)}
         </select>
       </SettingRow>
-
-      {/* Danger Zone */}
-      <div className="mt-8 p-5" style={{ border: '1.5px solid #f0c0c0', borderRadius: '8px', backgroundColor: '#fffafa' }}>
-        <div style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Danger Zone</div>
-        <div className="flex items-center justify-between">
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600 }}>Force Sign Out All Sessions</div>
-            <div style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>Terminate all active admin sessions immediately</div>
-          </div>
-          <button style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #d4183d', background: 'white', color: '#d4183d', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <LogOut size={13} />
-            Sign Out All
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -223,7 +159,7 @@ function BusinessSection() {
     companyName: 'Ermel Glass & Aluminum',
     address: '1528 Nicolas Zamora St., Tondo, City of Manila, 1012 Metro Manila, Philippines',
     phone: '(+63) 938 602 0346',
-    email: 'info@ermelglass.com',
+    email: 'ermelglassaluminum@gmail.com',
     website: 'www.ermelglass.com',
     taxId: '123-456-789-000',
     currency: 'PHP',
@@ -237,27 +173,29 @@ function BusinessSection() {
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {[
-          { label: 'Company Name', key: 'companyName' },
-          { label: 'Business Email', key: 'email' },
-          { label: 'Phone Number', key: 'phone' },
-          { label: 'Website', key: 'website' },
-          { label: 'Tax ID / TIN', key: 'taxId' },
-        ].map(({ label, key }) => (
+          { label: 'Company Name', key: 'companyName', disabled: true },
+          { label: 'Business Email', key: 'email', disabled: true },
+          { label: 'Phone Number', key: 'phone', disabled: true },
+          { label: 'Website', key: 'website', disabled: true },
+          { label: 'Tax ID / TIN', key: 'taxId', disabled: true },
+        ].map(({ label, key, disabled }) => (
           <div key={key}>
             <label style={{ display: 'block', fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>{label}</label>
             <input
               value={(form as any)[key]}
               onChange={f(key)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }}
+              disabled={disabled}
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box', backgroundColor: disabled ? '#f8f9fb' : 'white' }}
             />
           </div>
         ))}
         <div>
           <label style={{ display: 'block', fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Currency</label>
-          <select value={form.currency} onChange={f('currency')} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', background: 'white', cursor: 'pointer', boxSizing: 'border-box' }}>
-            <option value="PHP">PHP — Philippine Peso</option>
-            <option value="USD">USD — US Dollar</option>
-          </select>
+          <input
+            value="PHP — Philippine Peso"
+            disabled
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box', backgroundColor: '#f8f9fb' }}
+          />
         </div>
       </div>
 
@@ -266,8 +204,9 @@ function BusinessSection() {
         <textarea
           value={form.address}
           onChange={f('address')}
+          disabled
           rows={3}
-          style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', resize: 'vertical', boxSizing: 'border-box', backgroundColor: '#f8f9fb' }}
         />
       </div>
 
@@ -276,23 +215,22 @@ function BusinessSection() {
         <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>Pricing & Terms</div>
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'VAT Rate (%)', key: 'vatRate' },
-            { label: 'Deposit Required (%)', key: 'depositRate' },
-            { label: 'Warranty Period', key: 'warranty' },
-          ].map(({ label, key }) => (
+            { label: 'VAT Rate (%)', key: 'vatRate', disabled: true  },
+            { label: 'Deposit Required (%)', key: 'depositRate', disabled: true  },
+            { label: 'Warranty Period', key: 'warranty', disabled: true  },
+          ].map(({ label, key, disabled }) => (
             <div key={key}>
               <label style={{ display: 'block', fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '12px', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
               <input
                 value={(form as any)[key]}
                 onChange={f(key)}
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box', backgroundColor: 'white' }}
+                disabled={disabled}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e4ea', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box', backgroundColor: disabled ? '#f8f9fb' : 'white' }}
               />
             </div>
           ))}
         </div>
       </div>
-
-      <SaveButton label="Save Business Information" />
     </div>
   );
 }
@@ -368,7 +306,6 @@ export default function AdminSettings() {
 
             {/* Dynamic Content */}
             {activeSection === 'profile'       && <ProfileSection />}
-            {activeSection === 'notifications' && <NotificationsSection />}
             {activeSection === 'security'      && <SecuritySection />}
             {activeSection === 'business'      && <BusinessSection />}
           </div>
