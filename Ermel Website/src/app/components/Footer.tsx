@@ -25,7 +25,7 @@ export default function Footer() {
               { label: 'Projects', href: '/#projects' },
               { label: 'About', href: '/about' },
               { label: 'Request a Quote', href: '/quote' },
-              { label: 'Track My Order', href: '/dashboard' },
+              { label: 'Check My Status', href: '/check-status' },
             ] as const).map((link) => {
               const isHash = link.href.startsWith('/#');
               const isProducts = link.label === 'Products';
