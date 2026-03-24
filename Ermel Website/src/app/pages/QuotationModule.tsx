@@ -94,7 +94,6 @@ const GLASS_TYPES = [
   { id: 'bronze', label: 'Bronze Glass', desc: 'Warm tint, reduces glare & heat', color: 'rgba(205,152,70,0.3)', border: '#cd9846', multiplier: 1.25, thickness: '6mm tinted' },
   { id: 'frosted', label: 'Frosted Glass', desc: 'Diffused light, privacy-enhancing', color: 'rgba(230,230,230,0.5)', border: '#aaa', multiplier: 1.35, thickness: '6mm acid-etched' },
   { id: 'tempered', label: 'Tempered Glass', desc: 'Safety-grade, 5× stronger than clear', color: 'rgba(180,210,255,0.4)', border: '#1565c0', multiplier: 1.6, thickness: '10mm tempered' },
-  { id: 'other', label: 'Other', desc: 'Other – Please specify', color: 'rgba(200,200,200,0.3)', border: '#999', multiplier: 1.0, thickness: 'Custom', img: 'https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&q=80' },
 ];
 
 const COLOR_OPTIONS = [
@@ -103,7 +102,6 @@ const COLOR_OPTIONS = [
   { id: 'gray', label: 'Gray', desc: 'Neutral gray tint', swatch: 'rgba(150,150,150,0.5)' },
   { id: 'green', label: 'Green', desc: 'Green tint', swatch: 'rgba(100,180,100,0.4)' },
   { id: 'blue', label: 'Blue', desc: 'Blue tint', swatch: 'rgba(100,150,220,0.5)' },
-  { id: 'other', label: 'Other', desc: 'Other – Please specify', swatch: 'rgba(200,200,200,0.4)' },
 ];
 
 const FRAME_MATERIALS = [
@@ -279,8 +277,6 @@ export default function QuotationModule() {
   const [frameMaterial, setFrameMaterial] = useState<string | null>(null);
 
   const [categoryOther, setCategoryOther] = useState('');
-  const [glassTypeOther, setGlassTypeOther] = useState('');
-  const [colorOther, setColorOther] = useState('');
 
   const [measureUnit, setMeasureUnit] = useState<MeasurementUnit>('cm');
   const [width, setWidth] = useState('');
@@ -399,19 +395,17 @@ export default function QuotationModule() {
   const addressValid = isValidAddress(address);
 
   const categoryOtherValid = category !== 'other' || isValidOtherInput(categoryOther);
-  const glassOtherValid = glassType !== 'other' || isValidOtherInput(glassTypeOther);
-  const colorOtherValid = colorChoice !== 'other' || isValidOtherInput(colorOther);
 
   const infoValid = !!name.trim() && !!email.trim() && phoneValid && addressValid;
 
   const canProceed = useCallback((): boolean => {
     if (step === 0) return infoValid;
     if (step === 1) return !!category && categoryOtherValid;
-    if (step === 2) return !!glassType && !!frameMaterial && !!colorChoice && glassOtherValid && colorOtherValid;
+    if (step === 2) return !!glassType && !!frameMaterial && !!colorChoice;
     if (step === 3) return widthValid && heightValid;
     if (step === 4) return !!reservationDate;
     return true;
-  }, [step, infoValid, category, categoryOtherValid, glassType, frameMaterial, colorChoice, glassOtherValid, colorOtherValid, widthValid, heightValid, reservationDate]);
+  }, [step, infoValid, category, categoryOtherValid, glassType, frameMaterial, colorChoice, widthValid, heightValid, reservationDate]);
 
   const handleUnitChange = (newUnit: MeasurementUnit) => {
     if (newUnit === measureUnit) return;
@@ -467,10 +461,8 @@ export default function QuotationModule() {
       project: category === 'other' ? `Other: ${sanitizeOtherInput(categoryOther)}` : (selectedCategory?.label || ''),
       projectCategoryOther: category === 'other' ? sanitizeOtherInput(categoryOther) : null,
       material: selectedFrame?.label || '',
-      glassType: glassType === 'other' ? `Other: ${sanitizeOtherInput(glassTypeOther)}` : (selectedGlass?.label || ''),
-      glassTypeOther: glassType === 'other' ? sanitizeOtherInput(glassTypeOther) : null,
-      color: colorChoice === 'other' ? sanitizeOtherInput(colorOther) : (selectedColor?.label || 'Clear'),
-      colorOther: colorChoice === 'other' ? sanitizeOtherInput(colorOther) : null,
+      glassType: selectedGlass?.label || '',
+      color: selectedColor?.label || 'Clear',
       dimensions: `${width}${unitLabel} × ${height}${unitLabel}`,
       width: wUnits.cm,
       height: hUnits.cm,
@@ -544,8 +536,6 @@ export default function QuotationModule() {
     setColorChoice(null);
     setFrameMaterial(null);
     setCategoryOther('');
-    setGlassTypeOther('');
-    setColorOther('');
     setWidth('');
     setHeight('');
     setWidthOrigVal('');
@@ -569,8 +559,8 @@ export default function QuotationModule() {
     { label: 'Phone', value: maskPhone(cleanedPhone) },
     { label: 'Address', value: sanitizeTextInput(address) },
     { label: 'Project Category', value: category === 'other' ? `Other: ${sanitizeOtherInput(categoryOther)}` : (selectedCategory?.label || '') },
-    { label: 'Glass Type', value: glassType === 'other' ? `Other: ${sanitizeOtherInput(glassTypeOther)}` : (selectedGlass?.label || '') },
-    { label: 'Color', value: colorChoice === 'other' ? `Other: ${sanitizeOtherInput(colorOther)}` : (selectedColor?.label || '') },
+    { label: 'Glass Type', value: selectedGlass?.label || '' },
+    { label: 'Color', value: selectedColor?.label || '' },
     { label: 'Frame Material', value: selectedFrame?.label || '' },
     { label: 'Dimensions', value: `${width} ${UNIT_LABELS[measureUnit]} × ${height} ${UNIT_LABELS[measureUnit]}` },
     { label: 'Reservation Date', value: reservationDate || '—' },
@@ -784,18 +774,11 @@ export default function QuotationModule() {
                         POPULAR CHOICE!
                       </div>
                     )}
-                    {g.img ? (
-                      <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', border: `1px solid ${g.border}` }}>
-                        <img src={g.img} alt={g.label} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 50%)' }} />
-                      </div>
-                    ) : (
-                      <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', backgroundColor: g.color, border: `1px solid ${g.border}` }}>
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(255,255,255,0.2) 100%)' }} />
-                        {g.id === 'tempered' && <div className="absolute bottom-2 left-2 right-2 text-center" style={{ fontSize: '10px', color: '#1565c0', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em' }}>TEMPERED</div>}
-                        {g.id === 'frosted' && <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)', background: 'rgba(255,255,255,0.2)' }} />}
-                      </div>
-                    )}
+                    <div className="w-full rounded-lg mb-3 relative overflow-hidden" style={{ height: '80px', backgroundColor: g.color, border: `1px solid ${g.border}` }}>
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(255,255,255,0.2) 100%)' }} />
+                      {g.id === 'tempered' && <div className="absolute bottom-2 left-2 right-2 text-center" style={{ fontSize: '10px', color: '#1565c0', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em' }}>TEMPERED</div>}
+                      {g.id === 'frosted' && <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)', background: 'rgba(255,255,255,0.2)' }} />}
+                    </div>
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: '#15263c', textTransform: 'uppercase', marginBottom: '4px' }}>{g.label}</div>
                     <div style={{ fontSize: '11px', color: '#54667d', marginBottom: '4px', fontFamily: 'var(--font-body)' }}>{g.desc}</div>
                     <div style={{ fontSize: '11px', color: '#7a0000', fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>{g.thickness}</div>
@@ -803,8 +786,6 @@ export default function QuotationModule() {
                   </div>
                 );})}
               </div>
-              {glassType === 'other' && <div className="mb-6 max-w-md mx-auto"><OtherTextInput value={glassTypeOther} onChange={setGlassTypeOther} placeholder="Describe the glass type..." /></div>}
-
               <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px', marginTop: '24px' }}>
                 COLOR / TINT
               </h3>
@@ -825,8 +806,6 @@ export default function QuotationModule() {
                   </div>
                 );})}
               </div>
-              {colorChoice === 'other' && <div className="mb-6 max-w-md mx-auto"><OtherTextInput value={colorOther} onChange={setColorOther} placeholder="Describe the color / tint..." /></div>}
-
               <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px', marginTop: '24px' }}>
                 FRAME MATERIAL
               </h3>
@@ -1110,8 +1089,8 @@ export default function QuotationModule() {
                       { label: 'Phone', value: maskPhone(cleanedPhone) },
                       { label: 'Address', value: sanitizeTextInput(address) || '—' },
                       { label: 'Project Type', value: category === 'other' ? `Other: ${sanitizeOtherInput(categoryOther)}` : selectedCategory?.label },
-                      { label: 'Glass Type', value: glassType === 'other' ? `Other: ${sanitizeOtherInput(glassTypeOther)}` : selectedGlass?.label },
-                      { label: 'Color', value: colorChoice === 'other' ? `Other: ${sanitizeOtherInput(colorOther)}` : selectedColor?.label },
+                      { label: 'Glass Type', value: selectedGlass?.label },
+                      { label: 'Color', value: selectedColor?.label },
                       { label: 'Frame Material', value: selectedFrame?.label },
                       { label: 'Dimensions', value: width && height ? `${width} ${UNIT_LABELS[measureUnit]} \u00d7 ${height} ${UNIT_LABELS[measureUnit]}` : 'Not set' },
                       { label: 'Dimensions (cm)', value: widthValid && heightValid ? `${fmt2(fromMeters(wMeters, 'cm'))} cm \u00d7 ${fmt2(fromMeters(hMeters, 'cm'))} cm` : '\u2014' },
