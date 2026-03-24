@@ -83,15 +83,29 @@ export default function CheckStatus() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [paymentMetaByQuote, setPaymentMetaByQuote] = useState<Record<string, { quoteStatus: string; countdown: { deadline: string; remainingMs: number; expired: boolean } }>>({});
+  const [paymentMetaByQuote, setPaymentMetaByQuote] = useState<Record<string, { quoteStatus: string; payment: any | null; countdown: { deadline: string; remainingMs: number; expired: boolean } }>>({});
   const [submittingProof, setSubmittingProof] = useState(false);
   const [selectedProofName, setSelectedProofName] = useState(DEFAULT_PROOF_LABEL);
   const [selectedProofFile, setSelectedProofFile] = useState<File | null>(null);
   const [proofValidationError, setProofValidationError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
+  const [successPopupMessage, setSuccessPopupMessage] = useState('');
   const [localProofPreviewUrl, setLocalProofPreviewUrl] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
   const proofInputRef = useRef<HTMLInputElement | null>(null);
+  const successPopupTimerRef = useRef<number | null>(null);
+  const previousPaymentStatusRef = useRef<string | null>(null);
+
+  const showSuccessPopup = useCallback((message: string) => {
+    setSuccessPopupMessage(message);
+    if (successPopupTimerRef.current) {
+      window.clearTimeout(successPopupTimerRef.current);
+    }
+    successPopupTimerRef.current = window.setTimeout(() => {
+      setSuccessPopupMessage('');
+      successPopupTimerRef.current = null;
+    }, 4000);
+  }, []);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -119,6 +133,7 @@ export default function CheckStatus() {
         ...prev,
         [quoteId]: {
           quoteStatus: data.quoteStatus,
+          payment: data.payment,
           countdown: data.countdown,
         },
       }));
@@ -191,6 +206,18 @@ export default function CheckStatus() {
   }, [localProofPreviewUrl]);
 
   useEffect(() => {
+    return () => {
+      if (successPopupTimerRef.current) {
+        window.clearTimeout(successPopupTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    previousPaymentStatusRef.current = null;
+  }, [selectedQuoteId]);
+
+  useEffect(() => {
     if (!supabase || !user) return;
     const client = supabase;
 
@@ -255,29 +282,35 @@ export default function CheckStatus() {
   const latestUpdate = selectedUpdates[0];
   const latestStatus = latestUpdate?.status || selectedQuote?.status;
   const paymentMeta = selectedQuote ? paymentMetaByQuote[selectedQuote.id] : undefined;
+  const effectivePayment = paymentMeta?.payment || selectedQuote?.payment || null;
   const deadlineMs = paymentMeta?.countdown?.deadline ? new Date(paymentMeta.countdown.deadline).getTime() : 0;
   const countdownMs = deadlineMs > 0 ? Math.max(0, deadlineMs - nowMs) : 0;
-  const isPaymentExpired = paymentMeta?.countdown?.expired || selectedQuote?.status === 'cancelled' || selectedQuote?.payment?.status === 'expired';
+  const isPaymentExpired = paymentMeta?.countdown?.expired || selectedQuote?.status === 'cancelled' || effectivePayment?.status === 'expired';
+  const isPaymentPaid = effectivePayment?.status === 'paid';
   const canShowPaymentSection = selectedQuote?.status === 'approved' || selectedQuote?.status === 'cancelled';
-  const hasProofForDelete = Boolean(selectedQuote?.payment?.proofFile) || selectedProofName !== DEFAULT_PROOF_LABEL;
+  const hasProofForDelete = Boolean(effectivePayment?.proofFile) || selectedProofName !== DEFAULT_PROOF_LABEL;
   const uploadedProofUrl = useMemo(() => {
-    const proofPath = selectedQuote?.payment?.proofFile;
+    const proofPath = effectivePayment?.proofFile;
     if (!proofPath) return null;
     if (/^https?:\/\//i.test(proofPath)) return proofPath;
     return `${API_ORIGIN}${proofPath.startsWith('/') ? '' : '/'}${proofPath}`;
-  }, [selectedQuote?.payment?.proofFile]);
+  }, [effectivePayment?.proofFile]);
   const proofPreviewUrl = localProofPreviewUrl || uploadedProofUrl;
   const proofLabel = selectedProofName === DEFAULT_PROOF_LABEL
-    ? (selectedQuote?.payment?.proofFile || DEFAULT_PROOF_LABEL)
+    ? (effectivePayment?.proofFile || DEFAULT_PROOF_LABEL)
     : selectedProofName;
   const lowerProofName = proofLabel.toLowerCase();
   const isPreviewPdf = lowerProofName.endsWith('.pdf');
   const isPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(lowerProofName);
-  const canModifyPayment = !isPaymentExpired && selectedQuote?.payment?.status !== 'paid';
+  const canModifyPayment = !isPaymentExpired && !isPaymentPaid;
   const canSubmitSelectedProof = Boolean(selectedProofFile) && !proofValidationError && canModifyPayment;
-  const paymentStatusLabel = selectedQuote?.payment?.status === 'waiting_approval'
-    ? (selectedQuote?.payment?.proofFile ? 'Waiting for approval' : 'No submission yet')
-    : (selectedQuote?.payment?.status || 'No submission yet');
+  const paymentStatusLabel = effectivePayment?.status === 'waiting_approval'
+    ? (effectivePayment?.proofFile ? 'Waiting for approval' : 'No submission yet')
+    : (effectivePayment?.status || 'No submission yet');
+  const showProofSubmittedSuccess = effectivePayment?.status === 'waiting_approval'
+    && Boolean(effectivePayment?.proofFile)
+    && !effectivePayment?.adminRejectionReason;
+  const paidOn = effectivePayment?.verifiedAt || null;
   const countdownLabel = (() => {
     if (!paymentMeta) return 'Loading...';
     const ms = Math.max(0, countdownMs);
@@ -287,6 +320,15 @@ export default function CheckStatus() {
     const secs = Math.floor((ms % (1000 * 60)) / 1000);
     return `${days}d ${hours}h ${mins}m ${secs}s`;
   })();
+
+  useEffect(() => {
+    const currentStatus = effectivePayment?.status || null;
+    if (previousPaymentStatusRef.current && previousPaymentStatusRef.current !== 'paid' && currentStatus === 'paid') {
+      showSuccessPopup('Payment verified successfully');
+      loadNotifications().catch(() => {});
+    }
+    previousPaymentStatusRef.current = currentStatus;
+  }, [effectivePayment?.status, loadNotifications, showSuccessPopup]);
 
   const handleNotificationClick = async (notification: SystemNotification) => {
     if (!notification.read) {
@@ -341,9 +383,11 @@ export default function CheckStatus() {
     try {
       await uploadCustomerPaymentProof(selectedQuote.id, selectedProofFile);
       setSelectedProofFile(null);
-      setPaymentMessage('Payment submitted successfully. Waiting for approval.');
+      setPaymentMessage('Proof submitted successfully');
+      showSuccessPopup('Proof submitted successfully');
       await reloadAll();
       await loadPaymentMeta(selectedQuote.id);
+      await loadNotifications();
     } catch (err: any) {
       setPaymentMessage(err?.message || 'Failed to submit payment proof. Please try again.');
     } finally {
@@ -682,51 +726,87 @@ export default function CheckStatus() {
                             {formatCurrency(selectedQuote.updatedCost ?? selectedQuote.estimatedCost)}
                           </div>
                         </div>
-                        <div style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '10px' }}>
+                        <div
+                          style={{
+                            backgroundColor: isPaymentPaid ? '#e8f5e9' : '#f5f7fa',
+                            border: `1px solid ${isPaymentPaid ? '#1a5c1a44' : '#e0e4ea'}`,
+                            borderRadius: '8px',
+                            padding: '10px',
+                          }}
+                        >
                           <div style={{ color: '#9ab0c4', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
-                          <div style={{ color: '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px', textTransform: 'lowercase' }}>
+                          <div style={{ color: isPaymentPaid ? '#1a5c1a' : '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px', textTransform: 'lowercase' }}>
                             {paymentStatusLabel}
                           </div>
-                          {selectedQuote.payment?.adminRejectionReason && (
+                          {isPaymentPaid && (
+                            <div style={{ marginTop: '5px', color: '#1a5c1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Verified
+                            </div>
+                          )}
+                          {effectivePayment?.adminRejectionReason && (
                             <div style={{ marginTop: '6px', color: '#7a0000', fontSize: '11px' }}>
-                              Rejection reason: {selectedQuote.payment.adminRejectionReason}
+                              Rejection reason: {effectivePayment.adminRejectionReason}
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div style={{ backgroundColor: isPaymentExpired ? '#fff0f0' : '#fff8e1', border: `1px solid ${isPaymentExpired ? '#7a000044' : '#f0c04066'}`, borderRadius: '8px', padding: '10px', marginBottom: '10px' }}>
-                        <div style={{ color: isPaymentExpired ? '#7a0000' : '#7a5200', fontSize: '12px', fontWeight: 700 }}>
-                          {isPaymentExpired ? 'Payment window expired' : `Time left to pay: ${countdownLabel}`}
+                      {isPaymentPaid && (
+                        <div style={{ backgroundColor: '#e8f5e9', border: '1px solid #1a5c1a44', borderRadius: '8px', padding: '10px', marginBottom: '10px' }}>
+                          <div style={{ color: '#1a5c1a', fontSize: '12px', fontWeight: 800 }}>
+                            Payment verified successfully
+                          </div>
+                          <div style={{ marginTop: '3px', color: '#2f5f2f', fontSize: '12px' }}>
+                            Paid on {paidOn ? formatDate(paidOn) : 'N/A'}
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {showProofSubmittedSuccess && (
+                        <div style={{ backgroundColor: '#e8f5e9', border: '1px solid #1a5c1a44', borderRadius: '8px', padding: '10px', marginBottom: '10px' }}>
+                          <div style={{ color: '#1a5c1a', fontSize: '12px', fontWeight: 700 }}>
+                            Proof submitted successfully
+                          </div>
+                          <div style={{ marginTop: '3px', color: '#2f5f2f', fontSize: '11px' }}>
+                            Your payment proof is under verification.
+                          </div>
+                        </div>
+                      )}
+
+                      {!isPaymentPaid && (
+                        <div style={{ backgroundColor: isPaymentExpired ? '#fff0f0' : '#fff8e1', border: `1px solid ${isPaymentExpired ? '#7a000044' : '#f0c04066'}`, borderRadius: '8px', padding: '10px', marginBottom: '10px' }}>
+                          <div style={{ color: isPaymentExpired ? '#7a0000' : '#7a5200', fontSize: '12px', fontWeight: 700 }}>
+                            {isPaymentExpired ? 'Payment window expired' : `Time left to pay: ${countdownLabel}`}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex flex-wrap gap-2" style={{ marginBottom: '10px' }}>
                         <button
-                          disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                          disabled={isPaymentExpired || isPaymentPaid}
                           onClick={async () => {
                             await setCustomerPaymentMethod(selectedQuote.id, 'qrph');
                             await reloadAll();
                             await loadPaymentMeta(selectedQuote.id);
                           }}
-                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: selectedQuote.payment?.paymentMethod === 'qrph' ? '#15263c' : 'white', color: selectedQuote.payment?.paymentMethod === 'qrph' ? 'white' : '#15263c', cursor: 'pointer' }}
+                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: effectivePayment?.paymentMethod === 'qrph' ? '#15263c' : 'white', color: effectivePayment?.paymentMethod === 'qrph' ? 'white' : '#15263c', cursor: 'pointer' }}
                         >
                           Pay Online
                         </button>
                         <button
-                          disabled={isPaymentExpired || selectedQuote.payment?.status === 'paid'}
+                          disabled={isPaymentExpired || isPaymentPaid}
                           onClick={async () => {
                             await setCustomerPaymentMethod(selectedQuote.id, 'cash');
                             await reloadAll();
                             await loadPaymentMeta(selectedQuote.id);
                           }}
-                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: selectedQuote.payment?.paymentMethod === 'cash' ? '#15263c' : 'white', color: selectedQuote.payment?.paymentMethod === 'cash' ? 'white' : '#15263c', cursor: 'pointer' }}
+                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: effectivePayment?.paymentMethod === 'cash' ? '#15263c' : 'white', color: effectivePayment?.paymentMethod === 'cash' ? 'white' : '#15263c', cursor: 'pointer' }}
                         >
                           Cash
                         </button>
                       </div>
 
-                      {selectedQuote.payment?.paymentMethod === 'qrph' && (
+                      {effectivePayment?.paymentMethod === 'qrph' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                           <div className="lg:col-span-8" style={{ border: '1px dashed #d9dce3', borderRadius: '8px', padding: '12px' }}>
                             <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '8px' }}>Upload your payment proof (JPG, JPEG, PNG, or PDF, up to 5MB)</div>
@@ -896,7 +976,7 @@ export default function CheckStatus() {
                         </div>
                       )}
 
-                      {selectedQuote.payment?.paymentMethod === 'cash' && (
+                      {effectivePayment?.paymentMethod === 'cash' && (
                         <a
                           href={getCustomerCashReceiptUrl(selectedQuote.id)}
                           target="_blank"
@@ -944,6 +1024,31 @@ export default function CheckStatus() {
           </div>
         )}
       </div>
+
+      {successPopupMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            right: '16px',
+            bottom: '16px',
+            maxWidth: '320px',
+            zIndex: 60,
+            backgroundColor: '#1a5c1a',
+            color: 'white',
+            borderRadius: '10px',
+            border: '1px solid #144714',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            padding: '12px 14px',
+            fontSize: '12px',
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          {successPopupMessage}
+        </div>
+      )}
 
     </div>
   );
