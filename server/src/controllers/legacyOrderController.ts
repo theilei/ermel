@@ -14,6 +14,16 @@ export async function listOrders(req: Request, res: Response) {
   }
 }
 
+export async function getSummary(req: Request, res: Response) {
+  try {
+    const summary = await LegacyOrderModel.getSummary();
+    res.json({ success: true, data: summary });
+  } catch (err: any) {
+    console.error('[legacyOrderController] getSummary error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch order summary' });
+  }
+}
+
 export async function getOrder(req: Request, res: Response) {
   try {
     const order = await LegacyOrderModel.getById(req.params.id);

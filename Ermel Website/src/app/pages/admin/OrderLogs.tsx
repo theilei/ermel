@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  FileText, Search, Filter, Download, Eye, CheckCircle,
+  FileText, Search, Filter, Download, Eye,
   Clock, Package, Hammer, Truck, ChevronLeft, ChevronRight,
-  Calendar, DollarSign, User, ArrowUpDown,
+  Calendar, DollarSign, User,
 } from 'lucide-react';
 import { useApp, type Order, type OrderStatus } from '../../context/AppContext';
 
@@ -134,13 +134,53 @@ function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => vo
 
 // ── Main Component ──
 export default function OrderLogs() {
-  const { orders } = useApp();
+  const { orders, orderSummary, refreshOrders, refreshOrderSummary } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+      refreshTimer = setTimeout(() => {
+        Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+          // Keep UI stable even if refresh fails.
+        });
+      }, 120);
+    };
+
+    // Ensure this page always starts with latest backend data.
+    queueRefresh();
+
+    const intervalId = window.setInterval(() => {
+      Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+        // Ignore transient network errors.
+      });
+    }, 5000);
+
+    const handleWindowFocus = () => {
+      Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+        // Ignore transient network errors.
+      });
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
+    };
+  }, [refreshOrders, refreshOrderSummary]);
 
   const filtered = useMemo(() => {
     let data = [...orders];
@@ -165,13 +205,7 @@ export default function OrderLogs() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Summary stats
-  const stats = useMemo(() => ({
-    total: orders.length,
-    totalRevenue: orders.reduce((s, o) => s + (o.approvedCost || o.estimatedCost), 0),
-    paid: orders.filter((o) => o.paid).length,
-    active: orders.filter((o) => o.status !== 'installation').length,
-  }), [orders]);
+  const stats = orderSummary;
 
   return (
     <div className="p-6">
@@ -189,12 +223,11 @@ export default function OrderLogs() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Total Orders', value: stats.total, icon: FileText, color: '#15263c', bg: '#e8ecf1' },
-          { label: 'Total Revenue', value: `₱${(stats.totalRevenue / 1000).toFixed(0)}K`, icon: DollarSign, color: '#1a5c1a', bg: '#e8f5e9' },
-          { label: 'Paid Orders', value: stats.paid, icon: CheckCircle, color: '#005c7a', bg: '#e6f4f8' },
-          { label: 'Active Orders', value: stats.active, icon: Clock, color: '#7a5200', bg: '#fff8e6' },
+          { label: 'Total Orders', value: stats.totalOrders, icon: FileText, color: '#15263c', bg: '#e8ecf1' },
+          { label: 'Total Revenue', value: `₱${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: '#1a5c1a', bg: '#e8f5e9' },
+          { label: 'Active Orders', value: stats.activeOrders, icon: Clock, color: '#7a5200', bg: '#fff8e6' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="p-5" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
             <div className="flex items-center gap-3 mb-3">

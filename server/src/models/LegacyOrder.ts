@@ -27,6 +27,12 @@ export interface LegacyOrder {
   updatedAt: string;
 }
 
+export interface LegacyOrderSummary {
+  totalOrders: number;
+  totalRevenue: number;
+  activeOrders: number;
+}
+
 function rowToOrder(row: any): LegacyOrder {
   return {
     id: row.order_number,
@@ -75,6 +81,23 @@ export const LegacyOrderModel = {
       [email]
     );
     return rows.map(rowToOrder);
+  },
+
+  async getSummary(): Promise<LegacyOrderSummary> {
+    const { rows } = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE paid = TRUE) AS total_orders,
+         COALESCE(SUM(COALESCE(approved_cost, estimated_cost)) FILTER (WHERE paid = TRUE), 0) AS total_revenue,
+         COUNT(*) FILTER (WHERE paid = TRUE AND scheduled_date IS NOT NULL AND scheduled_date >= CURRENT_DATE) AS active_orders
+       FROM legacy_orders`
+    );
+
+    const row = rows[0] || {};
+    return {
+      totalOrders: Number(row.total_orders || 0),
+      totalRevenue: Number(row.total_revenue || 0),
+      activeOrders: Number(row.active_orders || 0),
+    };
   },
 
   async create(data: {
