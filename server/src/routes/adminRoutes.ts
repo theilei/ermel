@@ -38,6 +38,7 @@ router.put('/orders/:id/status', orderCtrl.updateInstallationStatus);
 
 // ---- Legacy Orders (general project tracking) ----
 router.get('/legacy-orders', legacyOrderCtrl.listOrders);
+router.get('/legacy-orders/summary', legacyOrderCtrl.getSummary);
 router.get('/legacy-orders/:id', legacyOrderCtrl.getOrder);
 router.post('/legacy-orders', legacyOrderCtrl.createOrder);
 router.put('/legacy-orders/:id/status', legacyOrderCtrl.updateStatus);
