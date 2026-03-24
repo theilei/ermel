@@ -8,6 +8,7 @@ type AdminPayment = {
   id: string;
   quoteId: string;
   quoteNumber?: string;
+  quoteStatus?: string;
   customerName?: string;
   projectType?: string;
   amountDue?: number;
@@ -85,14 +86,20 @@ export default function PaymentApproval() {
     };
   }, [loadPayments, refreshQuotes]);
 
+  const toDisplayStatus = useCallback((payment: AdminPayment) => {
+    const quoteStatus = String(payment.quoteStatus || '').toLowerCase();
+    if (quoteStatus === 'cancelled' || quoteStatus === 'expired') return 'expired';
+    return payment.status;
+  }, []);
+
   const waitingApprovalCount = useMemo(
-    () => payments.filter((p) => p.status === 'waiting_approval').length,
-    [payments]
+    () => payments.filter((p) => toDisplayStatus(p) === 'waiting_approval').length,
+    [payments, toDisplayStatus]
   );
 
   const verifiedPaymentsCount = useMemo(
-    () => payments.filter((p) => p.status === 'paid').length,
-    [payments]
+    () => payments.filter((p) => toDisplayStatus(p) === 'paid').length,
+    [payments, toDisplayStatus]
   );
 
   const noPaymentProofCount = useMemo(
@@ -274,8 +281,9 @@ export default function PaymentApproval() {
               ) : (
                 filteredPayments.map((payment) => {
                   const proofUrl = toProofUrl(payment.proofFile);
+                  const displayStatus = toDisplayStatus(payment);
                   const isBusy = activeActionQuote === payment.quoteId;
-                  const canTakeAction = payment.status === 'waiting_approval' && Boolean(proofUrl);
+                  const canTakeAction = displayStatus === 'waiting_approval' && Boolean(proofUrl);
                   return (
                     <tr key={payment.id} style={{ borderBottom: '1px solid #f0f2f5' }}>
                       <td style={{ padding: '12px 16px', color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{payment.quoteNumber || payment.quoteId}</td>
@@ -328,9 +336,9 @@ export default function PaymentApproval() {
                       <td style={{ padding: '12px 16px' }}>
                         <span
                           style={{
-                            color: payment.status === 'paid' ? '#1a5c1a' : payment.status === 'expired' ? '#7a0000' : '#7a5200',
-                            backgroundColor: payment.status === 'paid' ? '#e8f5e9' : payment.status === 'expired' ? '#fff0f0' : '#fff8e6',
-                            border: `1px solid ${payment.status === 'paid' ? '#1a5c1a44' : payment.status === 'expired' ? '#7a000044' : '#f0c04066'}`,
+                            color: displayStatus === 'paid' ? '#1a5c1a' : displayStatus === 'expired' ? '#7a0000' : '#7a5200',
+                            backgroundColor: displayStatus === 'paid' ? '#e8f5e9' : displayStatus === 'expired' ? '#fff0f0' : '#fff8e6',
+                            border: `1px solid ${displayStatus === 'paid' ? '#1a5c1a44' : displayStatus === 'expired' ? '#7a000044' : '#f0c04066'}`,
                             padding: '2px 8px',
                             borderRadius: '999px',
                             fontSize: '11px',
@@ -340,7 +348,7 @@ export default function PaymentApproval() {
                             letterSpacing: '0.04em',
                           }}
                         >
-                          {payment.status === 'waiting_approval' ? 'Waiting Approval' : payment.status}
+                          {displayStatus === 'waiting_approval' ? 'Waiting Approval' : displayStatus}
                         </span>
                         {payment.adminRejectionReason && (
                           <div style={{ marginTop: '6px', color: '#7a0000', fontSize: '11px', maxWidth: '220px' }}>

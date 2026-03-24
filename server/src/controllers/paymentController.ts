@@ -7,6 +7,7 @@ import pool from '../config/database';
 import * as QuoteModel from '../models/QuoteDB';
 import * as PaymentModel from '../models/PaymentDB';
 import * as NotificationService from '../services/notificationService';
+import * as ActivityLogService from '../services/activityLogService';
 import { sendEmail } from '../services/emailService';
 import { generateCashReceiptPdf } from '../services/paymentReceiptService';
 
@@ -211,6 +212,8 @@ export async function submitQrphProof(req: Request, res: Response) {
       proofMime: file.mimetype,
     });
 
+    await ActivityLogService.logCustomerPaymentProofSubmitted(quote.id, quote.quoteNumber, quote.customerName).catch(() => {});
+
     await NotificationService.notifyPaymentSubmitted(quote.customerEmail, quote.quoteNumber);
     await NotificationService.notifyAdminsPaymentSubmitted(quote.quoteNumber, quote.customerName);
 
@@ -310,6 +313,9 @@ export async function adminApprovePayment(req: Request, res: Response) {
     }
 
     const updated = await PaymentModel.markPaymentPaid(quote.id);
+    const adminName = req.session?.userName || 'Admin';
+
+    await ActivityLogService.logAdminPaymentVerified(quote.id, quote.quoteNumber, adminName).catch(() => {});
 
     await pool.query(
       `UPDATE reservations

@@ -31,5 +31,29 @@ export function logInstallationStatusUpdated(orderId: string, adminName: string,
   return addLog({ action: 'Installation status updated', entity: 'order', entityId: orderId, orderId, userRole: 'admin', userName: adminName, details: `Status: ${newStatus}` });
 }
 
+export function logCustomerPaymentProofSubmitted(quoteId: string, quoteNumber: string, customerName: string) {
+  return addLog({
+    action: 'Customer submitted payment proof',
+    entity: 'payment',
+    entityId: quoteId,
+    quoteId,
+    userRole: 'customer',
+    userName: customerName,
+    details: `Quote ${quoteNumber}`,
+  });
+}
+
+export function logAdminPaymentVerified(quoteId: string, quoteNumber: string, adminName: string) {
+  return addLog({
+    action: 'Admin verified payment',
+    entity: 'payment',
+    entityId: quoteId,
+    quoteId,
+    userRole: 'admin',
+    userName: adminName,
+    details: `Quote ${quoteNumber}`,
+  });
+}
+
 export { getAllLogs, getLogsByQuote, getLogsByOrder };
 export type { ActivityLog };
