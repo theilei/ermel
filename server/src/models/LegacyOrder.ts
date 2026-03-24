@@ -59,12 +59,85 @@ function rowToOrder(row: any): LegacyOrder {
   };
 }
 
+function rowToOrderFromQuote(row: any): LegacyOrder {
+  const width = Number(row.width || 0);
+  const height = Number(row.height || 0);
+  const quantity = Number(row.quantity || 1);
+  const dimensions = `${width}cm x ${height}cm x ${quantity}`;
+  const scheduledDate = row.scheduled_date
+    ? new Date(row.scheduled_date).toISOString().split('T')[0]
+    : null;
+
+  return {
+    id: row.order_number,
+    orderNumber: row.order_number,
+    customer: row.customer,
+    project: row.project,
+    material: row.material,
+    glassType: row.glass_type,
+    dimensions,
+    width,
+    height,
+    estimatedCost: Number(row.estimated_cost || 0),
+    approvedCost: Number(row.approved_cost || 0),
+    status: row.status,
+    phone: row.phone || '',
+    email: row.email || '',
+    address: row.address || null,
+    notes: row.notes || null,
+    paid: Boolean(row.paid),
+    paymentUploaded: Boolean(row.payment_uploaded),
+    scheduledDate,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export const LegacyOrderModel = {
   async getAll(): Promise<LegacyOrder[]> {
-    const { rows } = await pool.query(
-      'SELECT * FROM legacy_orders ORDER BY created_at DESC'
-    );
-    return rows.map(rowToOrder);
+    const [legacyResult, quoteResult] = await Promise.all([
+      pool.query('SELECT * FROM legacy_orders'),
+      pool.query(
+        `SELECT
+           q.quote_number AS order_number,
+           q.customer_name AS customer,
+           q.project_type AS project,
+           q.frame_material AS material,
+           q.glass_type,
+           q.width,
+           q.height,
+           q.quantity,
+           COALESCE(q.updated_cost, q.estimated_cost, 0) AS estimated_cost,
+           COALESCE(q.updated_cost, q.estimated_cost, 0) AS approved_cost,
+           CASE
+             WHEN p.status = 'paid' AND r.reservation_date IS NOT NULL AND r.reservation_date > CURRENT_DATE THEN 'installation'
+             WHEN p.status = 'paid' THEN 'fabrication'
+             WHEN q.status IN ('approved', 'customer_accepted', 'converted_to_order') THEN 'ordering'
+             ELSE 'quotation'
+           END AS status,
+           q.customer_phone AS phone,
+           q.customer_email AS email,
+           q.customer_address AS address,
+           q.notes,
+           (p.status = 'paid') AS paid,
+           (p.id IS NOT NULL) AS payment_uploaded,
+           r.reservation_date AS scheduled_date,
+           q.created_at,
+           q.updated_at
+         FROM qq_quotes q
+         LEFT JOIN payments p ON p.quote_id = q.id
+         LEFT JOIN reservations r ON r.quote_id = q.id
+         WHERE q.deleted_at IS NULL
+           AND p.status = 'paid'`
+      ),
+    ]);
+
+    const combined = [
+      ...legacyResult.rows.map(rowToOrder),
+      ...quoteResult.rows.map(rowToOrderFromQuote),
+    ];
+
+    return combined.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   },
 
   async getById(id: string): Promise<LegacyOrder | null> {
@@ -84,19 +157,40 @@ export const LegacyOrderModel = {
   },
 
   async getSummary(): Promise<LegacyOrderSummary> {
-    const { rows } = await pool.query(
-      `SELECT
-         COUNT(*) FILTER (WHERE paid = TRUE) AS total_orders,
-         COALESCE(SUM(COALESCE(approved_cost, estimated_cost)) FILTER (WHERE paid = TRUE), 0) AS total_revenue,
-         COUNT(*) FILTER (WHERE paid = TRUE AND scheduled_date IS NOT NULL AND scheduled_date >= CURRENT_DATE) AS active_orders
-       FROM legacy_orders`
-    );
+    const [legacySummary, quoteSummary] = await Promise.all([
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE (paid = TRUE OR payment_uploaded = TRUE)) AS total_orders,
+           COALESCE(SUM(COALESCE(approved_cost, estimated_cost)) FILTER (WHERE (paid = TRUE OR payment_uploaded = TRUE)), 0) AS total_revenue,
+           COUNT(*) FILTER (
+             WHERE (paid = TRUE OR payment_uploaded = TRUE)
+               AND scheduled_date IS NOT NULL
+               AND scheduled_date > CURRENT_DATE
+           ) AS active_orders
+         FROM legacy_orders`
+      ),
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE p.status = 'paid') AS total_orders,
+           COALESCE(SUM(COALESCE(q.updated_cost, q.estimated_cost, 0)) FILTER (WHERE p.status = 'paid'), 0) AS total_revenue,
+           COUNT(*) FILTER (
+             WHERE p.status = 'paid'
+               AND r.reservation_date IS NOT NULL
+               AND r.reservation_date > CURRENT_DATE
+           ) AS active_orders
+         FROM qq_quotes q
+         LEFT JOIN payments p ON p.quote_id = q.id
+         LEFT JOIN reservations r ON r.quote_id = q.id
+         WHERE q.deleted_at IS NULL`
+      ),
+    ]);
 
-    const row = rows[0] || {};
+    const legacyRow = legacySummary.rows[0] || {};
+    const quoteRow = quoteSummary.rows[0] || {};
     return {
-      totalOrders: Number(row.total_orders || 0),
-      totalRevenue: Number(row.total_revenue || 0),
-      activeOrders: Number(row.active_orders || 0),
+      totalOrders: Number(legacyRow.total_orders || 0) + Number(quoteRow.total_orders || 0),
+      totalRevenue: Number(legacyRow.total_revenue || 0) + Number(quoteRow.total_revenue || 0),
+      activeOrders: Number(legacyRow.active_orders || 0) + Number(quoteRow.active_orders || 0),
     };
   },
 
@@ -154,7 +248,8 @@ export const LegacyOrderModel = {
   async markPaymentUploaded(id: string): Promise<LegacyOrder | null> {
     const { rows } = await pool.query(
       `UPDATE legacy_orders
-       SET payment_uploaded = TRUE
+       SET payment_uploaded = TRUE,
+           paid = TRUE
        WHERE order_number = $1 OR id::text = $1
        RETURNING *`,
       [id]

@@ -1,25 +1,44 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   FileText, Search, Filter, Download, Eye,
-  Clock, Package, Hammer, Truck, ChevronLeft, ChevronRight,
+  Clock, CheckCircle2, Truck, ChevronLeft, ChevronRight,
   Calendar, DollarSign, User,
 } from 'lucide-react';
-import { useApp, type Order, type OrderStatus } from '../../context/AppContext';
+import { useApp, type Order } from '../../context/AppContext';
 
 const ITEMS_PER_PAGE = 10;
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: any }> = {
-  inquiry:      { label: 'Inquiry',      color: '#54667d', bg: '#f0f3f7', icon: Clock },
-  quotation:    { label: 'Quotation',    color: '#7a5200', bg: '#fff8e6', icon: FileText },
-  ordering:     { label: 'Ordering',     color: '#005c7a', bg: '#e6f4f8', icon: Package },
-  fabrication:  { label: 'Fabrication',  color: '#15263c', bg: '#e8ecf1', icon: Hammer },
-  installation: { label: 'Installation', color: '#1a5c1a', bg: '#e8f5e9', icon: Truck },
+type DisplayOrderStatus = 'installed' | 'active';
+
+type OrderWithDisplayStatus = Order & {
+  displayStatus: DisplayOrderStatus;
+};
+
+const STATUS_CONFIG: Record<DisplayOrderStatus, { label: string; color: string; bg: string; icon: any }> = {
+  installed: { label: 'Installed', color: '#1a5c1a', bg: '#e8f5e9', icon: CheckCircle2 },
+  active: { label: 'Active', color: '#005c7a', bg: '#e6f4f8', icon: Truck },
 };
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
   ...Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label })),
 ];
+
+function isPaidEquivalent(order: Order): boolean {
+  return Boolean(order.paid || order.paymentUploaded);
+}
+
+function getDisplayStatus(order: Order): DisplayOrderStatus | null {
+  if (!isPaidEquivalent(order) || !order.scheduledDate) return null;
+
+  const scheduledIso = String(order.scheduledDate).slice(0, 10);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // Installed: paid and already past today. Active: paid and strictly future date.
+  if (scheduledIso < todayIso) return 'installed';
+  if (scheduledIso > todayIso) return 'active';
+  return null;
+}
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Newest First' },
@@ -30,7 +49,8 @@ const SORT_OPTIONS = [
 
 // ── Detail Drawer ──
 function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
-  const cfg = STATUS_CONFIG[order.status];
+  const displayStatus = getDisplayStatus(order) || 'active';
+  const cfg = STATUS_CONFIG[displayStatus];
   const Icon = cfg.icon;
   return (
     <div
@@ -183,8 +203,16 @@ export default function OrderLogs() {
   }, [refreshOrders, refreshOrderSummary]);
 
   const filtered = useMemo(() => {
-    let data = [...orders];
-    if (statusFilter !== 'all') data = data.filter((o) => o.status === statusFilter);
+    let data: OrderWithDisplayStatus[] = orders
+      .map((order) => {
+        const displayStatus = getDisplayStatus(order);
+        if (!displayStatus) return null;
+        return { ...order, displayStatus };
+      })
+      .filter((order): order is OrderWithDisplayStatus => order !== null);
+
+    if (statusFilter !== 'all') data = data.filter((o) => o.displayStatus === statusFilter);
+
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter((o) =>
@@ -328,7 +356,7 @@ export default function OrderLogs() {
                   </td>
                 </tr>
               ) : paginated.map((order, idx) => {
-                const cfg = STATUS_CONFIG[order.status];
+                const cfg = STATUS_CONFIG[order.displayStatus];
                 const Icon = cfg.icon;
                 return (
                   <tr
