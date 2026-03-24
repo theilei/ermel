@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Menu, X, User, LogOut, FileText } from 'lucide-react';
+import { Menu, X, User, LogOut, FileText, ChevronDown } from 'lucide-react';
 import logoImg from '../../assets/e11197c9a69ce4af64c22995e5b9ed17b033f7df.png';
 import { useAuth } from '../context/AuthContext';
 import { useAccountIdentity } from '../hooks/useAccountIdentity';
@@ -11,11 +11,34 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [productsPinnedOpen, setProductsPinnedOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   const accountRef = useRef<HTMLDivElement | null>(null);
+  const productsRef = useRef<HTMLDivElement | null>(null);
+  const productsCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingHomeSectionRef = useRef<string | null>(null);
+
+  const openProductsDropdown = useCallback(() => {
+    if (productsCloseTimerRef.current) {
+      clearTimeout(productsCloseTimerRef.current);
+      productsCloseTimerRef.current = null;
+    }
+    setProductsOpen(true);
+  }, []);
+
+  const closeProductsDropdown = useCallback(() => {
+    if (productsPinnedOpen) return;
+    if (productsCloseTimerRef.current) {
+      clearTimeout(productsCloseTimerRef.current);
+    }
+    productsCloseTimerRef.current = setTimeout(() => {
+      setProductsOpen(false);
+      productsCloseTimerRef.current = null;
+    }, 160);
+  }, [productsPinnedOpen]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -24,10 +47,25 @@ export function Header() {
         setAccountOpen(false);
       }
 
+      if (productsRef.current && !productsRef.current.contains(event.target as Node)) {
+        if (productsCloseTimerRef.current) {
+          clearTimeout(productsCloseTimerRef.current);
+          productsCloseTimerRef.current = null;
+        }
+        setProductsPinnedOpen(false);
+        setProductsOpen(false);
+      }
+
     };
 
     document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      if (productsCloseTimerRef.current) {
+        clearTimeout(productsCloseTimerRef.current);
+        productsCloseTimerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -174,36 +212,116 @@ export function Header() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1">
-          <Link
-            to="/products/glass"
-            style={{
-              fontFamily: 'var(--font-heading)',
-              color: location.pathname.startsWith('/products') ? 'white' : '#d9d9d9',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              fontSize: '15px',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              transition: 'all 0.2s',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-              backgroundColor: location.pathname.startsWith('/products') ? 'rgba(255,255,255,0.08)' : 'transparent',
-            }}
-            onClick={() => {
-              setMenuOpen(false);
-              setAccountOpen(false);
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.color = 'white';
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.color = location.pathname.startsWith('/products') ? 'white' : '#d9d9d9';
-              (e.currentTarget as HTMLElement).style.backgroundColor = location.pathname.startsWith('/products') ? 'rgba(255,255,255,0.08)' : 'transparent';
-            }}
+          <div
+            ref={productsRef}
+            className="relative"
+            onMouseEnter={openProductsDropdown}
+            onMouseLeave={closeProductsDropdown}
           >
-            Products
-          </Link>
+            <button
+              type="button"
+              style={{
+                fontFamily: 'var(--font-heading)',
+                color: location.pathname.startsWith('/products') || productsOpen ? 'white' : '#d9d9d9',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                fontSize: '15px',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                transition: 'all 0.2s',
+                textTransform: 'uppercase',
+                backgroundColor: location.pathname.startsWith('/products') || productsOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => {
+                setProductsPinnedOpen((v) => {
+                  const next = !v;
+                  setProductsOpen(next);
+                  return next;
+                });
+                setMenuOpen(false);
+                setAccountOpen(false);
+              }}
+            >
+              Products
+              <ChevronDown
+                size={14}
+                style={{
+                  transform: productsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            </button>
+
+            {productsOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  minWidth: '180px',
+                  backgroundColor: '#0f1e30',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px',
+                  boxShadow: '0 12px 26px rgba(0,0,0,0.35)',
+                  overflow: 'hidden',
+                  zIndex: 900,
+                }}
+                onMouseEnter={openProductsDropdown}
+                onMouseLeave={closeProductsDropdown}
+              >
+                <Link
+                  to="/products/glass"
+                  style={{
+                    display: 'block',
+                    padding: '10px 14px',
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '13px',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    color: location.pathname === '/products/glass' ? 'white' : '#d9d9d9',
+                    backgroundColor: location.pathname === '/products/glass' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  }}
+                  onClick={() => {
+                    setProductsPinnedOpen(false);
+                    setProductsOpen(false);
+                    setMenuOpen(false);
+                    setAccountOpen(false);
+                  }}
+                >
+                  Glass
+                </Link>
+                <Link
+                  to="/products/aluminum"
+                  style={{
+                    display: 'block',
+                    padding: '10px 14px',
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '13px',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    color: location.pathname === '/products/aluminum' ? 'white' : '#d9d9d9',
+                    backgroundColor: location.pathname === '/products/aluminum' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                  onClick={() => {
+                    setProductsPinnedOpen(false);
+                    setProductsOpen(false);
+                    setMenuOpen(false);
+                    setAccountOpen(false);
+                  }}
+                >
+                  Aluminum
+                </Link>
+              </div>
+            )}
+          </div>
           {navLinks.map((link) =>
             link.to ? (
               <Link
@@ -224,6 +342,8 @@ export function Header() {
                 }}
                 onClick={() => {
                   setMenuOpen(false);
+                  setProductsPinnedOpen(false);
+                  setProductsOpen(false);
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.color = 'white';

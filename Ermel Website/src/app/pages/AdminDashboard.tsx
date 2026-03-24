@@ -196,17 +196,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!supabase) return;
     const client = supabase;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        loadDashboardMetrics();
+      }, 120);
+    };
+
     const channel = client
       .channel('admin-dashboard-metrics-live')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, () => {
-        loadDashboardMetrics();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, () => {
-        loadDashboardMetrics();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'qq_quotes' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, queueRefresh)
       .subscribe();
 
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       client.removeChannel(channel);
     };
   }, [loadDashboardMetrics]);

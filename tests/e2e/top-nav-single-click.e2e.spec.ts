@@ -29,7 +29,15 @@ test.describe('Top nav single-click behavior', () => {
     await page.getByRole('link', { name: /ERMEL/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
-    await page.locator('header a[href="/products/glass"]:visible').first().click();
-    await expect(page).toHaveURL(/\/products\/glass$/);
+    const headerNav = page.locator('header').first();
+    const productsButton = headerNav.getByRole('button', { name: /products/i });
+    await productsButton.click();
+
+    const glassLink = headerNav.getByRole('link', { name: /^glass$/i });
+    await expect(glassLink).toBeVisible();
+    await glassLink.click({ trial: true });
+    await glassLink.click({ force: true });
+
+    await expect(page).toHaveURL(/\/products\/glass\/?$/);
   });
 });

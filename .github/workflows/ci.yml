@@ -47,6 +47,25 @@ jobs:
         working-directory: server
         run: npm run typecheck
 
+      - name: Start backend server
+        working-directory: server
+        run: |
+          npm run start > ../backend.log 2>&1 &
+
+      - name: Wait for backend API
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4000/api/health > /dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to start in time"
+          echo "--- backend.log ---"
+          cat backend.log || true
+          exit 1
+
       - name: Run tests
         working-directory: tests
         run: npm test

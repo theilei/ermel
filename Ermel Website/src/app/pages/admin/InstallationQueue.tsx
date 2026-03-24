@@ -25,7 +25,7 @@ export default function InstallationQueue() {
     setLoading(true);
     try {
       const data = await api.fetchQuotes({
-        status: 'converted_to_order',
+        status: 'installation_queue',
         page: currentPage,
         limit: ITEMS_PER_PAGE,
       });
@@ -50,14 +50,24 @@ export default function InstallationQueue() {
   useEffect(() => {
     if (!supabase) return;
     const client = supabase;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        loadPage();
+      }, 120);
+    };
 
     const channel = client
       .channel('admin-installation-queue-live')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, () => loadPage())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, () => loadPage())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'qq_quotes' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, queueRefresh)
       .subscribe();
 
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       client.removeChannel(channel);
     };
   }, [loadPage]);
@@ -88,7 +98,7 @@ export default function InstallationQueue() {
             </span>
           </div>
           <div style={{ fontFamily: 'var(--font-heading)', color: '#6b21a8', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Converted to Order
+            Paid Installations
           </div>
         </div>
 
@@ -152,10 +162,10 @@ export default function InstallationQueue() {
                     <div className="flex flex-col items-center gap-3">
                       <Truck size={40} color="#d9d9d9" />
                       <div style={{ color: '#aaa', fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase' }}>
-                        No converted quotes in queue
+                        No paid installations in queue
                       </div>
                       <div style={{ color: '#aaa', fontSize: '13px', fontFamily: 'var(--font-body)' }}>
-                        Orders will appear here once quotes are converted.
+                        Entries appear after approval, paid verification, and a valid reservation date.
                       </div>
                     </div>
                   </td>

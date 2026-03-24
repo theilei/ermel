@@ -109,20 +109,24 @@ export function QuoteProvider({ children }: { children: React.ReactNode }) {
 
     const quoteChannel = client
       .channel('quote-context-qq-quotes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qq_quotes' }, queueRefresh)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'qq_quotes' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'qq_quotes' }, queueRefresh)
       .subscribe();
 
     const paymentChannel = client
       .channel('quote-context-payments')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, queueRefresh)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'payments' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, queueRefresh)
+      .subscribe();
+
+    const reservationChannel = client
+      .channel('quote-context-reservations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, queueRefresh)
       .subscribe();
 
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       client.removeChannel(quoteChannel);
       client.removeChannel(paymentChannel);
+      client.removeChannel(reservationChannel);
     };
   }, [refreshLogs, refreshOrders, refreshQuotes]);
 

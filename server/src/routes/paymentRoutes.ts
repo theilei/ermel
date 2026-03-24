@@ -4,7 +4,9 @@ import * as paymentCtrl from '../controllers/paymentController';
 
 const router = Router();
 
-router.use(requireAuth);
+// Only payment endpoints require authentication.
+// Keep unrelated /api routes (e.g. /api/health) publicly reachable.
+router.use(['/customer', '/admin'], requireAuth);
 
 router.get('/customer/quotes/:id/payment', paymentCtrl.getCustomerPayment);
 router.post('/customer/quotes/:id/payment/method', paymentCtrl.setPaymentMethod);
