@@ -25,6 +25,7 @@ import Register from './pages/Register';
 import VerifyEmailResult from './pages/VerifyEmailResult';
 import VerificationRequired from './pages/VerificationRequired';
 import Forbidden from './pages/Forbidden';
+import RouteErrorPage from './pages/RouteErrorPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import AnalyticsDSS from './pages/AnalyticsDSS';
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     Component: Root,
+    errorElement: <RouteErrorPage />,
     children: [
       { index: true, Component: Home },
       { path: 'about', Component: About },
@@ -75,6 +77,7 @@ export const router = createBrowserRouter([
   { path: '/admin/login', Component: AdminLogin },
   {
     path: '/admin',
+    errorElement: <RouteErrorPage />,
     element: (
       <AdminRoute>
         <AdminLayout />
@@ -94,4 +97,5 @@ export const router = createBrowserRouter([
       { path: 'settings', Component: AdminSettings },
     ],
   },
+  { path: '*', Component: RouteErrorPage },
 ]);

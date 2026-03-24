@@ -56,6 +56,11 @@ export default function AdminLayout() {
   }, [navigate, user]);
 
   useEffect(() => {
+    const fullPath = `${location.pathname}${location.search}${location.hash}`;
+    sessionStorage.setItem('ermel.last.good.path', fullPath);
+  }, [location.pathname, location.search, location.hash]);
+
+  useEffect(() => {
     const stored = localStorage.getItem('ermel_admin_unread_quotes');
     if (stored) {
       try {
