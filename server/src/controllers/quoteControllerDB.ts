@@ -63,7 +63,17 @@ export async function listQuotes(req: Request, res: Response) {
     // Filter by status
     const status = req.query.status as string;
     if (status && status !== 'all') {
-      quotes = quotes.filter((q) => q.status === status);
+      if (status === 'installation_queue') {
+        const today = new Date().toISOString().slice(0, 10);
+        quotes = quotes.filter((q) => {
+          if (q.status !== 'approved') return false;
+          if (q.payment?.status !== 'paid') return false;
+          if (!q.reservationDate) return false;
+          return q.reservationDate >= today;
+        });
+      } else {
+        quotes = quotes.filter((q) => q.status === status);
+      }
     }
 
     // Pagination

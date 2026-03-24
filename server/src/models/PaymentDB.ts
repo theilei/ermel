@@ -256,6 +256,11 @@ export async function expireOldPendingPayments(): Promise<number> {
        FROM overdue o
        WHERE q.id = o.quote_id
        RETURNING q.id
+     ), released_reservations AS (
+       DELETE FROM reservations r
+       USING overdue o
+       WHERE r.quote_id = o.quote_id
+       RETURNING r.id
      ), upsert_payments AS (
        INSERT INTO payments (quote_id, payment_method, status)
        SELECT o.quote_id, 'cash', 'expired' FROM overdue o
@@ -265,6 +270,7 @@ export async function expireOldPendingPayments(): Promise<number> {
        RETURNING quote_id
      )
      SELECT (SELECT COUNT(*) FROM updated_quotes) AS quote_count,
+            (SELECT COUNT(*) FROM released_reservations) AS reservation_count,
             (SELECT COUNT(*) FROM upsert_payments) AS payment_count`
   );
 

@@ -388,79 +388,44 @@ export async function expireOldQuotes(): Promise<number> {
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const hasPaymentStatus = await pool.query(
-    `SELECT EXISTS (
-      SELECT 1
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = 'qq_quotes'
-        AND column_name = 'payment_status'
-    ) AS exists`
-  );
-
-  const paymentStatusExists = Boolean(hasPaymentStatus.rows[0]?.exists);
-
-  const hasReservationDate = await pool.query(
-    `SELECT EXISTS (
-      SELECT 1
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = 'qq_quotes'
-        AND column_name = 'reservation_date'
-    ) AS exists`
-  );
-
-  const reservationDateExists = Boolean(hasReservationDate.rows[0]?.exists);
-  const reservationExpr = reservationDateExists
-    ? 'COALESCE(q.reservation_date, r.reservation_date)'
-    : 'r.reservation_date';
-
-  const countsQuery = paymentStatusExists
-    ? `SELECT
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
-         COUNT(*) FILTER (
-           WHERE q.deleted_at IS NULL
-             AND q.status = 'approved'
-             AND q.payment_status = 'paid'
-             AND ${reservationExpr} IS NOT NULL
-         )::int AS active_installations
-       FROM qq_quotes q
-       LEFT JOIN reservations r ON r.quote_id = q.id`
-    : `SELECT
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
-         COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
-         0::int AS active_installations
-       FROM qq_quotes q
-       LEFT JOIN reservations r ON r.quote_id = q.id`;
-
-  const countsResult = await pool.query(countsQuery);
-  const counts = countsResult.rows[0] || {};
-
-  const activeRows = paymentStatusExists
-    ? await pool.query(
-        `SELECT
-           q.quote_number,
-           q.customer_name,
-           q.project_type,
-           q.width,
-           q.height,
-           q.quantity,
-           q.color,
-           COALESCE(q.updated_cost, q.estimated_cost, 0) AS effective_cost,
-           q.status,
-           ${reservationExpr}::text AS reservation_date
-         FROM qq_quotes q
-         LEFT JOIN reservations r ON r.quote_id = q.id
+  const countsResult = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
+       COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
+       COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
+       COUNT(*) FILTER (
          WHERE q.deleted_at IS NULL
            AND q.status = 'approved'
-           AND q.payment_status = 'paid'
-           AND ${reservationExpr} IS NOT NULL
-         ORDER BY ${reservationExpr} ASC, q.created_at DESC`
-      )
-    : { rows: [] as any[] };
+           AND p.status = 'paid'
+           AND r.reservation_date IS NOT NULL
+           AND r.reservation_date >= CURRENT_DATE
+       )::int AS active_installations
+     FROM qq_quotes q
+     LEFT JOIN payments p ON p.quote_id = q.id
+     LEFT JOIN reservations r ON r.quote_id = q.id`
+  );
+  const counts = countsResult.rows[0] || {};
+
+  const activeRows = await pool.query(
+    `SELECT
+       q.quote_number,
+       q.customer_name,
+       q.project_type,
+       q.width,
+       q.height,
+       q.quantity,
+       q.color,
+       COALESCE(q.updated_cost, q.estimated_cost, 0) AS effective_cost,
+       q.status,
+       r.reservation_date::text AS reservation_date
+     FROM qq_quotes q
+     JOIN payments p ON p.quote_id = q.id AND p.status = 'paid'
+     JOIN reservations r ON r.quote_id = q.id
+     WHERE q.deleted_at IS NULL
+       AND q.status = 'approved'
+       AND r.reservation_date >= CURRENT_DATE
+     ORDER BY r.reservation_date ASC, q.created_at DESC`
+  );
 
   return {
     pendingInquiries: Number(counts.pending_inquiries || 0),
