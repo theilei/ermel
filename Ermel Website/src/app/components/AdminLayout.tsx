@@ -388,8 +388,16 @@ export default function AdminLayout() {
             {/* Notification Bell */}
             <button
               className="relative p-3"
-              style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px' }}
+              style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', cursor: 'pointer', transition: 'background-color 0.18s ease, border-color 0.18s ease' }}
               onClick={() => setOpenNotifications((v) => !v)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e9edf3';
+                e.currentTarget.style.borderColor = '#cfd6df';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f7fa';
+                e.currentTarget.style.borderColor = '#e0e4ea';
+              }}
             >
               <Bell size={18} color="#54667d" />
               {unreadCount > 0 && (
@@ -414,6 +422,12 @@ export default function AdminLayout() {
                     key={item.id}
                     onClick={() => handleOpenQuoteFromNotif(item.id)}
                     style={{ width: '100%', textAlign: 'left', padding: '12px 14px', borderBottom: '1px solid #f0f2f5', backgroundColor: item.unread ? '#fff8e1' : 'white', cursor: 'pointer' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = item.unread ? '#ffefbf' : '#f7f9fc';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = item.unread ? '#fff8e1' : 'white';
+                    }}
                   >
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: '12px', color: '#15263c', fontWeight: 700 }}>{item.title}</div>
                     <div style={{ fontSize: '12px', color: '#54667d', marginTop: '2px' }}>{item.message}</div>
