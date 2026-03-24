@@ -41,6 +41,9 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const FEET_PER_METER = 3.280839895;
 const PRICE_PER_SQ_FOOT = 350;
+const ALLOWED_GLASS_TYPES = new Set(['clear glass', 'bronze glass', 'frosted glass', 'tempered glass']);
+const ALLOWED_FRAME_MATERIALS = new Set(['aluminum frame', 'steel frame', 'stainless frame']);
+const ALLOWED_COLOR_TINTS = new Set(['clear', 'bronze', 'gray', 'green', 'blue']);
 
 app.set('trust proxy', 1);
 
@@ -113,10 +116,30 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
     // Glass type
     const glassType = sanitizeText(body.glassType || '');
     if (!glassType) errors.push('Glass type is required.');
+    if (glassType && !ALLOWED_GLASS_TYPES.has(glassType.toLowerCase())) {
+      errors.push('Glass type must be one of the predefined options.');
+    }
 
     // Frame material
     const material = sanitizeText(body.material || '');
     if (!material) errors.push('Frame material is required.');
+    if (material && !ALLOWED_FRAME_MATERIALS.has(material.toLowerCase())) {
+      errors.push('Frame material must be one of the predefined options.');
+    }
+
+    // Color / tint
+    const color = sanitizeText(body.color || '');
+    if (!color) errors.push('Color / tint is required.');
+    if (color && !ALLOWED_COLOR_TINTS.has(color.toLowerCase())) {
+      errors.push('Color / tint must be one of the predefined options.');
+    }
+
+    // Materials step no longer accepts custom "other" text inputs.
+    const glassTypeOther = sanitizeText(body.glassTypeOther || '');
+    const colorOther = sanitizeText(body.colorOther || '');
+    if (glassTypeOther || colorOther) {
+      errors.push('Custom material values are not allowed. Please choose from predefined options.');
+    }
 
     // Measurements
     const unit = (['cm', 'm', 'ft', 'in'] as const).includes(body.measurementUnit) ? body.measurementUnit : 'cm';
@@ -173,7 +196,6 @@ app.post('/api/quotes', requireAuth, requireVerified, csrfProtection, quoteLimit
     const areaSqFeet = widthFeet * heightFeet;
     const estimatedCost = Math.round(areaSqFeet * PRICE_PER_SQ_FOOT * 100) / 100;
     const notes = sanitizeText(body.notes || '');
-    const color = sanitizeText(body.color || 'Clear');
     const quantity = parseInt(body.quantity) || 1;
 
     // ---- Log (masked phone) ----
