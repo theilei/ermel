@@ -282,11 +282,11 @@ export default function Home() {
             >
               {/* Close Button */}
               <button 
-                className="absolute -top-12 right-0 sm:-right-8 w-10 h-10 flex items-center justify-center rounded-full transition-colors z-50"
-                style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center rounded-full transition-colors z-50"
+                style={{ backgroundColor: 'rgba(21,38,60,0.75)', border: '1px solid rgba(255,255,255,0.25)' }}
                 onClick={closeGallery}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7a0000')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(21,38,60,0.75)')}
               >
                 <span className="text-2xl text-white pb-1">&times;</span>
               </button>
