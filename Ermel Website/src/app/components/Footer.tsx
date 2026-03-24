@@ -128,7 +128,7 @@ export default function Footer() {
             </div>
             {[
               { icon: Phone, text: '+63 938 602 0346' },
-              { icon: Mail, text: 'info@ermelglass.com' },
+              { icon: Mail, text: 'ermelglassaluminum@gmail.com' },
               { icon: MapPin, text: '1528 Nicolas Zamora St., Tondo, City of Manila, 1012 Metro Manila, Philippines', subtext: 'Opens at 8:00 AM - 7:00 PM' },
             ].map((c) => (
               <div key={c.text} className="flex items-start gap-3 mb-3">
