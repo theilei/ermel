@@ -881,7 +881,7 @@ export default function CheckStatus() {
                                   disabled={!canModifyPayment || submittingProof}
                                   style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '7px 12px', backgroundColor: 'white', color: '#15263c', cursor: 'pointer' }}
                                 >
-                                  Delete Proof
+                                  Delete File
                                 </button>
                               )}
                             </div>
