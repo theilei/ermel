@@ -12,6 +12,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [productsPinnedOpen, setProductsPinnedOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -29,6 +30,7 @@ export function Header() {
   }, []);
 
   const closeProductsDropdown = useCallback(() => {
+    if (productsPinnedOpen) return;
     if (productsCloseTimerRef.current) {
       clearTimeout(productsCloseTimerRef.current);
     }
@@ -36,7 +38,7 @@ export function Header() {
       setProductsOpen(false);
       productsCloseTimerRef.current = null;
     }, 160);
-  }, []);
+  }, [productsPinnedOpen]);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -50,6 +52,7 @@ export function Header() {
           clearTimeout(productsCloseTimerRef.current);
           productsCloseTimerRef.current = null;
         }
+        setProductsPinnedOpen(false);
         setProductsOpen(false);
       }
 
@@ -235,7 +238,11 @@ export function Header() {
                 gap: '6px',
               }}
               onClick={() => {
-                setProductsOpen((v) => !v);
+                setProductsPinnedOpen((v) => {
+                  const next = !v;
+                  setProductsOpen(next);
+                  return next;
+                });
                 setMenuOpen(false);
                 setAccountOpen(false);
               }}
@@ -281,6 +288,7 @@ export function Header() {
                     backgroundColor: location.pathname === '/products/glass' ? 'rgba(255,255,255,0.08)' : 'transparent',
                   }}
                   onClick={() => {
+                    setProductsPinnedOpen(false);
                     setProductsOpen(false);
                     setMenuOpen(false);
                     setAccountOpen(false);
@@ -303,6 +311,7 @@ export function Header() {
                     borderTop: '1px solid rgba(255,255,255,0.06)',
                   }}
                   onClick={() => {
+                    setProductsPinnedOpen(false);
                     setProductsOpen(false);
                     setMenuOpen(false);
                     setAccountOpen(false);
@@ -333,6 +342,7 @@ export function Header() {
                 }}
                 onClick={() => {
                   setMenuOpen(false);
+                  setProductsPinnedOpen(false);
                   setProductsOpen(false);
                 }}
                 onMouseEnter={(e) => {

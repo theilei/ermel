@@ -30,8 +30,14 @@ test.describe('Top nav single-click behavior', () => {
     await expect(page).toHaveURL(/\/$/);
 
     const headerNav = page.locator('header').first();
-    await headerNav.getByRole('button', { name: /products/i }).click();
-    await headerNav.getByRole('link', { name: /^glass$/i }).click();
+    const productsButton = headerNav.getByRole('button', { name: /products/i });
+    await productsButton.click();
+
+    const glassLink = headerNav.getByRole('link', { name: /^glass$/i });
+    await expect(glassLink).toBeVisible();
+    await glassLink.click({ trial: true });
+    await glassLink.click({ force: true });
+
     await expect(page).toHaveURL(/\/products\/glass\/?$/);
   });
 });
