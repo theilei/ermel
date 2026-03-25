@@ -650,10 +650,7 @@ export default function QuotationModule() {
                     <textarea value={address} onChange={(e) => { setAddress(e.target.value); if (!addressTouched) setAddressTouched(true); }} onBlur={() => setAddressTouched(true)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(addressTouched && !addressValid)} />
                     {addressTouched && !addressValid && <InlineError message={ADDRESS_ERROR_MESSAGE} />}
                   </div>
-                  <div>
-                    <label className="block mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Additional Notes (optional)</label>
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(false)} />
-                  </div>
+
                 </div>
               </div>
               <div className="p-5 rounded-xl" style={{ backgroundColor: '#fff8e1', border: '1px solid #f0c040' }}>
@@ -924,6 +921,10 @@ export default function QuotationModule() {
                   {addressTouched && !addressValid && (
                     <InlineError message={ADDRESS_ERROR_MESSAGE} />
                   )}
+                </div>
+                <div>
+                  <label className="block mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Additional Notes (optional)</label>
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(false)} />
                 </div>
               </div>
           )}
