@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, CreditCard, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
+import { Search, CreditCard, CheckCircle2, Clock3, AlertTriangle, Filter } from 'lucide-react';
 import { useQuotes } from '../../context/QuoteContext';
 import { adminApprovePayment, adminRejectPayment, fetchAdminPayments } from '../../services/api';
 import { supabase } from '../../services/supabaseClient';
@@ -21,6 +21,13 @@ type AdminPayment = {
 
 const API_ORIGIN = (((import.meta as any).env?.VITE_API_URL as string | undefined) || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
 
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'waiting_approval', label: 'Waiting Approval' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'expired', label: 'Expired' },
+];
+
 function toProofUrl(proofFile?: string): string | null {
   if (!proofFile) return null;
   if (/^https?:\/\//i.test(proofFile)) return proofFile;
@@ -33,6 +40,7 @@ export default function PaymentApproval() {
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [error, setError] = useState('');
   const [activeActionQuote, setActiveActionQuote] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
@@ -132,7 +140,11 @@ export default function PaymentApproval() {
 
   const filteredPayments = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const sorted = [...normalizedPayments].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const filteredByStatus = statusFilter === 'all'
+      ? normalizedPayments
+      : normalizedPayments.filter((p) => toDisplayStatus(p) === statusFilter);
+
+    const sorted = [...filteredByStatus].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     if (!q) return sorted;
 
     return sorted.filter((p) =>
@@ -140,7 +152,7 @@ export default function PaymentApproval() {
       || String(p.customerName || '').toLowerCase().includes(q)
       || String(p.projectType || '').toLowerCase().includes(q)
     );
-  }, [normalizedPayments, search]);
+  }, [normalizedPayments, search, statusFilter, toDisplayStatus]);
 
   const submitApprove = async (quoteId: string) => {
     setActiveActionQuote(quoteId);
@@ -243,25 +255,54 @@ export default function PaymentApproval() {
 
       <div style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px', overflow: 'hidden' }}>
         <div className="p-4" style={{ borderBottom: '1px solid #e0e4ea' }}>
-          <div className="relative max-w-md">
-            <Search size={16} color="#9ab0c4" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by quote ID, customer, or project..."
-              style={{
-                width: '100%',
-                padding: '10px 12px 10px 36px',
-                border: '1px solid #e0e4ea',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontFamily: 'var(--font-body)',
-                color: '#15263c',
-                backgroundColor: 'white',
-                outline: 'none',
-              }}
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} color="#9ab0c4" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by quote ID, customer, or project..."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px 10px 36px',
+                  border: '1px solid #e0e4ea',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontFamily: 'var(--font-body)',
+                  color: '#15263c',
+                  backgroundColor: 'white',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div className="relative sm:w-[220px]">
+              <Filter size={16} color="#9ab0c4" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px 10px 36px',
+                  border: '1px solid #e0e4ea',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontFamily: 'var(--font-body)',
+                  color: '#15263c',
+                  backgroundColor: 'white',
+                  outline: 'none',
+                  appearance: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {STATUS_FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
