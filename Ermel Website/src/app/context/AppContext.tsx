@@ -36,14 +36,22 @@ export interface Order {
   measurementUnit?: 'cm' | 'm' | 'ft' | 'in';
 }
 
+export interface OrderSummary {
+  totalOrders: number;
+  totalRevenue: number;
+  activeOrders: number;
+}
+
 interface AppContextType {
   orders: Order[];
+  orderSummary: OrderSummary;
   loading: boolean;
   updateOrderStatus: (id: string, status: OrderStatus, scheduledDate?: string) => void;
   updateOrderCost: (id: string, approvedCost: number) => void;
   addOrder: (order: Order) => void;
   markPaymentUploaded: (id: string) => void;
   refreshOrders: () => Promise<void>;
+  refreshOrderSummary: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -73,6 +81,7 @@ function mapApiOrder(o: any): Order {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderSummary, setOrderSummary] = useState<OrderSummary>({ totalOrders: 0, totalRevenue: 0, activeOrders: 0 });
   const [loading, setLoading] = useState(true);
 
   const refreshOrders = useCallback(async () => {
@@ -86,31 +95,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshOrderSummary = useCallback(async () => {
+    try {
+      const result = await api.fetchLegacyOrderSummary();
+      const data = (result as any).data || result;
+      setOrderSummary({
+        totalOrders: Number(data?.totalOrders || 0),
+        totalRevenue: Number(data?.totalRevenue || 0),
+        activeOrders: Number(data?.activeOrders || 0),
+      });
+    } catch (err) {
+      console.error('[AppContext] Failed to fetch order summary:', err);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await refreshOrders();
+      await Promise.all([refreshOrders(), refreshOrderSummary()]);
       setLoading(false);
     })();
-  }, [refreshOrders]);
+  }, [refreshOrders, refreshOrderSummary]);
 
   const updateOrderStatus = useCallback(async (id: string, status: OrderStatus, scheduledDate?: string) => {
     try {
       await api.updateLegacyOrderStatus(id, status, scheduledDate);
-      await refreshOrders();
+      await Promise.all([refreshOrders(), refreshOrderSummary()]);
     } catch (err) {
       console.error('[AppContext] updateOrderStatus failed:', err);
     }
-  }, [refreshOrders]);
+  }, [refreshOrders, refreshOrderSummary]);
 
   const updateOrderCost = useCallback(async (id: string, approvedCost: number) => {
     try {
       await api.updateLegacyOrderCost(id, approvedCost);
-      await refreshOrders();
+      await Promise.all([refreshOrders(), refreshOrderSummary()]);
     } catch (err) {
       console.error('[AppContext] updateOrderCost failed:', err);
     }
-  }, [refreshOrders]);
+  }, [refreshOrders, refreshOrderSummary]);
 
   const addOrder = useCallback(async (order: Order) => {
     try {
@@ -127,23 +150,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         email: order.email,
         notes: order.notes,
       });
-      await refreshOrders();
+      await Promise.all([refreshOrders(), refreshOrderSummary()]);
     } catch (err) {
       console.error('[AppContext] addOrder failed:', err);
     }
-  }, [refreshOrders]);
+  }, [refreshOrders, refreshOrderSummary]);
 
   const markPaymentUploaded = useCallback(async (id: string) => {
     try {
       await api.markLegacyOrderPayment(id);
-      await refreshOrders();
+      await Promise.all([refreshOrders(), refreshOrderSummary()]);
     } catch (err) {
       console.error('[AppContext] markPaymentUploaded failed:', err);
     }
-  }, [refreshOrders]);
+  }, [refreshOrders, refreshOrderSummary]);
 
   return (
-    <AppContext.Provider value={{ orders, loading, updateOrderStatus, updateOrderCost, addOrder, markPaymentUploaded, refreshOrders }}>
+    <AppContext.Provider value={{ orders, orderSummary, loading, updateOrderStatus, updateOrderCost, addOrder, markPaymentUploaded, refreshOrders, refreshOrderSummary }}>
       {children}
     </AppContext.Provider>
   );

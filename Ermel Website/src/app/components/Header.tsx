@@ -13,6 +13,7 @@ export function Header() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
   const [productsPinnedOpen, setProductsPinnedOpen] = useState(false);
+  const [activeHomeSection, setActiveHomeSection] = useState<'__top__' | 'services' | 'projects'>('__top__');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -127,6 +128,50 @@ export function Header() {
       scrollToHomeSection(targetSection);
     });
   }, [location.pathname, scrollToHomeSection]);
+
+  useEffect(() => {
+    if (location.pathname !== '/') {
+      setActiveHomeSection('__top__');
+      return;
+    }
+
+    const sectionOrder: Array<'services' | 'projects'> = ['services', 'projects'];
+    const offset = 140;
+
+    const updateActiveSection = () => {
+      const probeY = window.scrollY + offset;
+      let next: '__top__' | 'services' | 'projects' = '__top__';
+
+      for (const id of sectionOrder) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        const start = el.offsetTop;
+        const end = start + el.offsetHeight;
+
+        if (probeY >= start && probeY < end) {
+          next = id;
+          break;
+        }
+      }
+
+      setActiveHomeSection(next);
+    };
+
+    updateActiveSection();
+    window.addEventListener('scroll', updateActiveSection, { passive: true });
+    window.addEventListener('resize', updateActiveSection);
+
+    return () => {
+      window.removeEventListener('scroll', updateActiveSection);
+      window.removeEventListener('resize', updateActiveSection);
+    };
+  }, [location.pathname]);
+
+  const isHomeSectionActive = (sectionId?: string) => {
+    if (location.pathname !== '/') return false;
+    return activeHomeSection === (sectionId || '__top__');
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -360,9 +405,10 @@ export function Header() {
               <button
                 key={link.label}
                 type="button"
+                data-active={isHomeSectionActive(link.sectionId)}
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  color: '#d9d9d9',
+                  color: isHomeSectionActive(link.sectionId) ? 'white' : '#d9d9d9',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   fontSize: '15px',
@@ -370,7 +416,7 @@ export function Header() {
                   borderRadius: '6px',
                   transition: 'all 0.2s',
                   textTransform: 'uppercase',
-                  background: 'transparent',
+                  background: isHomeSectionActive(link.sectionId) ? 'rgba(255,255,255,0.08)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
                 }}
@@ -380,8 +426,9 @@ export function Header() {
                   (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.color = '#d9d9d9';
-                  (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                  const active = (e.currentTarget as HTMLElement).getAttribute('data-active') === 'true';
+                  (e.currentTarget as HTMLElement).style.color = active ? 'white' : '#d9d9d9';
+                  (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
                 }}
               >
                 {link.label}
@@ -667,7 +714,7 @@ export function Header() {
                 to={link.to}
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  color: '#d9d9d9',
+                  color: location.pathname === link.to ? 'white' : '#d9d9d9',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   fontSize: '16px',
@@ -687,7 +734,7 @@ export function Header() {
                 type="button"
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  color: '#d9d9d9',
+                  color: isHomeSectionActive(link.sectionId) ? 'white' : '#d9d9d9',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   fontSize: '16px',

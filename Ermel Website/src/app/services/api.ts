@@ -34,6 +34,12 @@ export interface AdminDashboardMetrics {
   activeInstallationEntries: DashboardActiveInstallation[];
 }
 
+export interface LegacyOrderSummary {
+  totalOrders: number;
+  totalRevenue: number;
+  activeOrders: number;
+}
+
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
 function getAdminHeaders(): HeadersInit {
@@ -235,6 +241,11 @@ export async function rescheduleReservation(id: string, reservationDate: string)
 export async function fetchLegacyOrders() {
   const res = await fetch(`${API_BASE}/admin/legacy-orders`, { headers: getAdminHeaders(), credentials: 'include' });
   return handleResponse<any[]>(res);
+}
+
+export async function fetchLegacyOrderSummary() {
+  const res = await fetch(`${API_BASE}/admin/legacy-orders/summary`, { headers: getAdminHeaders(), credentials: 'include' });
+  return handleResponse<LegacyOrderSummary>(res);
 }
 
 export async function createLegacyOrder(data: any) {

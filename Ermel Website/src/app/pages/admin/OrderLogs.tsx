@@ -1,25 +1,44 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  FileText, Search, Filter, Download, Eye, CheckCircle,
-  Clock, Package, Hammer, Truck, ChevronLeft, ChevronRight,
-  Calendar, DollarSign, User, ArrowUpDown,
+  FileText, Search, Filter, Download, Eye,
+  Clock, CheckCircle2, Truck, ChevronLeft, ChevronRight,
+  Calendar, DollarSign, User,
 } from 'lucide-react';
-import { useApp, type Order, type OrderStatus } from '../../context/AppContext';
+import { useApp, type Order } from '../../context/AppContext';
 
 const ITEMS_PER_PAGE = 10;
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: any }> = {
-  inquiry:      { label: 'Inquiry',      color: '#54667d', bg: '#f0f3f7', icon: Clock },
-  quotation:    { label: 'Quotation',    color: '#7a5200', bg: '#fff8e6', icon: FileText },
-  ordering:     { label: 'Ordering',     color: '#005c7a', bg: '#e6f4f8', icon: Package },
-  fabrication:  { label: 'Fabrication',  color: '#15263c', bg: '#e8ecf1', icon: Hammer },
-  installation: { label: 'Installation', color: '#1a5c1a', bg: '#e8f5e9', icon: Truck },
+type DisplayOrderStatus = 'installed' | 'active';
+
+type OrderWithDisplayStatus = Order & {
+  displayStatus: DisplayOrderStatus;
+};
+
+const STATUS_CONFIG: Record<DisplayOrderStatus, { label: string; color: string; bg: string; icon: any }> = {
+  installed: { label: 'Installed', color: '#1a5c1a', bg: '#e8f5e9', icon: CheckCircle2 },
+  active: { label: 'Active', color: '#005c7a', bg: '#e6f4f8', icon: Truck },
 };
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
   ...Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label })),
 ];
+
+function isPaidEquivalent(order: Order): boolean {
+  return Boolean(order.paid || order.paymentUploaded);
+}
+
+function getDisplayStatus(order: Order): DisplayOrderStatus | null {
+  if (!isPaidEquivalent(order) || !order.scheduledDate) return null;
+
+  const scheduledIso = String(order.scheduledDate).slice(0, 10);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // Installed: paid and already past today. Active: paid and strictly future date.
+  if (scheduledIso < todayIso) return 'installed';
+  if (scheduledIso > todayIso) return 'active';
+  return null;
+}
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Newest First' },
@@ -30,7 +49,8 @@ const SORT_OPTIONS = [
 
 // ── Detail Drawer ──
 function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
-  const cfg = STATUS_CONFIG[order.status];
+  const displayStatus = getDisplayStatus(order) || 'active';
+  const cfg = STATUS_CONFIG[displayStatus];
   const Icon = cfg.icon;
   return (
     <div
@@ -134,7 +154,7 @@ function OrderDetailDrawer({ order, onClose }: { order: Order; onClose: () => vo
 
 // ── Main Component ──
 export default function OrderLogs() {
-  const { orders } = useApp();
+  const { orders, orderSummary, refreshOrders, refreshOrderSummary } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
@@ -142,9 +162,57 @@ export default function OrderLogs() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+      refreshTimer = setTimeout(() => {
+        Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+          // Keep UI stable even if refresh fails.
+        });
+      }, 120);
+    };
+
+    // Ensure this page always starts with latest backend data.
+    queueRefresh();
+
+    const intervalId = window.setInterval(() => {
+      Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+        // Ignore transient network errors.
+      });
+    }, 5000);
+
+    const handleWindowFocus = () => {
+      Promise.all([refreshOrders(), refreshOrderSummary()]).catch(() => {
+        // Ignore transient network errors.
+      });
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
+    };
+  }, [refreshOrders, refreshOrderSummary]);
+
   const filtered = useMemo(() => {
-    let data = [...orders];
-    if (statusFilter !== 'all') data = data.filter((o) => o.status === statusFilter);
+    let data: OrderWithDisplayStatus[] = orders
+      .map((order) => {
+        const displayStatus = getDisplayStatus(order);
+        if (!displayStatus) return null;
+        return { ...order, displayStatus };
+      })
+      .filter((order): order is OrderWithDisplayStatus => order !== null);
+
+    if (statusFilter !== 'all') data = data.filter((o) => o.displayStatus === statusFilter);
+
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter((o) =>
@@ -165,13 +233,7 @@ export default function OrderLogs() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Summary stats
-  const stats = useMemo(() => ({
-    total: orders.length,
-    totalRevenue: orders.reduce((s, o) => s + (o.approvedCost || o.estimatedCost), 0),
-    paid: orders.filter((o) => o.paid).length,
-    active: orders.filter((o) => o.status !== 'installation').length,
-  }), [orders]);
+  const stats = orderSummary;
 
   return (
     <div className="p-6">
@@ -189,12 +251,11 @@ export default function OrderLogs() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Total Orders', value: stats.total, icon: FileText, color: '#15263c', bg: '#e8ecf1' },
-          { label: 'Total Revenue', value: `₱${(stats.totalRevenue / 1000).toFixed(0)}K`, icon: DollarSign, color: '#1a5c1a', bg: '#e8f5e9' },
-          { label: 'Paid Orders', value: stats.paid, icon: CheckCircle, color: '#005c7a', bg: '#e6f4f8' },
-          { label: 'Active Orders', value: stats.active, icon: Clock, color: '#7a5200', bg: '#fff8e6' },
+          { label: 'Total Orders', value: stats.totalOrders, icon: FileText, color: '#15263c', bg: '#e8ecf1' },
+          { label: 'Total Revenue', value: `₱${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: '#1a5c1a', bg: '#e8f5e9' },
+          { label: 'Active Orders', value: stats.activeOrders, icon: Clock, color: '#7a5200', bg: '#fff8e6' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="p-5" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
             <div className="flex items-center gap-3 mb-3">
@@ -295,7 +356,7 @@ export default function OrderLogs() {
                   </td>
                 </tr>
               ) : paginated.map((order, idx) => {
-                const cfg = STATUS_CONFIG[order.status];
+                const cfg = STATUS_CONFIG[order.displayStatus];
                 const Icon = cfg.icon;
                 return (
                   <tr
