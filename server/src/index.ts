@@ -43,7 +43,7 @@ const FEET_PER_METER = 3.280839895;
 const PRICE_PER_SQ_FOOT = 350;
 const ALLOWED_GLASS_TYPES = new Set(['clear glass', 'bronze glass', 'frosted glass', 'tempered glass']);
 const ALLOWED_FRAME_MATERIALS = new Set(['aluminum frame', 'steel frame', 'stainless frame']);
-const ALLOWED_COLOR_TINTS = new Set(['clear', 'bronze', 'gray', 'green', 'blue']);
+const ALLOWED_COLOR_TINTS = new Set(['clear', 'euro gray', 'dark gray', 'bronze', 'dark bronze', 'green']);
 
 app.set('trust proxy', 1);
 

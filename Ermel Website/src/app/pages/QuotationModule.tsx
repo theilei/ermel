@@ -46,10 +46,11 @@ const GLASS_TYPES = [
 
 const COLOR_OPTIONS = [
   { id: 'clear', label: 'Clear', desc: 'No tint', swatch: 'rgba(200,230,255,0.6)' },
-  { id: 'bronze', label: 'Bronze', desc: 'Warm amber tint', swatch: 'rgba(205,152,70,0.5)' },
-  { id: 'gray', label: 'Gray', desc: 'Neutral gray tint', swatch: 'rgba(150,150,150,0.5)' },
-  { id: 'green', label: 'Green', desc: 'Green tint', swatch: 'rgba(100,180,100,0.4)' },
-  { id: 'blue', label: 'Blue', desc: 'Blue tint', swatch: 'rgba(100,150,220,0.5)' },
+  { id: 'euro-gray', label: 'Euro Gray', desc: 'Soft neutral gray tint', swatch: '#6b7a8c' },
+  { id: 'dark-gray', label: 'Dark Gray', desc: 'Deep neutral gray tint', swatch: '#4a5460' },
+  { id: 'bronze', label: 'Bronze', desc: 'Warm bronze tint', swatch: '#8b6f47' },
+  { id: 'dark-bronze', label: 'Dark Bronze', desc: 'Richer bronze tint', swatch: '#6e5433' },
+  { id: 'green', label: 'Green', desc: 'Green tint', swatch: '#7ba89d' },
 ];
 
 const FRAME_MATERIALS = [
