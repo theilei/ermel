@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Search, CreditCard, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { useQuotes } from '../../context/QuoteContext';
 import { adminApprovePayment, adminRejectPayment, fetchAdminPayments } from '../../services/api';
@@ -27,6 +28,7 @@ function toProofUrl(proofFile?: string): string | null {
 }
 
 export default function PaymentApproval() {
+  const navigate = useNavigate();
   const { quotes, refreshQuotes } = useQuotes();
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,29 +94,45 @@ export default function PaymentApproval() {
     return payment.status;
   }, []);
 
+  const quoteStatusById = useMemo(() => {
+    const byId = new Map<string, string>();
+    quotes.forEach((q) => byId.set(String(q.id), String(q.status || '').toLowerCase()));
+    return byId;
+  }, [quotes]);
+
+  const normalizedPayments = useMemo(() => {
+    return payments.map((payment) => {
+      const liveQuoteStatus = quoteStatusById.get(String(payment.quoteId)) || String(payment.quoteStatus || '').toLowerCase();
+      return {
+        ...payment,
+        quoteStatus: liveQuoteStatus,
+      };
+    });
+  }, [payments, quoteStatusById]);
+
   const waitingApprovalCount = useMemo(
-    () => payments.filter((p) => toDisplayStatus(p) === 'waiting_approval').length,
-    [payments, toDisplayStatus]
+    () => normalizedPayments.filter((p) => toDisplayStatus(p) === 'waiting_approval').length,
+    [normalizedPayments, toDisplayStatus]
   );
 
   const verifiedPaymentsCount = useMemo(
-    () => payments.filter((p) => toDisplayStatus(p) === 'paid').length,
-    [payments, toDisplayStatus]
+    () => normalizedPayments.filter((p) => toDisplayStatus(p) === 'paid').length,
+    [normalizedPayments, toDisplayStatus]
   );
 
   const noPaymentProofCount = useMemo(
-    () => quotes.filter((q) => q.status === 'approved' && !q.payment).length,
-    [quotes]
+    () => normalizedPayments.filter((p) => !toProofUrl(p.proofFile)).length,
+    [normalizedPayments]
   );
 
   const cancelledExpiredCount = useMemo(
-    () => quotes.filter((q) => q.status === 'cancelled' || q.status === 'expired').length,
-    [quotes]
+    () => normalizedPayments.filter((p) => toDisplayStatus(p) === 'expired').length,
+    [normalizedPayments, toDisplayStatus]
   );
 
   const filteredPayments = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const sorted = [...payments].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const sorted = [...normalizedPayments].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     if (!q) return sorted;
 
     return sorted.filter((p) =>
@@ -122,7 +140,7 @@ export default function PaymentApproval() {
       || String(p.customerName || '').toLowerCase().includes(q)
       || String(p.projectType || '').toLowerCase().includes(q)
     );
-  }, [payments, search]);
+  }, [normalizedPayments, search]);
 
   const submitApprove = async (quoteId: string) => {
     setActiveActionQuote(quoteId);
@@ -281,7 +299,11 @@ export default function PaymentApproval() {
               ) : (
                 filteredPayments.map((payment) => {
                   const proofUrl = toProofUrl(payment.proofFile);
+                  const liveQuoteStatus = String(payment.quoteStatus || '').toLowerCase();
                   const displayStatus = toDisplayStatus(payment);
+                  const isQuoteRejected = liveQuoteStatus === 'rejected';
+                  const isExpired = displayStatus === 'expired';
+                  const canProceedToQueue = displayStatus === 'paid' && liveQuoteStatus === 'approved';
                   const isBusy = activeActionQuote === payment.quoteId;
                   const canTakeAction = displayStatus === 'waiting_approval' && Boolean(proofUrl);
                   return (
@@ -360,26 +382,81 @@ export default function PaymentApproval() {
                         {new Date(payment.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
                       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                        <div className="flex items-center gap-2">
+                        {canProceedToQueue ? (
                           <button
-                            onClick={() => submitApprove(payment.quoteId)}
-                            disabled={!canTakeAction || isBusy}
-                            style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#1a5c1a', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => {
-                              setError('');
-                              setRejectingQuoteId(payment.quoteId);
-                              setRejectReason('');
+                            onClick={() => navigate('/admin/queue')}
+                            style={{
+                              border: '1px solid #1a5c1a44',
+                              borderRadius: '999px',
+                              padding: '7px 12px',
+                              backgroundColor: '#e8f5e9',
+                              color: '#1a5c1a',
+                              cursor: 'pointer',
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              fontSize: '11px',
                             }}
-                            disabled={!canTakeAction || isBusy}
-                            style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#7a0000', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
                           >
-                            Reject
+                            Proceed to Installation Queue
                           </button>
-                        </div>
+                        ) : isQuoteRejected ? (
+                          <span
+                            style={{
+                              color: '#7a0000',
+                              backgroundColor: '#fff0f0',
+                              border: '1px solid #7a000044',
+                              padding: '7px 12px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            Rejected Quote
+                          </span>
+                        ) : isExpired ? (
+                          <span
+                            style={{
+                              color: '#54667d',
+                              backgroundColor: '#f5f7fa',
+                              border: '1px solid #cfd8e3',
+                              padding: '7px 12px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            Expired Quote
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => submitApprove(payment.quoteId)}
+                              disabled={!canTakeAction || isBusy}
+                              style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#1a5c1a', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => {
+                                setError('');
+                                setRejectingQuoteId(payment.quoteId);
+                                setRejectReason('');
+                              }}
+                              disabled={!canTakeAction || isBusy}
+                              style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#7a0000', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

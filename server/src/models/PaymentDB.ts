@@ -70,6 +70,7 @@ export async function getPaymentByQuoteId(quoteId: string): Promise<Payment | un
      JOIN qq_quotes q ON q.id = p.quote_id
      LEFT JOIN reservations r ON r.quote_id = q.id
      WHERE p.quote_id = $1
+       AND q.deleted_at IS NULL
      LIMIT 1`,
     [quoteId]
   );
@@ -82,7 +83,8 @@ export async function getPaymentByQuoteIdentifier(quoteIdentifier: string): Prom
      FROM payments p
      JOIN qq_quotes q ON q.id = p.quote_id
      LEFT JOIN reservations r ON r.quote_id = q.id
-     WHERE q.id::text = $1 OR q.quote_number = $1
+     WHERE q.deleted_at IS NULL
+       AND (q.id::text = $1 OR q.quote_number = $1)
      LIMIT 1`,
     [quoteIdentifier]
   );
@@ -248,6 +250,7 @@ export async function expireOldPendingPayments(): Promise<number> {
        FROM qq_quotes q
        LEFT JOIN payments p ON p.quote_id = q.id
        WHERE q.status = 'approved'
+         AND q.deleted_at IS NULL
          AND q.created_at + INTERVAL '3 days' < NOW()
          AND (p.id IS NULL OR p.status <> 'paid')
      ), updated_quotes AS (
@@ -286,6 +289,7 @@ export async function listPaymentsForAdmin(): Promise<Payment[]> {
      JOIN qq_quotes q ON q.id = p.quote_id
      LEFT JOIN reservations r ON r.quote_id = q.id
      WHERE p.payment_method = 'qrph'
+       AND q.deleted_at IS NULL
        AND p.proof_file IS NOT NULL
      ORDER BY p.created_at DESC`
   );
