@@ -74,6 +74,13 @@ export interface DashboardMetrics {
   activeInstallationEntries: DashboardActiveInstallation[];
 }
 
+export interface PopularMaterials {
+  glassType: string | null;
+  color: string | null;
+  frameMaterial: string | null;
+  sampleSize: number;
+}
+
 function rowToQuote(row: any): Quote {
   const originalEstimatedCost = parseFloat(row.estimated_cost);
   const updatedCost = row.updated_cost !== null && row.updated_cost !== undefined
@@ -384,6 +391,126 @@ export async function expireOldQuotes(): Promise<number> {
       if (!isMissingRelationOrColumn(legacyErr)) throw legacyErr;
       return 0;
     }
+  }
+}
+
+const POPULAR_CHOICE_STATUSES: QuoteStatus[] = ['approved', 'customer_accepted', 'converted_to_order'];
+
+export async function getPopularMaterials(projectType?: string): Promise<PopularMaterials> {
+  const statuses = POPULAR_CHOICE_STATUSES;
+  const projectFilter = projectType?.trim() || null;
+
+  const query = `
+    WITH filtered AS (
+      SELECT
+        glass_type,
+        color,
+        frame_material,
+        COALESCE(updated_at, created_at, submission_date::timestamp) AS picked_at
+      FROM qq_quotes
+      WHERE deleted_at IS NULL
+        AND status = ANY($1::text[])
+        AND ($2::text IS NULL OR LOWER(project_type) = LOWER($2))
+    ),
+    sample AS (
+      SELECT COUNT(*)::int AS total FROM filtered
+    ),
+    top_glass AS (
+      SELECT glass_type, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+      FROM filtered
+      WHERE COALESCE(TRIM(glass_type), '') <> ''
+      GROUP BY glass_type
+      ORDER BY picks DESC, last_picked_at DESC, glass_type ASC
+      LIMIT 1
+    ),
+    top_color AS (
+      SELECT color, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+      FROM filtered
+      WHERE COALESCE(TRIM(color), '') <> ''
+      GROUP BY color
+      ORDER BY picks DESC, last_picked_at DESC, color ASC
+      LIMIT 1
+    ),
+    top_frame AS (
+      SELECT frame_material, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+      FROM filtered
+      WHERE COALESCE(TRIM(frame_material), '') <> ''
+      GROUP BY frame_material
+      ORDER BY picks DESC, last_picked_at DESC, frame_material ASC
+      LIMIT 1
+    )
+    SELECT
+      (SELECT glass_type FROM top_glass) AS glass_type,
+      (SELECT color FROM top_color) AS color,
+      (SELECT frame_material FROM top_frame) AS frame_material,
+      (SELECT total FROM sample) AS sample_size
+  `;
+
+  try {
+    const result = await pool.query(query, [statuses, projectFilter]);
+    const row = result.rows[0] || {};
+    return {
+      glassType: row.glass_type || null,
+      color: row.color || null,
+      frameMaterial: row.frame_material || null,
+      sampleSize: Number(row.sample_size || 0),
+    };
+  } catch (err: any) {
+    if (!isMissingRelationOrColumn(err)) throw err;
+
+    const legacyQuery = `
+      WITH filtered AS (
+        SELECT
+          glass_type,
+          color,
+          frame_material,
+          COALESCE(created_at, submission_date::timestamp) AS picked_at
+        FROM quotation_quotes
+        WHERE status = ANY($1::text[])
+          AND ($2::text IS NULL OR LOWER(project_type) = LOWER($2))
+      ),
+      sample AS (
+        SELECT COUNT(*)::int AS total FROM filtered
+      ),
+      top_glass AS (
+        SELECT glass_type, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+        FROM filtered
+        WHERE COALESCE(TRIM(glass_type), '') <> ''
+        GROUP BY glass_type
+        ORDER BY picks DESC, last_picked_at DESC, glass_type ASC
+        LIMIT 1
+      ),
+      top_color AS (
+        SELECT color, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+        FROM filtered
+        WHERE COALESCE(TRIM(color), '') <> ''
+        GROUP BY color
+        ORDER BY picks DESC, last_picked_at DESC, color ASC
+        LIMIT 1
+      ),
+      top_frame AS (
+        SELECT frame_material, COUNT(*)::int AS picks, MAX(picked_at) AS last_picked_at
+        FROM filtered
+        WHERE COALESCE(TRIM(frame_material), '') <> ''
+        GROUP BY frame_material
+        ORDER BY picks DESC, last_picked_at DESC, frame_material ASC
+        LIMIT 1
+      )
+      SELECT
+        (SELECT glass_type FROM top_glass) AS glass_type,
+        (SELECT color FROM top_color) AS color,
+        (SELECT frame_material FROM top_frame) AS frame_material,
+        (SELECT total FROM sample) AS sample_size
+    `;
+
+    const legacyResult = await pool.query(legacyQuery, [statuses, projectFilter]);
+    const row = legacyResult.rows[0] || {};
+    return {
+      glassType: row.glass_type || null,
+      color: row.color || null,
+      frameMaterial: row.frame_material || null,
+      sampleSize: Number(row.sample_size || 0),
+    };
   }
 }
 
