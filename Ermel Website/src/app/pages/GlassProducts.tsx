@@ -21,17 +21,6 @@ export default function GlassProducts() {
     { name: 'Green', color: '#7ba89d' },
   ];
 
-  const reflectiveColors = [
-    { name: 'Clear', color: '#e8e8e8' },
-    { name: 'Dark Gray', color: '#555f6a' },
-    { name: 'Silver', color: '#a8b5c0' },
-    { name: 'Blue', color: '#6a9db8' },
-    { name: 'Green', color: '#7a9e8a' },
-    { name: 'Gold', color: '#c9a961' },
-    { name: 'Dark Blue', color: '#4a6d8a' },
-    { name: 'Bronze', color: '#8b7355' },
-  ];
-
   const applications = [
     { name: 'Frameless Storefront', desc: 'Sleek modern entry solutions using large glass panels with minimal framing for maximum visibility.' },
     { name: 'Frameless Glass Partitions', desc: 'Open-plan office dividers maintaining transparency and natural light flow throughout the workspace.' },
@@ -142,37 +131,20 @@ export default function GlassProducts() {
               Glass Colors
             </h2>
             <p style={{ color: '#54667d', fontSize: '15px', maxWidth: '700px', margin: '0 auto', lineHeight: 1.7 }}>
-              Glass is available in a variety of colors and shades. From subtle tinted options to bold reflective finishes, our color selection allows for versatility in design while maintaining structural integrity and thermal performance.
+              Glass is available in a variety of colors and shades. Our tinted color selection offers versatility in design while maintaining structural integrity and thermal performance.
             </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-            {/* Tinted Colors */}
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase' }}>
-                Tinted Glass Colors
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {tintedColors.map((c) => (
-                  <div key={c.name} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#f0f2f5' }}>
-                    <div style={{ width: '40px', height: '40px', backgroundColor: c.color, borderRadius: '6px', border: '1px solid #d9d9d9' }} />
-                    <span style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '14px', fontWeight: 600 }}>{c.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Reflective Colors */}
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase' }}>
-                Reflective Glass Colors
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {reflectiveColors.map((c) => (
-                  <div key={c.name} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#f0f2f5' }}>
-                    <div style={{ width: '40px', height: '40px', backgroundColor: c.color, borderRadius: '6px', border: '1px solid #d9d9d9' }} />
-                    <span style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '14px', fontWeight: 600 }}>{c.name}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="mt-12">
+            <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase' }}>
+              Tinted Glass Colors
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {tintedColors.map((c) => (
+                <div key={c.name} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#f0f2f5' }}>
+                  <div style={{ width: '40px', height: '40px', backgroundColor: c.color, borderRadius: '6px', border: '1px solid #d9d9d9' }} />
+                  <span style={{ fontFamily: 'var(--font-body)', color: '#15263c', fontSize: '14px', fontWeight: 600 }}>{c.name}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
