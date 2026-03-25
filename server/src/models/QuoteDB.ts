@@ -516,20 +516,24 @@ export async function getPopularMaterials(projectType?: string): Promise<Popular
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const countsResult = await pool.query(
-    `SELECT
+    `WITH active_installation_quotes AS (
+       SELECT q.id
+       FROM qq_quotes q
+       JOIN payments p ON p.quote_id = q.id
+       JOIN reservations r ON r.quote_id = q.id
+       WHERE q.deleted_at IS NULL
+         AND q.status = 'approved'
+         AND p.status = 'paid'
+         AND r.status = 'approved'
+         AND r.reservation_date IS NOT NULL
+         AND r.reservation_date >= CURRENT_DATE
+     )
+     SELECT
        COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'pending')::int AS pending_inquiries,
        COUNT(*) FILTER (WHERE q.deleted_at IS NULL)::int AS total_quotes,
        COUNT(*) FILTER (WHERE q.deleted_at IS NULL AND q.status = 'approved')::int AS approved_quotes,
-       COUNT(*) FILTER (
-         WHERE q.deleted_at IS NULL
-           AND q.status = 'approved'
-           AND p.status = 'paid'
-           AND r.reservation_date IS NOT NULL
-           AND r.reservation_date >= CURRENT_DATE
-       )::int AS active_installations
-     FROM qq_quotes q
-     LEFT JOIN payments p ON p.quote_id = q.id
-     LEFT JOIN reservations r ON r.quote_id = q.id`
+       (SELECT COUNT(*)::int FROM active_installation_quotes) AS active_installations
+     FROM qq_quotes q`
   );
   const counts = countsResult.rows[0] || {};
 
@@ -550,6 +554,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
      JOIN reservations r ON r.quote_id = q.id
      WHERE q.deleted_at IS NULL
        AND q.status = 'approved'
+       AND r.status = 'approved'
        AND r.reservation_date >= CURRENT_DATE
      ORDER BY r.reservation_date ASC, q.created_at DESC`
   );
