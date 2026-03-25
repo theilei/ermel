@@ -31,6 +31,7 @@ const PROJECT_CATEGORIES = [
   { id: 'storefront', label: 'Storefront', desc: 'Full commercial front with door & windows', img: 'https://images.unsplash.com/photo-1655258104134-35ea5ef8647c?w=400&q=80', baseRate: 1800 },
   { id: 'sliding-window', label: 'Sliding Window', desc: 'Horizontal sliding window panel', img: 'https://images.unsplash.com/photo-1762077713566-2a8f205c12df?w=400&q=80', baseRate: 1200 },
   { id: 'glass-door', label: 'Glass Door', desc: 'Swing or sliding door with frame', img: 'https://images.unsplash.com/photo-1759709583846-d788ccb313ae?w=400&q=80', baseRate: 2200 },
+  { id: 'aluminum-door', label: 'Aluminum Door', desc: 'Durable framed door system for entryways', img: 'https://source.unsplash.com/800x600/?aluminum,door,glass', baseRate: 2100 },
   { id: 'glass-partition', label: 'Glass Partition', desc: 'Interior divider or office partition', img: 'https://images.unsplash.com/photo-1770993151375-0dee97eda931?w=400&q=80', baseRate: 1500 },
   { id: 'awning-window', label: 'Awning Window', desc: 'Top-hinged outward opening window', img: 'https://images.unsplash.com/photo-1766521076678-b124ae61690a?w=400&q=80', baseRate: 1100 },
   { id: 'fixed-window', label: 'Fixed Window', desc: 'Non-operable picture window', img: 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?w=400&q=80', baseRate: 900 },
