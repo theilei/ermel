@@ -40,6 +40,13 @@ export interface LegacyOrderSummary {
   activeOrders: number;
 }
 
+export interface PopularMaterialsSummary {
+  glassType: string | null;
+  color: string | null;
+  frameMaterial: string | null;
+  sampleSize: number;
+}
+
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
 function getAdminHeaders(): HeadersInit {
@@ -196,6 +203,17 @@ export async function fetchReservedDates() {
     credentials: 'include',
   });
   return handleResponse<string[]>(res);
+}
+
+export async function fetchPopularMaterials(projectType?: string) {
+  const query = new URLSearchParams();
+  if (projectType) query.set('projectType', projectType);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await fetch(`${API_BASE}/quotes/popular-materials${suffix}`, {
+    headers: getCustomerHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse<PopularMaterialsSummary>(res);
 }
 
 export async function fetchReservations(params?: { status?: string }) {

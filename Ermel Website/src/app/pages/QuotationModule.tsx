@@ -37,58 +37,6 @@ const PROJECT_CATEGORIES = [
   { id: 'other', label: 'Other', desc: 'Other – Please specify', img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&q=80', baseRate: 1200 },
 ];
 
-type CategoryMaterialGuide = {
-  glassType: string;
-  colorTint: string;
-  frameMaterial: string;
-  reason: string;
-};
-
-const CATEGORY_MATERIAL_GUIDE: Record<string, CategoryMaterialGuide> = {
-  storefront: {
-    glassType: 'Frosted Glass',
-    colorTint: 'Clear',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Balanced privacy and visibility, durable for high-traffic entrances.',
-  },
-  'sliding-window': {
-    glassType: 'Clear Glass',
-    colorTint: 'Gray',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Lets in natural light while reducing heat and keeping maintenance low.',
-  },
-  'glass-door': {
-    glassType: 'Tempered Glass',
-    colorTint: 'Clear',
-    frameMaterial: 'Stainless Frame',
-    reason: 'Safety-grade panel with stronger frame support for frequent opening and closing.',
-  },
-  'glass-partition': {
-    glassType: 'Frosted Glass',
-    colorTint: 'Clear',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Popular for office and interior privacy while keeping spaces bright.',
-  },
-  'awning-window': {
-    glassType: 'Tempered Glass',
-    colorTint: 'Bronze',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Handles weather exposure well and helps reduce direct glare from above.',
-  },
-  'fixed-window': {
-    glassType: 'Clear Glass',
-    colorTint: 'Blue',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Common choice for clean views with improved daytime comfort.',
-  },
-  other: {
-    glassType: 'Clear Glass',
-    colorTint: 'Clear',
-    frameMaterial: 'Aluminum Frame',
-    reason: 'Default baseline option that is cost-efficient and easy to customize.',
-  },
-};
-
 const GLASS_TYPES = [
   { id: 'clear', label: 'Clear Glass', desc: 'Standard transparency, maximum light', color: 'rgba(200,230,255,0.5)', border: '#90caf9', multiplier: 1.0, thickness: '6mm standard' },
   { id: 'bronze', label: 'Bronze Glass', desc: 'Warm tint, reduces glare & heat', color: 'rgba(205,152,70,0.3)', border: '#cd9846', multiplier: 1.25, thickness: '6mm tinted' },
@@ -298,6 +246,7 @@ export default function QuotationModule() {
   const [reservationDate, setReservationDate] = useState('');
   const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
   const [reservationError, setReservationError] = useState('');
+  const [popularMaterials, setPopularMaterials] = useState<api.PopularMaterialsSummary | null>(null);
 
   const [submitted, setSubmitted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -364,16 +313,34 @@ export default function QuotationModule() {
   const selectedGlass = GLASS_TYPES.find((g) => g.id === glassType);
   const selectedFrame = FRAME_MATERIALS.find((f) => f.id === frameMaterial);
   const selectedColor = COLOR_OPTIONS.find((c) => c.id === colorChoice);
-  const selectedCategoryGuide = category ? CATEGORY_MATERIAL_GUIDE[category] : null;
-  const recommendedGlassId = selectedCategoryGuide
-    ? GLASS_TYPES.find((g) => g.label === selectedCategoryGuide.glassType)?.id ?? null
+  const recommendedGlassId = popularMaterials?.glassType
+    ? GLASS_TYPES.find((g) => g.label.toLowerCase() === popularMaterials.glassType?.toLowerCase())?.id ?? null
     : null;
-  const recommendedColorId = selectedCategoryGuide
-    ? COLOR_OPTIONS.find((c) => c.label === selectedCategoryGuide.colorTint)?.id ?? null
+  const recommendedColorId = popularMaterials?.color
+    ? COLOR_OPTIONS.find((c) => c.label.toLowerCase() === popularMaterials.color?.toLowerCase())?.id ?? null
     : null;
-  const recommendedFrameId = selectedCategoryGuide
-    ? FRAME_MATERIALS.find((f) => f.label === selectedCategoryGuide.frameMaterial)?.id ?? null
+  const recommendedFrameId = popularMaterials?.frameMaterial
+    ? FRAME_MATERIALS.find((f) => f.label.toLowerCase() === popularMaterials.frameMaterial?.toLowerCase())?.id ?? null
     : null;
+  const hasPopularMaterials = !!(popularMaterials?.glassType || popularMaterials?.color || popularMaterials?.frameMaterial);
+
+  useEffect(() => {
+    if (!selectedCategory?.label || step !== 2) return;
+
+    let isCancelled = false;
+
+    api.fetchPopularMaterials(selectedCategory.label)
+      .then((data) => {
+        if (!isCancelled) setPopularMaterials(data);
+      })
+      .catch(() => {
+        if (!isCancelled) setPopularMaterials(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedCategory?.label, step]);
 
   const w = parseFloat(width) || 0;
   const h = parseFloat(height) || 0;
@@ -464,8 +431,8 @@ export default function QuotationModule() {
       glassType: selectedGlass?.label || '',
       color: selectedColor?.label || 'Clear',
       dimensions: `${width}${unitLabel} × ${height}${unitLabel}`,
-      width: wUnits.cm,
-      height: hUnits.cm,
+      width: w,
+      height: h,
       widthM: wUnits.m,
       heightM: hUnits.m,
       widthCm: wUnits.cm,
@@ -753,13 +720,16 @@ export default function QuotationModule() {
                 Choose the glass, color, and frame material for your project
               </p>
 
-              {selectedCategoryGuide && (
+              {hasPopularMaterials && (
                 <div className="mb-5 p-4 rounded-xl" style={{ backgroundColor: '#eef7ff', border: '1px solid #bfd8ee' }}>
                   <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Popular Choice for {selectedCategory?.label || 'this category'}
                   </div>
                   <div style={{ color: '#35506d', fontSize: '13px', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
-                    <strong>Glass:</strong> {selectedCategoryGuide.glassType} | <strong>Tint:</strong> {selectedCategoryGuide.colorTint} | <strong>Frame:</strong> {selectedCategoryGuide.frameMaterial}
+                    <strong>Glass:</strong> {popularMaterials?.glassType || '—'} | <strong>Tint:</strong> {popularMaterials?.color || '—'} | <strong>Frame:</strong> {popularMaterials?.frameMaterial || '—'}
+                    {popularMaterials && popularMaterials.sampleSize > 0 && (
+                      <span> | <strong>Based on:</strong> {popularMaterials.sampleSize} approved/confirmed quote{popularMaterials.sampleSize > 1 ? 's' : ''}</span>
+                    )}
                   </div>
                 </div>
               )}

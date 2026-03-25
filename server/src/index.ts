@@ -85,6 +85,18 @@ app.get('/api/quote-access', requireAuth, requireVerified, (_req, res) => {
 // ---- Reservation dates used by the quote calendar ----
 app.get('/api/reservations/dates', requireAuth, requireVerified, listReservedDatesHandler);
 
+// ---- Popular materials (approved/confirmed history only) ----
+app.get('/api/quotes/popular-materials', requireAuth, requireVerified, async (req, res) => {
+  try {
+    const projectType = sanitizeText(String(req.query.projectType || '')) || undefined;
+    const popularMaterials = await QuoteModel.getPopularMaterials(projectType);
+    return res.json({ success: true, data: popularMaterials });
+  } catch (err: any) {
+    console.error('[POPULAR MATERIALS] error:', err.message);
+    return res.status(500).json({ success: false, message: 'Unable to load popular material choices.' });
+  }
+});
+
 // ---- Rate limiter: 5 submissions per IP per hour ----
 const quoteLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
