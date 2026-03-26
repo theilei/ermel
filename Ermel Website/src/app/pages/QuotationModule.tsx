@@ -66,6 +66,14 @@ const FEET_PER_METER = 3.280839895;
 const PRICE_PER_SQ_FOOT = 350;
 const STEPS = ['Info', 'Category', 'Materials', 'Dimensions', 'Reservation', 'Summary'];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_DIMENSION_FEET = 20;
+const MAX_DIMENSION_MESSAGE = 'Maximum allowed dimension is 20 ft (6.096 m / 609.6 cm / 240 in).';
+const MAX_DIMENSION_BY_UNIT: Record<MeasurementUnit, number> = {
+  cm: 609.6,
+  m: 6.096,
+  ft: 20,
+  in: 240,
+};
 
 function isoDate(d: Date): string {
   const y = d.getFullYear();
@@ -359,8 +367,10 @@ export default function QuotationModule() {
   const cleanedPhone = cleanPhoneInput(phone);
   const phoneValid = isValidPhPhone(cleanedPhone);
 
-  const widthValid = w > 0 && isValidMeasurement(w, measureUnit);
-  const heightValid = h > 0 && isValidMeasurement(h, measureUnit);
+  const widthExceedsLimit = w > 0 && widthFeet > MAX_DIMENSION_FEET;
+  const heightExceedsLimit = h > 0 && heightFeet > MAX_DIMENSION_FEET;
+  const widthValid = w > 0 && isValidMeasurement(w, measureUnit) && !widthExceedsLimit;
+  const heightValid = h > 0 && isValidMeasurement(h, measureUnit) && !heightExceedsLimit;
   const addressValid = isValidAddress(address);
 
   const categoryOtherValid = category !== 'other' || isValidOtherInput(categoryOther);
@@ -856,6 +866,8 @@ export default function QuotationModule() {
                       value={width}
                       onChange={(e) => handleWidthChange(e.target.value)}
                       placeholder={measureUnit === 'cm' ? 'e.g. 120' : measureUnit === 'm' ? 'e.g. 1.20' : measureUnit === 'ft' ? 'e.g. 3.94' : 'e.g. 47.24'}
+                      min="0"
+                      max={MAX_DIMENSION_BY_UNIT[measureUnit]}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(width !== '' && !widthValid)}
@@ -863,7 +875,7 @@ export default function QuotationModule() {
                       onBlur={(e) => { e.target.style.borderColor = (width !== '' && !widthValid) ? '#d32f2f' : '#d9d9d9'; }}
                     />
                     {width !== '' && !widthValid && (
-                      <InlineError message={w <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />
+                      <InlineError message={w <= 0 ? 'Value must be greater than 0.' : widthExceedsLimit ? MAX_DIMENSION_MESSAGE : 'Enter a valid measurement.'} />
                     )}
                   </div>
                   <div>
@@ -876,6 +888,8 @@ export default function QuotationModule() {
                       value={height}
                       onChange={(e) => handleHeightChange(e.target.value)}
                       placeholder={measureUnit === 'cm' ? 'e.g. 150' : measureUnit === 'm' ? 'e.g. 1.50' : measureUnit === 'ft' ? 'e.g. 4.92' : 'e.g. 59.06'}
+                      min="0"
+                      max={MAX_DIMENSION_BY_UNIT[measureUnit]}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(height !== '' && !heightValid)}
@@ -883,7 +897,7 @@ export default function QuotationModule() {
                       onBlur={(e) => { e.target.style.borderColor = (height !== '' && !heightValid) ? '#d32f2f' : '#d9d9d9'; }}
                     />
                     {height !== '' && !heightValid && (
-                      <InlineError message={h <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />
+                      <InlineError message={h <= 0 ? 'Value must be greater than 0.' : heightExceedsLimit ? MAX_DIMENSION_MESSAGE : 'Enter a valid measurement.'} />
                     )}
                   </div>
                 </div>
