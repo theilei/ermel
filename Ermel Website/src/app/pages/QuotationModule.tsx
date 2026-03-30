@@ -679,11 +679,11 @@ export default function QuotationModule() {
               <h2 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '20px', textAlign: 'center' }}>
                 SELECT PROJECT CATEGORY
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
                 {PROJECT_CATEGORIES.map((cat) => (
                   <div
                     key={cat.id}
-                    onClick={() => setCategory(cat.id)}
+                    onClick={() => setCategory((prev) => (prev === cat.id ? null : cat.id))}
                     className="cursor-pointer rounded-xl overflow-hidden relative group transition-all duration-200"
                     style={{ border: category === cat.id ? '3px solid #7a0000' : '2px solid #d9d9d9', borderRadius: '8px', boxShadow: category === cat.id ? '0 4px 20px rgba(122,0,0,0.25)' : 'none', transform: category === cat.id ? 'translateY(-2px)' : 'none', minHeight: '60px' }}
                   >
@@ -696,7 +696,7 @@ export default function QuotationModule() {
                         <span style={{ fontSize: '40px', color: category === cat.id ? '#7a0000' : '#d9d9d9' }}>?</span>
                       </div>
                     )}
-                    <div className="p-3" style={{ backgroundColor: category === cat.id ? '#15263c' : 'white' }}>
+                    <div className="p-3" style={{ backgroundColor: category === cat.id ? '#15263c' : 'white', textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700, color: category === cat.id ? 'white' : '#15263c', textTransform: 'uppercase' }}>
                         {cat.label}
                       </div>
@@ -743,11 +743,11 @@ export default function QuotationModule() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 max-w-4xl mx-auto">
                 {GLASS_TYPES.map((g) => {
                   const isTopPick = !!recommendedGlassId && g.id === recommendedGlassId;
                   return (
-                  <div key={g.id} onClick={() => setGlassType(g.id)} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: glassType === g.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : isTopPick ? '0 4px 20px rgba(240,192,64,0.25)' : 'none', minHeight: '60px' }}>
+                  <div key={g.id} onClick={() => setGlassType((prev) => (prev === g.id ? null : g.id))} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: glassType === g.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : isTopPick ? '0 4px 20px rgba(240,192,64,0.25)' : 'none', minHeight: '60px' }}>
                     {isTopPick && (
                       <div style={{ position: 'absolute', top: '8px', left: '8px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '10px', fontWeight: 800, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '999px', textTransform: 'uppercase', zIndex: 3 }}>
                         POPULAR CHOICE!
@@ -772,7 +772,7 @@ export default function QuotationModule() {
                 {COLOR_OPTIONS.map((c) => {
                   const isTopPick = !!recommendedColorId && c.id === recommendedColorId;
                   return (
-                  <div key={c.id} onClick={() => setColorChoice(c.id)} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : isTopPick ? '0 2px 12px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                  <div key={c.id} onClick={() => setColorChoice((prev) => (prev === c.id ? null : c.id))} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : isTopPick ? '0 2px 12px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
                     {isTopPick && (
                       <div style={{ position: 'absolute', top: '6px', left: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
                         POPULAR CHOICE!
@@ -793,7 +793,7 @@ export default function QuotationModule() {
                   const isSelected = frameMaterial === f.id;
                   const isTopPick = !!recommendedFrameId && f.id === recommendedFrameId;
                   return (
-                    <div key={f.id} onClick={() => setFrameMaterial(f.id)} className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200 relative overflow-hidden" style={{ border: isSelected ? '2px solid #15263c' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', boxShadow: isTopPick && !isSelected ? '0 4px 20px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                    <div key={f.id} onClick={() => setFrameMaterial((prev) => (prev === f.id ? null : f.id))} className="cursor-pointer p-4 rounded-xl flex flex-col items-center text-center gap-3 transition-all duration-200 relative overflow-hidden" style={{ border: isSelected ? '2px solid #15263c' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', boxShadow: isTopPick && !isSelected ? '0 4px 20px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
                       {isTopPick && (
                         <div style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
                           POPULAR CHOICE!
@@ -804,7 +804,7 @@ export default function QuotationModule() {
                           {isSelected && <Check size={14} color="#15263c" strokeWidth={3} />}
                         </div>
                       </div>
-                      <div>
+                      <div style={{ textAlign: 'center' }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: isSelected ? 'white' : '#15263c', textTransform: 'uppercase' }}>{f.label}</div>
                         <div style={{ fontSize: '12px', color: isSelected ? '#9ab0c4' : '#54667d', fontFamily: 'var(--font-body)' }}>{f.desc}</div>
                       </div>
