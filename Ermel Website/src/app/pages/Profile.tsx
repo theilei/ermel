@@ -92,7 +92,7 @@ export default function Profile() {
       return;
     }
 
-    if (currentPassword === newPassword) {
+    if (form.currentPassword === form.newPassword) {
       setPasswordError('New password must be different from your current password.');
       return;
     }

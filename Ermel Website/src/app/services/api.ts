@@ -12,6 +12,7 @@ import type {
   SystemNotification,
   PaymentMethod,
 } from '../types/quotation';
+import { supabase } from './supabaseClient';
 
 export interface DashboardActiveInstallation {
   id: string;
@@ -49,10 +50,32 @@ export interface PopularMaterialsSummary {
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000/api';
 
-function getAdminHeaders(): HeadersInit {
-  return {
-    'Content-Type': 'application/json',
-  };
+async function getAccessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function adminFetch(input: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers || {});
+  if (!headers.has('Content-Type') && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const token = await getAccessToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
 }
 
 function getCustomerHeaders(): HeadersInit {
@@ -81,39 +104,33 @@ export async function fetchQuotes(params?: { search?: string; status?: string; p
   if (params?.status) query.set('status', params.status);
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
-  const res = await fetch(`${API_BASE}/admin/quotes?${query}`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/quotes?${query}`);
   return handleResponse<{ quotes: Quote[]; pagination: { page: number; limit: number; totalItems: number; totalPages: number } }>(res);
 }
 
 export async function fetchQuote(id: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}`);
   return handleResponse<Quote>(res);
 }
 
 export async function updateQuote(id: string, data: Partial<Quote>) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<Quote>(res);
 }
 
 export async function approveQuote(id: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/approve`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/approve`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<Quote>(res);
 }
 
 export async function rejectQuote(id: string, reason: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/reject`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/reject`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ reason }),
   });
   return handleResponse<Quote>(res);
@@ -124,10 +141,8 @@ export function getQuotePDFUrl(id: string): string {
 }
 
 export async function convertQuoteToOrder(id: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/convert`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(id)}/convert`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<{ quote: Quote; order: InstallationOrder }>(res);
 }
@@ -138,15 +153,13 @@ export async function fetchOrders(params?: { status?: string; page?: number; lim
   if (params?.status) query.set('status', params.status);
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
-  const res = await fetch(`${API_BASE}/admin/orders?${query}`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/orders?${query}`);
   return handleResponse<{ orders: InstallationOrder[]; pagination: { page: number; limit: number; totalItems: number; totalPages: number } }>(res);
 }
 
 export async function updateInstallationStatus(id: string, status: InstallationStatus, installationSchedule?: string) {
-  const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}/status`, {
+  const res = await adminFetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}/status`, {
     method: 'PUT',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ status, installationSchedule }),
   });
   return handleResponse<InstallationOrder>(res);
@@ -184,15 +197,12 @@ export async function fetchActivityLogs(params?: { quoteId?: string; orderId?: s
   const query = new URLSearchParams();
   if (params?.quoteId) query.set('quoteId', params.quoteId);
   if (params?.orderId) query.set('orderId', params.orderId);
-  const res = await fetch(`${API_BASE}/admin/activity-logs?${query}`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/activity-logs?${query}`);
   return handleResponse<ActivityLog[]>(res);
 }
 
 export async function fetchAdminDashboardMetrics() {
-  const res = await fetch(`${API_BASE}/admin/dashboard/metrics`, {
-    headers: getAdminHeaders(),
-    credentials: 'include',
-  });
+  const res = await adminFetch(`${API_BASE}/admin/dashboard/metrics`);
   return handleResponse<AdminDashboardMetrics>(res);
 }
 
@@ -220,36 +230,27 @@ export async function fetchReservations(params?: { status?: string }) {
   const query = new URLSearchParams();
   if (params?.status) query.set('status', params.status);
 
-  const res = await fetch(`${API_BASE}/admin/reservations?${query}`, {
-    headers: getAdminHeaders(),
-    credentials: 'include',
-  });
+  const res = await adminFetch(`${API_BASE}/admin/reservations?${query}`);
   return handleResponse<Reservation[]>(res);
 }
 
 export async function approveReservation(id: string) {
-  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/approve`, {
+  const res = await adminFetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/approve`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<Reservation>(res);
 }
 
 export async function rejectReservation(id: string) {
-  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reject`, {
+  const res = await adminFetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reject`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<Reservation>(res);
 }
 
 export async function rescheduleReservation(id: string, reservationDate: string) {
-  const res = await fetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reschedule`, {
+  const res = await adminFetch(`${API_BASE}/admin/reservations/${encodeURIComponent(id)}/reschedule`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ reservationDate }),
   });
   return handleResponse<Reservation>(res);
@@ -257,50 +258,42 @@ export async function rescheduleReservation(id: string, reservationDate: string)
 
 // ---- Legacy Orders (general project tracking) ----
 export async function fetchLegacyOrders() {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders`);
   return handleResponse<any[]>(res);
 }
 
 export async function fetchLegacyOrderSummary() {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders/summary`, { headers: getAdminHeaders(), credentials: 'include' });
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders/summary`);
   return handleResponse<LegacyOrderSummary>(res);
 }
 
 export async function createLegacyOrder(data: any) {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders`, {
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<any>(res);
 }
 
 export async function updateLegacyOrderStatus(id: string, status: string, scheduledDate?: string) {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/status`, {
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/status`, {
     method: 'PUT',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ status, scheduledDate }),
   });
   return handleResponse<any>(res);
 }
 
 export async function updateLegacyOrderCost(id: string, approvedCost: number) {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/cost`, {
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/cost`, {
     method: 'PUT',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ approvedCost }),
   });
   return handleResponse<any>(res);
 }
 
 export async function markLegacyOrderPayment(id: string) {
-  const res = await fetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/payment`, {
+  const res = await adminFetch(`${API_BASE}/admin/legacy-orders/${encodeURIComponent(id)}/payment`, {
     method: 'PUT',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<any>(res);
 }
@@ -370,27 +363,20 @@ export function getCustomerCashReceiptUrl(quoteId: string): string {
 }
 
 export async function fetchAdminPayments() {
-  const res = await fetch(`${API_BASE}/admin/payments`, {
-    headers: getAdminHeaders(),
-    credentials: 'include',
-  });
+  const res = await adminFetch(`${API_BASE}/admin/payments`);
   return handleResponse<any[]>(res);
 }
 
 export async function adminApprovePayment(quoteId: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/approve`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/approve`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
   });
   return handleResponse<any>(res);
 }
 
 export async function adminRejectPayment(quoteId: string, reason: string) {
-  const res = await fetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/reject`, {
+  const res = await adminFetch(`${API_BASE}/admin/quotes/${encodeURIComponent(quoteId)}/payment/reject`, {
     method: 'POST',
-    headers: getAdminHeaders(),
-    credentials: 'include',
     body: JSON.stringify({ reason }),
   });
   return handleResponse<any>(res);
@@ -445,10 +431,7 @@ export async function customerMarkPayment(id: string, _email: string) {
 }
 
 export async function fetchAdminAnalyticsSummary() {
-  const res = await fetch(`${API_BASE}/admin/analytics/summary`, {
-    headers: getAdminHeaders(),
-    credentials: 'include',
-  });
+  const res = await adminFetch(`${API_BASE}/admin/analytics/summary`);
   return handleResponse<{
     totalQuotes: number;
     approvalRate: number;

@@ -11,6 +11,7 @@ import type {
 } from '../types/quotation';
 import * as api from '../services/api';
 import { supabase } from '../services/supabaseClient';
+import { useAuth } from './AuthContext';
 
 // ---- Context Interface ----
 interface QuoteContextType {
@@ -39,6 +40,7 @@ interface QuoteContextType {
 const QuoteContext = createContext<QuoteContextType | null>(null);
 
 export function QuoteProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [installationOrders, setInstallationOrders] = useState<InstallationOrder[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -86,15 +88,23 @@ export function QuoteProvider({ children }: { children: React.ReactNode }) {
   // Load data on mount
   useEffect(() => {
     async function loadAll() {
+      if (authLoading) return;
+      if (!user || user.role !== 'admin') {
+        setQuotes([]);
+        setInstallationOrders([]);
+        setActivityLogs([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       await Promise.all([refreshQuotes(), refreshOrders(), refreshLogs()]);
       setLoading(false);
     }
     loadAll();
-  }, [refreshQuotes, refreshOrders, refreshLogs]);
+  }, [authLoading, user, refreshQuotes, refreshOrders, refreshLogs]);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || authLoading || !user || user.role !== 'admin') return;
     const client = supabase;
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -128,7 +138,7 @@ export function QuoteProvider({ children }: { children: React.ReactNode }) {
       client.removeChannel(paymentChannel);
       client.removeChannel(reservationChannel);
     };
-  }, [refreshLogs, refreshOrders, refreshQuotes]);
+  }, [authLoading, user, refreshLogs, refreshOrders, refreshQuotes]);
 
   // ---- Admin actions ----
   const updateQuoteFn = useCallback(async (id: string, updates: Partial<Quote>) => {

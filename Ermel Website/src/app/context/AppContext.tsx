@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as api from '../services/api';
+import { useAuth } from './AuthContext';
 
 export type OrderStatus = 'inquiry' | 'quotation' | 'ordering' | 'fabrication' | 'installation';
 
@@ -80,6 +81,7 @@ function mapApiOrder(o: any): Order {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderSummary, setOrderSummary] = useState<OrderSummary>({ totalOrders: 0, totalRevenue: 0, activeOrders: 0 });
   const [loading, setLoading] = useState(true);
@@ -111,11 +113,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      if (authLoading) return;
+      if (!user || user.role !== 'admin') {
+        setOrders([]);
+        setOrderSummary({ totalOrders: 0, totalRevenue: 0, activeOrders: 0 });
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       await Promise.all([refreshOrders(), refreshOrderSummary()]);
       setLoading(false);
     })();
-  }, [refreshOrders, refreshOrderSummary]);
+  }, [authLoading, user, refreshOrders, refreshOrderSummary]);
 
   const updateOrderStatus = useCallback(async (id: string, status: OrderStatus, scheduledDate?: string) => {
     try {
