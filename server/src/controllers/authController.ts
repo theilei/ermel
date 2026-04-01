@@ -325,7 +325,7 @@ export async function logout(req: Request, res: Response) {
 // ============================================================
 export async function me(req: Request, res: Response) {
   if (!req.session || !req.session.userId) {
-    return res.status(401).json({ error: 'Not authenticated.' });
+    return res.json({ authenticated: false, user: null });
   }
 
   try {
@@ -336,7 +336,7 @@ export async function me(req: Request, res: Response) {
 
     if (result.rows.length === 0) {
       req.session.destroy(() => {});
-      return res.status(401).json({ error: 'User not found.' });
+      return res.json({ authenticated: false, user: null });
     }
 
     const user = result.rows[0];
@@ -350,6 +350,7 @@ export async function me(req: Request, res: Response) {
     };
 
     return res.json({
+      authenticated: true,
       user: {
         id: user.id,
         fullName: user.full_name,
