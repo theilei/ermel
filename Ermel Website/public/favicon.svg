@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ERMEL favicon">
+  <rect width="64" height="64" rx="10" fill="#0f1c2e"/>
+  <rect x="7" y="7" width="50" height="50" rx="6" fill="#9b0000"/>
+  <path d="M20 20h24v6H27v7h14v6H27v7h17v6H20z" fill="#fff"/>
+</svg>
