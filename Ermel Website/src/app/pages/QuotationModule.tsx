@@ -28,14 +28,14 @@ import {
 } from '../utils/validation';
 
 const PROJECT_CATEGORIES = [
-  { id: 'storefront', label: 'Storefront', desc: 'Full commercial front with door & windows', img: 'https://images.unsplash.com/photo-1655258104134-35ea5ef8647c?w=400&q=80', baseRate: 1800 },
-  { id: 'sliding-window', label: 'Sliding Window', desc: 'Horizontal sliding window panel', img: 'https://images.unsplash.com/photo-1762077713566-2a8f205c12df?w=400&q=80', baseRate: 1200 },
-  { id: 'glass-door', label: 'Glass Door', desc: 'Swing or sliding door with frame', img: 'https://images.unsplash.com/photo-1759709583846-d788ccb313ae?w=400&q=80', baseRate: 2200 },
-  { id: 'aluminum-door', label: 'Aluminum Door', desc: 'Durable framed door system for entryways', img: 'https://source.unsplash.com/800x600/?aluminum,door,glass', baseRate: 2100 },
-  { id: 'glass-partition', label: 'Glass Partition', desc: 'Interior divider or office partition', img: 'https://images.unsplash.com/photo-1770993151375-0dee97eda931?w=400&q=80', baseRate: 1500 },
-  { id: 'awning-window', label: 'Awning Window', desc: 'Top-hinged outward opening window', img: 'https://images.unsplash.com/photo-1766521076678-b124ae61690a?w=400&q=80', baseRate: 1100 },
-  { id: 'fixed-window', label: 'Fixed Window', desc: 'Non-operable picture window', img: 'https://images.unsplash.com/photo-1761227390482-bccb032eeea6?w=400&q=80', baseRate: 900 },
-  { id: 'other', label: 'Other', desc: 'Other – Please specify', img: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&q=80', baseRate: 1200 },
+  { id: 'storefront', label: 'Storefront', desc: 'Full commercial front with door & windows', img: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?q=80&w=1176&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 1800 },
+  { id: 'sliding-window', label: 'Sliding Window', desc: 'Horizontal sliding window panel', img: 'https://images.unsplash.com/photo-1506016427870-22fd0e1f923c?q=80&w=691&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 1200 },
+  { id: 'glass-door', label: 'Glass Door', desc: 'Swing or sliding door with frame', img: 'https://images.unsplash.com/photo-1736593319421-250e17bb2f11?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 2200 },
+  { id: 'aluminum-door', label: 'Aluminum Door', desc: 'Durable framed door system for entryways', img: 'https://images.unsplash.com/photo-1699813748627-f04bdb93cf15?q=80&w=915&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 2100 },
+  { id: 'glass-partition', label: 'Glass Partition', desc: 'Interior divider or office partition', img: 'https://images.unsplash.com/photo-1765766600457-abfd14dd502c?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 1500 },
+  { id: 'awning-window', label: 'Awning Window', desc: 'Top-hinged outward opening window', img: 'https://media.istockphoto.com/id/655652796/photo/awning-window-open-modern-home-aluminium-push-windows.webp?a=1&b=1&s=612x612&w=0&k=20&c=qelS_2zVcZ1p_mT2Z8qwUjULmq-NADK5tRWUe-12BwU=', baseRate: 1100 },
+  { id: 'fixed-window', label: 'Fixed Window', desc: 'Non-operable picture window', img: 'https://images.unsplash.com/photo-1719067720887-b55ecfdd21b2?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 900 },
+  { id: 'other', label: 'Other', desc: 'Other – Please specify', img: 'https://plus.unsplash.com/premium_photo-1661887292823-f92842e8609d?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', baseRate: 1200 },
 ];
 
 const GLASS_TYPES = [
@@ -66,6 +66,14 @@ const FEET_PER_METER = 3.280839895;
 const PRICE_PER_SQ_FOOT = 350;
 const STEPS = ['Info', 'Category', 'Materials', 'Dimensions', 'Reservation', 'Summary'];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_DIMENSION_FEET = 20;
+const MAX_DIMENSION_MESSAGE = 'Maximum allowed dimension is 20 ft (6.096 m / 609.6 cm / 240 in).';
+const MAX_DIMENSION_BY_UNIT: Record<MeasurementUnit, number> = {
+  cm: 609.6,
+  m: 6.096,
+  ft: 20,
+  in: 240,
+};
 
 function isoDate(d: Date): string {
   const y = d.getFullYear();
@@ -359,8 +367,10 @@ export default function QuotationModule() {
   const cleanedPhone = cleanPhoneInput(phone);
   const phoneValid = isValidPhPhone(cleanedPhone);
 
-  const widthValid = w > 0 && isValidMeasurement(w, measureUnit);
-  const heightValid = h > 0 && isValidMeasurement(h, measureUnit);
+  const widthExceedsLimit = w > 0 && widthFeet > MAX_DIMENSION_FEET;
+  const heightExceedsLimit = h > 0 && heightFeet > MAX_DIMENSION_FEET;
+  const widthValid = w > 0 && isValidMeasurement(w, measureUnit) && !widthExceedsLimit;
+  const heightValid = h > 0 && isValidMeasurement(h, measureUnit) && !heightExceedsLimit;
   const addressValid = isValidAddress(address);
 
   const categoryOtherValid = category !== 'other' || isValidOtherInput(categoryOther);
@@ -650,10 +660,7 @@ export default function QuotationModule() {
                     <textarea value={address} onChange={(e) => { setAddress(e.target.value); if (!addressTouched) setAddressTouched(true); }} onBlur={() => setAddressTouched(true)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(addressTouched && !addressValid)} />
                     {addressTouched && !addressValid && <InlineError message={ADDRESS_ERROR_MESSAGE} />}
                   </div>
-                  <div>
-                    <label className="block mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Additional Notes (optional)</label>
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(false)} />
-                  </div>
+
                 </div>
               </div>
               <div className="p-5 rounded-xl" style={{ backgroundColor: '#fff8e1', border: '1px solid #f0c040' }}>
@@ -672,11 +679,11 @@ export default function QuotationModule() {
               <h2 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '20px', textAlign: 'center' }}>
                 SELECT PROJECT CATEGORY
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
                 {PROJECT_CATEGORIES.map((cat) => (
                   <div
                     key={cat.id}
-                    onClick={() => setCategory(cat.id)}
+                    onClick={() => setCategory((prev) => (prev === cat.id ? null : cat.id))}
                     className="cursor-pointer rounded-xl overflow-hidden relative group transition-all duration-200"
                     style={{ border: category === cat.id ? '3px solid #7a0000' : '2px solid #d9d9d9', borderRadius: '8px', boxShadow: category === cat.id ? '0 4px 20px rgba(122,0,0,0.25)' : 'none', transform: category === cat.id ? 'translateY(-2px)' : 'none', minHeight: '60px' }}
                   >
@@ -689,7 +696,7 @@ export default function QuotationModule() {
                         <span style={{ fontSize: '40px', color: category === cat.id ? '#7a0000' : '#d9d9d9' }}>?</span>
                       </div>
                     )}
-                    <div className="p-3" style={{ backgroundColor: category === cat.id ? '#15263c' : 'white' }}>
+                    <div className="p-3" style={{ backgroundColor: category === cat.id ? '#15263c' : 'white', textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700, color: category === cat.id ? 'white' : '#15263c', textTransform: 'uppercase' }}>
                         {cat.label}
                       </div>
@@ -736,11 +743,11 @@ export default function QuotationModule() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 max-w-4xl mx-auto">
                 {GLASS_TYPES.map((g) => {
                   const isTopPick = !!recommendedGlassId && g.id === recommendedGlassId;
                   return (
-                  <div key={g.id} onClick={() => setGlassType(g.id)} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: glassType === g.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : isTopPick ? '0 4px 20px rgba(240,192,64,0.25)' : 'none', minHeight: '60px' }}>
+                  <div key={g.id} onClick={() => setGlassType((prev) => (prev === g.id ? null : g.id))} className="cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: glassType === g.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: glassType === g.id ? '0 4px 20px rgba(122,0,0,0.2)' : isTopPick ? '0 4px 20px rgba(240,192,64,0.25)' : 'none', minHeight: '60px' }}>
                     {isTopPick && (
                       <div style={{ position: 'absolute', top: '8px', left: '8px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '10px', fontWeight: 800, letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '999px', textTransform: 'uppercase', zIndex: 3 }}>
                         POPULAR CHOICE!
@@ -765,7 +772,7 @@ export default function QuotationModule() {
                 {COLOR_OPTIONS.map((c) => {
                   const isTopPick = !!recommendedColorId && c.id === recommendedColorId;
                   return (
-                  <div key={c.id} onClick={() => setColorChoice(c.id)} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : isTopPick ? '0 2px 12px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                  <div key={c.id} onClick={() => setColorChoice((prev) => (prev === c.id ? null : c.id))} className="cursor-pointer rounded-xl p-3 flex flex-col items-center text-center transition-all duration-200 relative overflow-hidden" style={{ border: colorChoice === c.id ? '3px solid #7a0000' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: 'white', boxShadow: colorChoice === c.id ? '0 2px 12px rgba(122,0,0,0.15)' : isTopPick ? '0 2px 12px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
                     {isTopPick && (
                       <div style={{ position: 'absolute', top: '6px', left: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
                         POPULAR CHOICE!
@@ -786,7 +793,7 @@ export default function QuotationModule() {
                   const isSelected = frameMaterial === f.id;
                   const isTopPick = !!recommendedFrameId && f.id === recommendedFrameId;
                   return (
-                    <div key={f.id} onClick={() => setFrameMaterial(f.id)} className="cursor-pointer p-4 rounded-xl flex items-center gap-3 transition-all duration-200 relative overflow-hidden" style={{ border: isSelected ? '2px solid #15263c' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', boxShadow: isTopPick && !isSelected ? '0 4px 20px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
+                    <div key={f.id} onClick={() => setFrameMaterial((prev) => (prev === f.id ? null : f.id))} className="cursor-pointer p-4 rounded-xl flex flex-col items-center text-center gap-3 transition-all duration-200 relative overflow-hidden" style={{ border: isSelected ? '2px solid #15263c' : isTopPick ? '2px solid #f0c040' : '2px solid #d9d9d9', borderRadius: '8px', backgroundColor: isSelected ? '#15263c' : 'white', boxShadow: isTopPick && !isSelected ? '0 4px 20px rgba(240,192,64,0.2)' : 'none', minHeight: '60px' }}>
                       {isTopPick && (
                         <div style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: '#f0c040', color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase' }}>
                           POPULAR CHOICE!
@@ -797,7 +804,7 @@ export default function QuotationModule() {
                           {isSelected && <Check size={14} color="#15263c" strokeWidth={3} />}
                         </div>
                       </div>
-                      <div>
+                      <div style={{ textAlign: 'center' }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontSize: '15px', fontWeight: 700, color: isSelected ? 'white' : '#15263c', textTransform: 'uppercase' }}>{f.label}</div>
                         <div style={{ fontSize: '12px', color: isSelected ? '#9ab0c4' : '#54667d', fontFamily: 'var(--font-body)' }}>{f.desc}</div>
                       </div>
@@ -859,6 +866,8 @@ export default function QuotationModule() {
                       value={width}
                       onChange={(e) => handleWidthChange(e.target.value)}
                       placeholder={measureUnit === 'cm' ? 'e.g. 120' : measureUnit === 'm' ? 'e.g. 1.20' : measureUnit === 'ft' ? 'e.g. 3.94' : 'e.g. 47.24'}
+                      min="0"
+                      max={MAX_DIMENSION_BY_UNIT[measureUnit]}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(width !== '' && !widthValid)}
@@ -866,7 +875,7 @@ export default function QuotationModule() {
                       onBlur={(e) => { e.target.style.borderColor = (width !== '' && !widthValid) ? '#d32f2f' : '#d9d9d9'; }}
                     />
                     {width !== '' && !widthValid && (
-                      <InlineError message={w <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />
+                      <InlineError message={w <= 0 ? 'Value must be greater than 0.' : widthExceedsLimit ? MAX_DIMENSION_MESSAGE : 'Enter a valid measurement.'} />
                     )}
                   </div>
                   <div>
@@ -879,6 +888,8 @@ export default function QuotationModule() {
                       value={height}
                       onChange={(e) => handleHeightChange(e.target.value)}
                       placeholder={measureUnit === 'cm' ? 'e.g. 150' : measureUnit === 'm' ? 'e.g. 1.50' : measureUnit === 'ft' ? 'e.g. 4.92' : 'e.g. 59.06'}
+                      min="0"
+                      max={MAX_DIMENSION_BY_UNIT[measureUnit]}
                       step="any"
                       className="w-full px-4 py-3 rounded-lg outline-none transition-all"
                       style={inputStyle(height !== '' && !heightValid)}
@@ -886,7 +897,7 @@ export default function QuotationModule() {
                       onBlur={(e) => { e.target.style.borderColor = (height !== '' && !heightValid) ? '#d32f2f' : '#d9d9d9'; }}
                     />
                     {height !== '' && !heightValid && (
-                      <InlineError message={h <= 0 ? 'Value must be greater than 0.' : 'Maximum dimension is 100 meters.'} />
+                      <InlineError message={h <= 0 ? 'Value must be greater than 0.' : heightExceedsLimit ? MAX_DIMENSION_MESSAGE : 'Enter a valid measurement.'} />
                     )}
                   </div>
                 </div>
@@ -924,6 +935,10 @@ export default function QuotationModule() {
                   {addressTouched && !addressValid && (
                     <InlineError message={ADDRESS_ERROR_MESSAGE} />
                   )}
+                </div>
+                <div>
+                  <label className="block mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '13px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Additional Notes (optional)</label>
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 rounded-lg outline-none resize-none" style={inputStyle(false)} />
                 </div>
               </div>
           )}

@@ -19,12 +19,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'draft', label: 'Draft' },
   { value: 'approved', label: 'Approved' },
-  { value: 'customer_accepted', label: 'Customer Accepted' },
-  { value: 'customer_declined', label: 'Customer Declined' },
-  { value: 'converted_to_order', label: 'Converted to Order' },
-  { value: 'expired', label: 'Expired' },
 ];
 
 export default function QuotationApproval() {

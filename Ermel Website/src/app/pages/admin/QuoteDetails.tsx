@@ -30,19 +30,7 @@ export default function QuoteDetails() {
   useEffect(() => {
     if (quote && editing) {
       setEditData({
-        customerName: quote.customerName,
-        customerEmail: quote.customerEmail,
-        customerPhone: quote.customerPhone,
-        customerAddress: quote.customerAddress,
-        projectType: quote.projectType,
-        glassType: quote.glassType,
-        frameMaterial: quote.frameMaterial,
-        width: quote.width,
-        height: quote.height,
-        quantity: quote.quantity,
-        color: quote.color,
         estimatedCost: quote.estimatedCost,
-        notes: quote.notes || '',
       });
     }
   }, [editing, quote]);
@@ -265,56 +253,24 @@ export default function QuoteDetails() {
                 <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Customer Information
                 </div>
-                {!editing && quote.status !== 'approved' && (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ border: '1px solid #e0e4ea', backgroundColor: 'white', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase' }}
-                  >
-                    <Edit2 size={13} /> Edit
-                  </button>
-                )}
               </div>
 
-              {editing ? (
-                <div className="space-y-4">
-                  {[
-                    { label: 'Name', icon: User, key: 'customerName' },
-                    { label: 'Email', icon: Mail, key: 'customerEmail' },
-                    { label: 'Phone', icon: Phone, key: 'customerPhone' },
-                    { label: 'Address', icon: MapPin, key: 'customerAddress' },
-                  ].map((field) => (
-                    <div key={field.key}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                        <field.icon size={13} /> {field.label}
-                      </label>
-                      <input
-                        type="text"
-                        value={(editData as any)[field.key] || ''}
-                        onChange={(e) => setEditData((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }}
-                      />
+              <div className="space-y-3">
+                {[
+                  { label: 'Name', value: quote.customerName, icon: User },
+                  { label: 'Email', value: quote.customerEmail, icon: Mail },
+                  { label: 'Phone', value: quote.customerPhone, icon: Phone },
+                  { label: 'Address', value: quote.customerAddress, icon: MapPin },
+                ].map((field) => (
+                  <div key={field.label} className="flex items-start gap-3">
+                    <field.icon size={16} color="#9ab0c4" style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{field.label}</div>
+                      <div style={{ fontSize: '14px', color: '#15263c', fontFamily: 'var(--font-body)', fontWeight: 500 }}>{field.value}</div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[
-                    { label: 'Name', value: quote.customerName, icon: User },
-                    { label: 'Email', value: quote.customerEmail, icon: Mail },
-                    { label: 'Phone', value: quote.customerPhone, icon: Phone },
-                    { label: 'Address', value: quote.customerAddress, icon: MapPin },
-                  ].map((field) => (
-                    <div key={field.label} className="flex items-start gap-3">
-                      <field.icon size={16} color="#9ab0c4" style={{ marginTop: '2px', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: '11px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{field.label}</div>
-                        <div style={{ fontSize: '14px', color: '#15263c', fontFamily: 'var(--font-body)', fontWeight: 500 }}>{field.value}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Project Info */}
@@ -323,62 +279,23 @@ export default function QuoteDetails() {
                 Project Information
               </div>
 
-              {editing ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { label: 'Project Type', key: 'projectType' },
-                    { label: 'Glass Type', key: 'glassType' },
-                    { label: 'Frame Material', key: 'frameMaterial' },
-                    { label: 'Color', key: 'color' },
-                  ].map((field) => (
-                    <div key={field.key}>
-                      <label style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' }}>
-                        {field.label}
-                      </label>
-                      <input
-                        type="text"
-                        value={(editData as any)[field.key] || ''}
-                        onChange={(e) => setEditData((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' }}>Width (cm)</label>
-                    <input type="number" value={editData.width || ''} onChange={(e) => setEditData((prev) => ({ ...prev, width: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Project Type', value: quote.projectType },
+                  { label: 'Glass Type', value: quote.glassType },
+                  { label: 'Frame Material', value: quote.frameMaterial },
+                  { label: 'Dimensions', value: `${quote.width}cm × ${quote.height}cm` },
+                  { label: 'Quantity', value: `${quote.quantity} unit(s)` },
+                  { label: 'Color', value: quote.color },
+                  { label: 'Reservation', value: quote.reservationDate || 'N/A' },
+                ].map((field) => (
+                  <div key={field.label} className="p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
+                    <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{field.label}</div>
+                    <div style={{ fontSize: '14px', color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{field.value}</div>
                   </div>
-                  <div>
-                    <label style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' }}>Height (cm)</label>
-                    <input type="number" value={editData.height || ''} onChange={(e) => setEditData((prev) => ({ ...prev, height: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' }}>Quantity</label>
-                    <input type="number" value={editData.quantity || ''} onChange={(e) => setEditData((prev) => ({ ...prev, quantity: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', display: 'block' }}>Notes</label>
-                    <input type="text" value={editData.notes || ''} onChange={(e) => setEditData((prev) => ({ ...prev, notes: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: '8px', fontSize: '14px', fontFamily: 'var(--font-body)', color: '#15263c', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Project Type', value: quote.projectType },
-                    { label: 'Glass Type', value: quote.glassType },
-                    { label: 'Frame Material', value: quote.frameMaterial },
-                    { label: 'Dimensions', value: `${quote.width}cm × ${quote.height}cm` },
-                    { label: 'Quantity', value: `${quote.quantity} unit(s)` },
-                    { label: 'Color', value: quote.color },
-                      { label: 'Reservation', value: quote.reservationDate || 'N/A' },
-                  ].map((field) => (
-                    <div key={field.label} className="p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
-                      <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{field.label}</div>
-                      <div style={{ fontSize: '14px', color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{field.value}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {quote.notes && !editing && (
+                ))}
+              </div>
+              {quote.notes && (
                 <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
                   <div style={{ fontSize: '10px', color: '#9ab0c4', fontFamily: 'var(--font-heading)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Notes</div>
                   <div style={{ fontSize: '14px', color: '#54667d', fontFamily: 'var(--font-body)' }}>{quote.notes}</div>
@@ -424,8 +341,19 @@ export default function QuoteDetails() {
 
             {/* Pricing */}
             <div style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '24px' }}>
-              <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '20px' }}>
-                Pricing
+              <div className="flex items-center justify-between mb-5">
+                <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Pricing
+                </div>
+                {!editing && quote.status !== 'approved' && (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ border: '1px solid #e0e4ea', backgroundColor: 'white', cursor: 'pointer', fontFamily: 'var(--font-heading)', fontSize: '12px', fontWeight: 700, color: '#54667d', textTransform: 'uppercase' }}
+                  >
+                    <Edit2 size={13} /> Edit Price
+                  </button>
+                )}
               </div>
               {editing ? (
                 <div>

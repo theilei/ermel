@@ -318,6 +318,7 @@ export default function AdminLayout() {
               <button
                 onClick={handleLogout}
                 className="p-2 rounded hover:bg-opacity-80 transition-colors"
+                style={{ cursor: 'pointer' }}
                 title="Logout"
               >
                 <LogOut size={16} color="#9ab0c4" />
@@ -327,7 +328,7 @@ export default function AdminLayout() {
             <button
               onClick={handleLogout}
               className="w-full flex justify-center p-3"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}
+              style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', cursor: 'pointer' }}
               title="Logout"
             >
               <LogOut size={20} color="#9ab0c4" />

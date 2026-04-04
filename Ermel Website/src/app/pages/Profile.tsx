@@ -6,6 +6,34 @@ import { getCsrfToken } from '../services/csrf';
 
 const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
 
+const getPasswordStrength = (password: string) => {
+  const checks = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecialChar: /[^A-Za-z0-9]/.test(password),
+  };
+
+  const baseScore = Object.values(checks).filter(Boolean).length;
+  const lengthBonus = password.length >= 12 ? 1 : 0;
+  const score = baseScore + lengthBonus;
+
+  if (score <= 2) {
+    return { label: 'Weak', color: '#b42318', progress: 25, isStrongEnough: false, checks };
+  }
+
+  if (score === 3) {
+    return { label: 'Fair', color: '#b54708', progress: 50, isStrongEnough: false, checks };
+  }
+
+  if (score === 4) {
+    return { label: 'Good', color: '#2e7d32', progress: 75, isStrongEnough: true, checks };
+  }
+
+  return { label: 'Strong', color: '#1b5e20', progress: 100, isStrongEnough: true, checks };
+};
+
 export default function Profile() {
   const account = useAccountIdentity();
   const [form, setForm] = useState({
@@ -27,6 +55,28 @@ export default function Profile() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const canSubmitPassword =
+    form.newPassword.trim().length > 0 &&
+    form.confirmNewPassword.trim().length > 0 &&
+    !submittingPassword;
+
+  const hasPasswordMismatch =
+    form.newPassword.trim().length > 0 &&
+    form.confirmNewPassword.trim().length > 0 &&
+    form.newPassword !== form.confirmNewPassword;
+
+  const isPasswordTooShort =
+    form.newPassword.trim().length > 0 &&
+    form.newPassword.length < 8;
+
+  const isSameAsCurrentPassword =
+    form.currentPassword.trim().length > 0 &&
+    form.newPassword.trim().length > 0 &&
+    form.currentPassword === form.newPassword;
+
+  const passwordStrength = getPasswordStrength(form.newPassword);
+  const shouldShowStrength = form.newPassword.trim().length > 0;
+
   const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError('');
@@ -39,6 +89,11 @@ export default function Profile() {
 
     if (form.newPassword.length < 8) {
       setPasswordError('New password must be at least 8 characters.');
+      return;
+    }
+
+    if (form.currentPassword === form.newPassword) {
+      setPasswordError('New password must be different from your current password.');
       return;
     }
 
@@ -186,6 +241,37 @@ export default function Profile() {
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {shouldShowStrength && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '6px' }}>
+                      <span style={{ color: '#54667d', fontSize: '12px', fontWeight: 600 }}>Password Strength</span>
+                      <span style={{ color: passwordStrength.color, fontSize: '12px', fontWeight: 700 }}>{passwordStrength.label}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', borderRadius: '999px', backgroundColor: '#dfe6ee', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${passwordStrength.progress}%`,
+                          height: '100%',
+                          backgroundColor: passwordStrength.color,
+                          transition: 'width 180ms ease, background-color 180ms ease',
+                        }}
+                      />
+                    </div>
+                    <div style={{ marginTop: '8px', color: '#54667d', fontSize: '12px' }}>
+                      Use at least 8 characters. Add uppercase, lowercase, number, and symbol for better security.
+                    </div>
+                  </div>
+                )}
+                {isPasswordTooShort && (
+                  <div style={{ marginTop: '6px', color: '#b42318', fontSize: '12px', fontWeight: 600 }}>
+                    Password must be at least 8 characters.
+                  </div>
+                )}
+                {isSameAsCurrentPassword && (
+                  <div style={{ marginTop: '6px', color: '#b42318', fontSize: '12px', fontWeight: 600 }}>
+                    New password must be different from current password.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -199,6 +285,7 @@ export default function Profile() {
                     value={form.confirmNewPassword}
                     onChange={(e) => onPasswordInput('confirmNewPassword', e.target.value)}
                     autoComplete="new-password"
+                    aria-invalid={hasPasswordMismatch}
                     style={{ width: '100%', border: '1px solid #d2dae3', borderRadius: '8px', padding: '10px 44px 10px 12px', fontSize: '14px', color: '#15263c', backgroundColor: 'white' }}
                   />
                   <button
@@ -210,12 +297,17 @@ export default function Profile() {
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {hasPasswordMismatch && (
+                  <div style={{ marginTop: '6px', color: '#b42318', fontSize: '12px', fontWeight: 600 }}>
+                    New password and confirmation do not match.
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={submittingPassword}
-                style={{ marginTop: '4px', border: 'none', borderRadius: '8px', padding: '10px 14px', background: 'linear-gradient(135deg, #7a0000, #a50000)', color: 'white', fontFamily: 'var(--font-heading)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, cursor: submittingPassword ? 'not-allowed' : 'pointer', opacity: submittingPassword ? 0.6 : 1 }}
+                disabled={!canSubmitPassword || hasPasswordMismatch || isPasswordTooShort || isSameAsCurrentPassword || !form.currentPassword.trim()}
+                style={{ marginTop: '4px', border: 'none', borderRadius: '8px', padding: '10px 14px', background: 'linear-gradient(135deg, #7a0000, #a50000)', color: 'white', fontFamily: 'var(--font-heading)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, cursor: canSubmitPassword && !hasPasswordMismatch && !isPasswordTooShort && !isSameAsCurrentPassword && !!form.currentPassword.trim() ? 'pointer' : 'not-allowed', opacity: canSubmitPassword && !hasPasswordMismatch && !isPasswordTooShort && !isSameAsCurrentPassword && !!form.currentPassword.trim() ? 1 : 0.6 }}
               >
                 {submittingPassword ? 'Updating Password...' : 'Update Password'}
               </button>

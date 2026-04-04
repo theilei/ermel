@@ -32,9 +32,9 @@ const products = [
 
 const stats = [
   { value: '500+', label: 'Projects Completed' },
-  { value: '7+', label: 'Years Experience' },
+  { value: '8+', label: 'Years Experience' },
   { value: '98%', label: 'Client Satisfaction' },
-  { value: '48hr', label: 'Quote Turnaround' },
+  { value: '24hr', label: 'Quote Turnaround' },
 ];
 
 const projects = [

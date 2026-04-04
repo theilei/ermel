@@ -45,6 +45,14 @@ function statusColor(status?: string) {
   return '#15263c';
 }
 
+function formatStatusLabel(status?: string) {
+  if (!status) return 'N/A';
+  return status
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 function validatePaymentProofFile(file: File): string | null {
   const fileName = file.name || '';
   const lowerName = fileName.toLowerCase();
@@ -303,6 +311,8 @@ export default function CheckStatus() {
   const isPreviewPdf = lowerProofName.endsWith('.pdf');
   const isPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(lowerProofName);
   const canModifyPayment = !isPaymentExpired && !isPaymentPaid;
+  const hasPaymentProof = Boolean(effectivePayment?.proofFile) || Boolean(selectedProofFile);
+  const canChangePaymentMethod = !isPaymentExpired && !isPaymentPaid && !hasPaymentProof;
   const canSubmitSelectedProof = Boolean(selectedProofFile) && !proofValidationError && canModifyPayment;
   const paymentStatusLabel = effectivePayment?.status === 'waiting_approval'
     ? (effectivePayment?.proofFile ? 'Waiting for approval' : 'No submission yet')
@@ -392,6 +402,19 @@ export default function CheckStatus() {
       setPaymentMessage(err?.message || 'Failed to submit payment proof. Please try again.');
     } finally {
       setSubmittingProof(false);
+    }
+  };
+
+  const handleSelectPaymentMethod = async (method: 'qrph' | 'cash') => {
+    if (!selectedQuote || !canChangePaymentMethod) return;
+
+    setPaymentMessage('');
+    try {
+      await setCustomerPaymentMethod(selectedQuote.id, method);
+      await reloadAll();
+      await loadPaymentMeta(selectedQuote.id);
+    } catch (err: any) {
+      setPaymentMessage(err?.message || 'Failed to set payment method. Please try again.');
     }
   };
 
@@ -634,7 +657,7 @@ export default function CheckStatus() {
                           {q.id}
                         </div>
                         <div style={{ color: '#15263c', fontWeight: 700, marginTop: '2px' }}>{q.projectType}</div>
-                        <div style={{ color: statusColor(q.status), fontSize: '13px', marginTop: '3px', textTransform: 'lowercase' }}>{q.status}</div>
+                        <div style={{ color: statusColor(q.status), fontSize: '13px', marginTop: '3px' }}>{formatStatusLabel(q.status)}</div>
                       </button>
                     );
                   })
@@ -684,8 +707,8 @@ export default function CheckStatus() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: '16px' }}>
                     <div style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '12px' }}>
                       <div style={{ color: '#9ab0c4', fontSize: '11px', fontFamily: 'var(--font-heading)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 700 }}>Status</div>
-                      <div style={{ marginTop: '4px', color: statusColor(latestStatus), fontWeight: 800, textTransform: 'lowercase', fontSize: '20px' }}>
-                        {latestStatus || 'pending'}
+                      <div style={{ marginTop: '4px', color: statusColor(latestStatus), fontWeight: 800, fontSize: '20px' }}>
+                        {formatStatusLabel(latestStatus || 'pending')}
                       </div>
                     </div>
 
@@ -735,8 +758,8 @@ export default function CheckStatus() {
                           }}
                         >
                           <div style={{ color: '#9ab0c4', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
-                          <div style={{ color: isPaymentPaid ? '#1a5c1a' : '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px', textTransform: 'lowercase' }}>
-                            {paymentStatusLabel}
+                          <div style={{ color: isPaymentPaid ? '#1a5c1a' : '#15263c', fontSize: '16px', fontWeight: 800, marginTop: '4px' }}>
+                            {formatStatusLabel(paymentStatusLabel)}
                           </div>
                           {isPaymentPaid && (
                             <div style={{ marginTop: '5px', color: '#1a5c1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
@@ -781,30 +804,73 @@ export default function CheckStatus() {
                         </div>
                       )}
 
-                      <div className="flex flex-wrap gap-2" style={{ marginBottom: '10px' }}>
-                        <button
-                          disabled={isPaymentExpired || isPaymentPaid}
-                          onClick={async () => {
-                            await setCustomerPaymentMethod(selectedQuote.id, 'qrph');
-                            await reloadAll();
-                            await loadPaymentMeta(selectedQuote.id);
-                          }}
-                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: effectivePayment?.paymentMethod === 'qrph' ? '#15263c' : 'white', color: effectivePayment?.paymentMethod === 'qrph' ? 'white' : '#15263c', cursor: 'pointer' }}
-                        >
-                          Pay Online
-                        </button>
-                        <button
-                          disabled={isPaymentExpired || isPaymentPaid}
-                          onClick={async () => {
-                            await setCustomerPaymentMethod(selectedQuote.id, 'cash');
-                            await reloadAll();
-                            await loadPaymentMeta(selectedQuote.id);
-                          }}
-                          style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: effectivePayment?.paymentMethod === 'cash' ? '#15263c' : 'white', color: effectivePayment?.paymentMethod === 'cash' ? 'white' : '#15263c', cursor: 'pointer' }}
-                        >
-                          Cash
-                        </button>
-                      </div>
+                      <fieldset
+                        style={{
+                          border: '1px solid #e0e4ea',
+                          borderRadius: '8px',
+                          padding: '10px',
+                          marginBottom: '10px',
+                          opacity: canChangePaymentMethod ? 1 : 0.65,
+                        }}
+                        disabled={!canChangePaymentMethod}
+                      >
+                        <legend style={{ padding: '0 6px', color: '#54667d', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Select a Payment Method
+                        </legend>
+                        <div className="flex flex-wrap gap-3">
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              border: '1px solid #e0e4ea',
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              backgroundColor: effectivePayment?.paymentMethod === 'qrph' ? '#f5f7fa' : 'white',
+                              color: '#15263c',
+                              cursor: canChangePaymentMethod ? 'pointer' : 'not-allowed',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="qrph"
+                              checked={effectivePayment?.paymentMethod === 'qrph'}
+                              onChange={() => {
+                                void handleSelectPaymentMethod('qrph');
+                              }}
+                              disabled={!canChangePaymentMethod}
+                            />
+                            <span style={{ fontSize: '13px', fontWeight: 700 }}>Pay Online</span>
+                          </label>
+
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              border: '1px solid #e0e4ea',
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              backgroundColor: effectivePayment?.paymentMethod === 'cash' ? '#f5f7fa' : 'white',
+                              color: '#15263c',
+                              cursor: canChangePaymentMethod ? 'pointer' : 'not-allowed',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value="cash"
+                              checked={effectivePayment?.paymentMethod === 'cash'}
+                              onChange={() => {
+                                void handleSelectPaymentMethod('cash');
+                              }}
+                              disabled={!canChangePaymentMethod}
+                            />
+                            <span style={{ fontSize: '13px', fontWeight: 700 }}>Cash</span>
+                          </label>
+                        </div>
+                      </fieldset>
 
                       {effectivePayment?.paymentMethod === 'qrph' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -1003,7 +1069,7 @@ export default function CheckStatus() {
                         {selectedUpdates.map((u) => (
                           <div key={u.id} style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '12px', backgroundColor: 'white' }}>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1" style={{ marginBottom: '6px' }}>
-                              <span style={{ color: statusColor(u.status), fontSize: '12px', fontWeight: 700, textTransform: 'lowercase' }}>{u.status || 'updated'}</span>
+                              <span style={{ color: statusColor(u.status), fontSize: '12px', fontWeight: 700 }}>{formatStatusLabel(u.status || 'updated')}</span>
                               <span style={{ color: '#9ab0c4', fontSize: '11px' }}>{formatDate(u.createdAt)}</span>
                               <span style={{ color: '#54667d', fontSize: '11px' }}>{u.adminName || 'Admin'}</span>
                             </div>
