@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router';
 import React, { useState, useEffect } from 'react'; 
-import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail, MapPin, Wrench, Building2, Square, DoorOpen, LayoutPanelLeft, Frame } from 'lucide-react';
+import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail, MapPin } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import Footer from '../components/Footer';
 
@@ -22,12 +22,48 @@ const SWING_DOOR_IMG = swingdoor;
 const DOUBLE_SWING_IMG = doubleswing;
 
 const products = [
-  { icon: Building2, label: 'Storefront Systems', desc: 'Full aluminum storefront solutions for commercial properties with custom sizing.' },
-  { icon: Square, label: 'Fixed Windows', desc: 'Non-operable glass windows for maximum light and visual aesthetics.' },
-  { icon: Frame, label: 'Sliding Windows', desc: 'Space-saving horizontal sliding windows for homes and offices.' },
-  { icon: DoorOpen, label: 'Glass Doors', desc: 'Tempered glass swing and sliding doors for modern interiors.' },
-  { icon: LayoutPanelLeft, label: 'Glass Partitions', desc: 'Office and room dividers with frosted or clear glass options.' },
-  { icon: Wrench, label: 'Awning Windows', desc: 'Top-hinged outward-opening windows ideal for ventilation.' },
+  {
+    id: 'storefront',
+    label: 'Storefront',
+    desc: 'Full commercial front with door & windows',
+    img: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?q=80&w=1176&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
+  {
+    id: 'sliding-window',
+    label: 'Sliding Window',
+    desc: 'Horizontal sliding window panel',
+    img: 'https://images.unsplash.com/photo-1506016427870-22fd0e1f923c?q=80&w=691&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
+  {
+    id: 'glass-door',
+    label: 'Glass Door',
+    desc: 'Swing or sliding door with frame',
+    img: 'https://images.unsplash.com/photo-1736593319421-250e17bb2f11?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
+  {
+    id: 'aluminum-door',
+    label: 'Aluminum Door',
+    desc: 'Durable framed door system for entryways',
+    img: 'https://images.unsplash.com/photo-1699813748627-f04bdb93cf15?q=80&w=915&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
+  {
+    id: 'glass-partition',
+    label: 'Glass Partition',
+    desc: 'Interior divider or office partition',
+    img: 'https://images.unsplash.com/photo-1765766600457-abfd14dd502c?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
+  {
+    id: 'awning-window',
+    label: 'Awning Window',
+    desc: 'Top-hinged outward opening window',
+    img: 'https://media.istockphoto.com/id/655652796/photo/awning-window-open-modern-home-aluminium-push-windows.webp?a=1&b=1&s=612x612&w=0&k=20&c=qelS_2zVcZ1p_mT2Z8qwUjULmq-NADK5tRWUe-12BwU=',
+  },
+  {
+    id: 'fixed-window',
+    label: 'Fixed Window',
+    desc: 'Non-operable picture window',
+    img: 'https://images.unsplash.com/photo-1719067720887-b55ecfdd21b2?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  },
 ];
 
 const stats = [
@@ -170,40 +206,58 @@ export default function Home() {
             <div className="w-16 h-1 mx-auto mt-4 rounded" style={{ backgroundColor: '#7a0000' }} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((p) => (
+            {products.map((p, index) => (
               <div
-                key={p.label}
-                className="group p-6 rounded-xl border transition-all duration-200 cursor-default"
+                key={p.id}
+                className={`group p-7 md:p-8 rounded-xl border transition-all duration-200 cursor-default ${
+                  index === products.length - 1 && products.length % 2 === 1
+                    ? 'sm:col-span-2 sm:w-[calc(50%-0.75rem)] sm:mx-auto'
+                    : ''
+                } ${
+                  index === products.length - 1 && products.length % 3 === 1
+                    ? 'lg:col-span-1 lg:col-start-2 lg:w-auto'
+                    : ''
+                }`}
                 style={{
                   backgroundColor: 'white',
-                  border: '1px solid #d9d9d9',
+                  border: '2px solid #7a0000',
                   borderRadius: '8px',
+                  minHeight: '160px',
                 }}
                 onMouseEnter={(e) => {
                   const el = e.currentTarget;
                   el.style.borderColor = '#15263c';
-                  el.style.boxShadow = '0 8px 32px rgba(21,38,60,0.12)';
+                  el.style.boxShadow = '0 8px 32px #7a000080';
                   el.style.transform = 'translateY(-3px)';
                 }}
                 onMouseLeave={(e) => {
                   const el = e.currentTarget;
-                  el.style.borderColor = '#d9d9d9';
+                  el.style.borderColor = '#7a0000';
                   el.style.boxShadow = 'none';
                   el.style.transform = 'translateY(0)';
                 }}
               >
-                <div
-                  className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
-                  style={{ backgroundColor: '#15263c' }}
-                >
-                  <p.icon size={22} color="white" />
+                <div className="flex items-center gap-4 h-full">
+                  <div
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden flex-shrink-0"
+                    style={{ border: '1px solid #d9d9d9' }}
+                  >
+                    <ImageWithFallback
+                      src={p.img}
+                      alt={p.label}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: 'clamp(19px, 2vw, 23px)', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', lineHeight: 1.2 }}>
+                      {p.label}
+                    </h3>
+                    <p style={{ color: '#54667d', fontSize: '15px', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                      {p.desc}
+                    </p>
+                  </div>
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>
-                  {p.label}
-                </h3>
-                <p style={{ color: '#54667d', fontSize: '14px', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-                  {p.desc}
-                </p>
               </div>
             ))}
           </div>

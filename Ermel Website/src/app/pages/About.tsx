@@ -20,7 +20,7 @@ const values = [
   {
     icon: Target,
     title: 'Our Mission',
-    desc: 'To deliver precision-crafted glass and aluminum solutions that exceed client expectations — on time, every time, without compromise on quality.',
+    desc: 'To deliver precision-crafted glass and aluminum solutions that exceed client expectations, on time, every time, without compromise on quality.',
   },
   {
     icon: Eye,
@@ -109,26 +109,12 @@ export default function About() {
               fontFamily: 'var(--font-body)',
             }}
           >
-            More than a decade of precision glass and aluminum fabrication — built on trust, craftsmanship, and a relentless commitment to quality.
+            More than a decade of precision glass and aluminum fabrication, built on trust, craftsmanship, and a relentless commitment to quality.
           </p>
         </div>
       </section>
 
-      {/* ── Stats Banner ── */}
-      <section style={{ backgroundColor: '#15263c' }} className="py-10">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <div style={{ fontFamily: 'var(--font-heading)', color: '#ff6666', fontSize: '42px', fontWeight: 800, lineHeight: 1 }}>
-                {s.value}
-              </div>
-              <div style={{ color: '#d9d9d9', fontSize: '13px', letterSpacing: '0.1em', marginTop: '6px', fontFamily: 'var(--font-body)' }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+
 
       {/* ── Our Story ── */}
       <section className="py-20 px-6" style={{ backgroundColor: '#fafafa' }}>
@@ -155,47 +141,99 @@ export default function About() {
               <div className="w-14 h-1 rounded mb-8" style={{ backgroundColor: '#7a0000' }} />
 
               <p style={{ color: '#3a4a5c', fontSize: '16px', lineHeight: 1.8, fontFamily: 'var(--font-body)', marginBottom: '16px' }}>
-                Ermel Glass &amp; Aluminum Works was founded on a simple belief: that every home and business deserves top-quality glass and aluminum work — delivered with honesty and precision.
+                Ermel Glass &amp; Aluminum Works was founded on a simple belief: that every home and business deserves top-quality glass and aluminum work, delivered with honesty and precision.
               </p>
               <p style={{ color: '#54667d', fontSize: '15px', lineHeight: 1.8, fontFamily: 'var(--font-body)', marginBottom: '16px' }}>
                 Based in Tondo, Manila, we started as a small workshop serving local homeowners. Over the years, our reputation for clean welds, accurate measurements, and on-schedule delivery grew us into a trusted partner for commercial fit-outs and large-scale installations across Metro Manila.
               </p>
               <p style={{ color: '#54667d', fontSize: '15px', lineHeight: 1.8, fontFamily: 'var(--font-body)' }}>
-                Today, Ermel continues to be a proudly family-run operation — with the same attention to detail and personal service we started with, backed by modern tools and an experienced team.
+                Today, Ermel continues to be a proudly family-run operation, with the same attention to detail and personal service we started with, backed by modern tools and an experienced team.
               </p>
             </div>
 
             {/* Visual card panel */}
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              
+            >
               {[
                 { label: 'Founded', value: '2017', sub: 'Tondo, Manila' },
                 { label: 'Employees', value: '25+', sub: 'Skilled craftsmen' },
                 { label: 'Specialization', value: 'Glass & Aluminum', sub: 'Works' },
                 { label: 'Service Area', value: 'Metro', sub: 'Manila & Luzon' },
-              ].map((item) => (
+              ].map((item, idx) => (
                 <div
                   key={item.label}
-                  className="p-6 rounded-xl"
+                  className="p-6 rounded-xl transition-all duration-200"
                   style={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    boxShadow: '0 2px 12px rgba(21,38,60,0.06)',
+                    background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+                    border: '1px solid #dbe5ef',
+                    borderRadius: '14px',
+                    boxShadow: idx % 2 === 0
+                      ? '0 10px 24px rgba(122,0,0,0.15)'
+                      : '0 10px 24px rgba(21,38,60,0.15)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget;
+                    el.style.transform = 'translateY(-4px)';
+                    el.style.boxShadow = idx % 2 === 0
+                      ? '0 18px 34px rgba(122,0,0,0.16)'
+                      : '0 18px 34px rgba(21,38,60,0.16)';
+                    el.style.borderColor = '#c9d8e6';
+                  }}
+                  onMouseLeave={(e) => {
+                    const el = e.currentTarget;
+                    el.style.transform = 'translateY(0)';
+                    el.style.boxShadow = idx % 2 === 0
+                      ? '0 10px 24px rgba(122,0,0,0.15)'
+                      : '0 10px 24px rgba(21,38,60,0.15)';
+                    el.style.borderColor = '#dbe5ef';
                   }}
                 >
-                  <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: idx % 2 === 0
+                        ? 'linear-gradient(90deg, #7a0000 0%, #b21010 100%)'
+                        : 'linear-gradient(90deg, #15263c 0%, #29466a 100%)',
+                    }}
+                  />
+
+                  <div style={{ color: '#7a0000', fontFamily: 'var(--font-heading)', fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px' }}>
                     {item.label}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '28px', fontWeight: 800, lineHeight: 1 }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: 'clamp(24px, 3vw, 30px)', fontWeight: 800, lineHeight: 1 }}>
                     {item.value}
                   </div>
-                  <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '4px' }}>
+                  <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '6px' }}>
                     {item.sub}
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── Stats Banner ── */}
+      <section style={{ backgroundColor: '#15263c' }} className="py-10">
+        <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {stats.map((s) => (
+            <div key={s.label} className="text-center">
+              <div style={{ fontFamily: 'var(--font-heading)', color: '#ff6666', fontSize: '42px', fontWeight: 800, lineHeight: 1 }}>
+                {s.value}
+              </div>
+              <div style={{ color: '#d9d9d9', fontSize: '13px', letterSpacing: '0.1em', marginTop: '6px', fontFamily: 'var(--font-body)' }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
