@@ -78,7 +78,7 @@ function validatePaymentProofFile(file: File): string | null {
 }
 
 const DEFAULT_PROOF_LABEL = 'No file selected yet';
-const API_ORIGIN = (((import.meta as any).env?.VITE_API_URL as string | undefined) || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+const API_ORIGIN = (((import.meta as any).env?.VITE_API_URL as string | undefined) || '/api').replace(/\/api\/?$/, '');
 
 export default function CheckStatus() {
   const { user } = useAuth();
