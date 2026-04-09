@@ -9,8 +9,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString =
-  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ermel';
+const isProduction = process.env.NODE_ENV === 'production';
+const localFallback = 'postgresql://postgres:postgres@localhost:5432/ermel';
+const connectionString = process.env.DATABASE_URL || (!isProduction ? localFallback : '');
+
+if (!connectionString) {
+  throw new Error('[MIGRATE] DATABASE_URL is required in production.');
+}
+
+const isLocalConnection = /localhost|127\.0\.0\.1/i.test(connectionString);
 const isSupabaseConnection = /supabase\.(co|com)/i.test(connectionString);
 const normalizedConnectionString = isSupabaseConnection
   ? connectionString
@@ -20,9 +27,7 @@ const normalizedConnectionString = isSupabaseConnection
 
 const pool = new Pool({
   connectionString: normalizedConnectionString,
-  ssl: isSupabaseConnection
-    ? { rejectUnauthorized: false }
-    : undefined,
+  ssl: isLocalConnection ? undefined : { rejectUnauthorized: false },
 });
 
 async function migrate() {

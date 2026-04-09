@@ -44,11 +44,37 @@ const PRICE_PER_SQ_FOOT = 350;
 const ALLOWED_GLASS_TYPES = new Set(['clear glass', 'bronze glass', 'frosted glass', 'tempered glass']);
 const ALLOWED_FRAME_MATERIALS = new Set(['aluminum frame', 'steel frame', 'stainless frame']);
 const ALLOWED_COLOR_TINTS = new Set(['clear', 'euro gray', 'dark gray', 'bronze', 'dark bronze', 'green']);
+const isProduction = process.env.NODE_ENV === 'production';
+
+const allowedOrigins = [process.env.CORS_ORIGIN, process.env.FRONTEND_URL]
+  .filter(Boolean)
+  .flatMap((value) => String(value).split(','))
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.set('trust proxy', 1);
 
 // ---- Middleware ----
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (!isProduction) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.length === 0) {
+      return callback(new Error('CORS is not configured. Set CORS_ORIGIN or FRONTEND_URL.'), false);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS.'), false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '100kb' }));
 app.use(session(sessionConfig));
 
@@ -320,8 +346,23 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
 });
 
 // ---- Start ----
-app.listen(PORT, () => {
-  console.log(`[SERVER] Ermel Quote API running on port ${PORT}`);
+async function startServer() {
+  try {
+    await pool.query('SELECT 1');
+    console.log('[DB] Connection successful.');
+  } catch (err: any) {
+    console.error('[DB] Connection failed:', err.message);
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`[SERVER] Ermel Quote API running on port ${PORT}`);
+  });
+}
+
+startServer().catch((err: any) => {
+  console.error('[SERVER] Failed to start:', err.message);
+  process.exit(1);
 });
 
 export default app;
