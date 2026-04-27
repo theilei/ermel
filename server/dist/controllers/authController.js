@@ -71,6 +71,9 @@ function csrfToken(req, res) {
     if (!tokenFactory) {
         return res.status(500).json({ error: 'CSRF middleware is not configured.' });
     }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.json({ csrfToken: tokenFactory() });
 }
 // ============================================================

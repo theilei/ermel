@@ -9,6 +9,11 @@ export async function getCsrfToken(forceRefresh = false): Promise<string> {
   const res = await fetch(`${API_ROOT}/auth/csrf-token`, {
     method: 'GET',
     credentials: 'include',
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
   });
 
   if (!res.ok) {
