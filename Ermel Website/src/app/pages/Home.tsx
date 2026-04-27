@@ -170,7 +170,7 @@ export default function Home() {
               fontFamily: 'var(--font-body)',
             }}
           >
-            From storefronts to glass partitions — we fabricate and install custom aluminum and glass work built to your exact specifications.
+            From storefronts to glass partitions, we fabricate and install custom aluminum and glass work built to your exact specifications.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           </div>
