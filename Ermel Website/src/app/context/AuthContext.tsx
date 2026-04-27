@@ -37,6 +37,50 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
 const API_BASE = `${API_ROOT}/auth`;
 
+async function tryParseJson(res: Response): Promise<any> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function isInvalidCsrf(res: Response, data: any): boolean {
+  const errorText = typeof data?.error === 'string' ? data.error.toLowerCase() : '';
+  return res.status === 403 && errorText.includes('csrf');
+}
+
+async function postWithCsrfRetry(path: string, init: { body?: string; contentTypeJson?: boolean } = {}) {
+  const makeRequest = async (forceRefreshToken: boolean) => {
+    const csrfToken = await getCsrfToken(forceRefreshToken);
+    const headers: Record<string, string> = {
+      'x-csrf-token': csrfToken,
+    };
+
+    if (init.contentTypeJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    return fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: init.body,
+    });
+  };
+
+  let res = await makeRequest(false);
+  let data = await tryParseJson(res);
+
+  if (isInvalidCsrf(res, data)) {
+    clearCsrfTokenCache();
+    res = await makeRequest(true);
+    data = await tryParseJson(res);
+  }
+
+  return { res, data };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,18 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const csrfToken = await getCsrfToken();
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
-        },
-        credentials: 'include',
+      const { res, data } = await postWithCsrfRetry('/login', {
+        contentTypeJson: true,
         body: JSON.stringify({ email, password }),
       });
-
-      const data = await res.json();
 
       if (res.ok) {
         setUser(data.user);
@@ -90,18 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (regData: RegisterData) => {
     try {
-      const csrfToken = await getCsrfToken();
-      const res = await fetch(`${API_BASE}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
-        },
-        credentials: 'include',
+      const { res, data } = await postWithCsrfRetry('/register', {
+        contentTypeJson: true,
         body: JSON.stringify(regData),
       });
-
-      const data = await res.json();
 
       if (res.ok) {
         setUser(data.user);
@@ -116,14 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      const csrfToken = await getCsrfToken();
-      await fetch(`${API_BASE}/logout`, {
-        method: 'POST',
-        headers: {
-          'x-csrf-token': csrfToken,
-        },
-        credentials: 'include',
-      });
+      await postWithCsrfRetry('/logout');
     } catch {
       // Proceed even if server is unreachable
     }
@@ -133,16 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendVerification = useCallback(async () => {
     try {
-      const csrfToken = await getCsrfToken();
-      const res = await fetch(`${API_BASE}/resend-verification`, {
-        method: 'POST',
-        headers: {
-          'x-csrf-token': csrfToken,
-        },
-        credentials: 'include',
-      });
-
-      const data = await res.json();
+      const { res, data } = await postWithCsrfRetry('/resend-verification');
 
       if (res.ok) {
         return { success: true };
