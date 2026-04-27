@@ -28,15 +28,15 @@ import { requireAuth } from '../middleware/authMiddleware';
 const router = Router();
 
 router.get('/csrf-token', csrfProtection, csrfToken);
-router.post('/register', csrfProtection, registerLimiter, register);
-router.post('/login', csrfProtection, loginLimiter, login);
+router.post('/register', registerLimiter, register);
+router.post('/login', loginLimiter, login);
 router.post('/logout', csrfProtection, logout);
 router.get('/me', me);
-router.post('/verify-email', csrfProtection, verifyEmail);
+router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', csrfProtection, resendLimiter, resendVerification);
 router.post('/change-password', csrfProtection, requireAuth, changePassword);
-router.post('/forgot-password', csrfProtection, forgotPasswordLimiter, forgotPassword);
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.get('/verify-reset-token', verifyResetToken);
-router.post('/reset-password', csrfProtection, resetPasswordLimiter, resetPassword);
+router.post('/reset-password', resetPasswordLimiter, resetPassword);
 
 export default router;
