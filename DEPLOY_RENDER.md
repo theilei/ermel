@@ -24,6 +24,7 @@ A starter `render.yaml` is included at repo root.
    - `BASE_URL` = deployed frontend URL (for verification links)
    - `FRONTEND_URL` = deployed frontend URL
    - `CORS_ORIGIN` = deployed frontend URL (or comma-separated list)
+   - `SESSION_SAME_SITE` = `none` (required when frontend and backend are on different origins)
    - `GMAIL_USER` / `GMAIL_PASS` if email sending is required
 
 ## 3) Run Database Migrations

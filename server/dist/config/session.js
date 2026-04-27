@@ -12,6 +12,13 @@ const connect_pg_simple_1 = __importDefault(require("connect-pg-simple"));
 const database_1 = __importDefault(require("./database"));
 const PgStore = (0, connect_pg_simple_1.default)(express_session_1.default);
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const isProduction = process.env.NODE_ENV === 'production';
+// Render commonly hosts frontend and backend on different origins.
+// CSRF/session-backed auth requires cross-site cookies in that setup.
+const sameSite = (process.env.SESSION_SAME_SITE || (isProduction ? 'none' : 'lax')).toLowerCase();
+const normalizedSameSite = sameSite === 'strict' || sameSite === 'lax' || sameSite === 'none'
+    ? sameSite
+    : (isProduction ? 'none' : 'lax');
 exports.sessionConfig = {
     store: new PgStore({
         pool: database_1.default,
@@ -24,9 +31,9 @@ exports.sessionConfig = {
     rolling: true,
     name: 'ermel.sid',
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction || normalizedSameSite === 'none',
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: normalizedSameSite,
         maxAge: IDLE_TIMEOUT_MS,
     },
 };
