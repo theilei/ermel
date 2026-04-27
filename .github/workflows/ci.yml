@@ -8,6 +8,27 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ermel_test
+      NODE_ENV: test
+      SESSION_SECRET: ci-session-secret
+      FRONTEND_URL: http://127.0.0.1:5173
+      CORS_ORIGIN: http://127.0.0.1:5173
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ermel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d ermel_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
 
     steps:
       - name: Checkout
@@ -47,6 +68,14 @@ jobs:
         working-directory: server
         run: npm run typecheck
 
+      - name: Build backend
+        working-directory: server
+        run: npm run build
+
+      - name: Run backend migrations
+        working-directory: server
+        run: npm run migrate
+
       - name: Start backend server
         working-directory: server
         run: |
@@ -58,6 +87,10 @@ jobs:
             if curl -fsS http://127.0.0.1:4000/api/health > /dev/null; then
               echo "Backend is ready"
               exit 0
+            fi
+            if (( i % 10 == 0 )); then
+              echo "Waiting for backend... attempt $i"
+              tail -n 50 backend.log || true
             fi
             sleep 2
           done
