@@ -74,6 +74,10 @@ const MAX_DIMENSION_BY_UNIT: Record<MeasurementUnit, number> = {
   ft: 20,
   in: 240,
 };
+const DRAFT_VERSION = 1;
+const DRAFT_STORAGE_PREFIX = 'ermel_quote_draft_v1';
+const DRAFT_TTL_MS = 7 * DAY_MS;
+const AUTOSAVE_DEBOUNCE_MS = 600;
 
 function isoDate(d: Date): string {
   const y = d.getFullYear();
@@ -88,6 +92,80 @@ function normalizeDateOnly(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
+type QuoteDraftData = {
+  step: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  category: string | null;
+  categoryOther: string;
+  glassType: string | null;
+  colorChoice: string | null;
+  frameMaterial: string | null;
+  measureUnit: MeasurementUnit;
+  width: string;
+  height: string;
+  widthOrigUnit: MeasurementUnit;
+  heightOrigUnit: MeasurementUnit;
+  widthOrigVal: string;
+  heightOrigVal: string;
+  reservationDate: string;
+  estimatedCost: number;
+  areaSqFeet: number;
+  sqm: number;
+};
+
+type QuoteDraft = {
+  version: number;
+  updatedAt: string;
+  userKey: string;
+  data: QuoteDraftData;
+};
+
+function getDraftStorageKeys(user: { id?: string; email?: string } | null): string[] {
+  if (!user) return [];
+  const keys: string[] = [];
+  if (user.id) keys.push(`${DRAFT_STORAGE_PREFIX}:${user.id}`);
+  if (user.email) keys.push(`${DRAFT_STORAGE_PREFIX}:${user.email}`);
+  return keys;
+}
+
+function parseDraft(raw: string): QuoteDraft | null {
+  try {
+    const parsed = JSON.parse(raw) as QuoteDraft;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.updatedAt !== 'string') return null;
+    if (!parsed.data || typeof parsed.data !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function isDraftExpired(updatedAt: string): boolean {
+  const ts = new Date(updatedAt).getTime();
+  if (Number.isNaN(ts)) return true;
+  return Date.now() - ts > DRAFT_TTL_MS;
+}
+
+function clampStep(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(STEPS.length - 1, Math.max(0, value));
+}
+
+function formatTimeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  if (diff < 30000) return 'just now';
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function Tooltip({ text }: { text: string }) {
@@ -224,6 +302,56 @@ function ConfirmationModal({ open, onCancel, onConfirm, rows }: ConfirmModalProp
   );
 }
 
+interface DraftRestoreModalProps {
+  open: boolean;
+  stepLabel: string;
+  lastSavedLabel: string;
+  onResume: () => void;
+  onStartOver: () => void;
+}
+
+function DraftRestoreModal({ open, stepLabel, lastSavedLabel, onResume, onStartOver }: DraftRestoreModalProps) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+    >
+      <div className="w-full max-w-lg rounded-2xl p-6" style={{ backgroundColor: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '22px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
+          Resume your quote?
+        </h2>
+        <p style={{ color: '#54667d', fontSize: '13px', marginBottom: '16px', fontFamily: 'var(--font-body)' }}>
+          We found a saved draft from {lastSavedLabel}. You can continue where you left off or start a new request.
+        </p>
+        <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: '#f5f7fa', border: '1px solid #e0e4ea' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#54667d', marginBottom: '6px' }}>
+            Last saved step
+          </div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700, color: '#15263c' }}>
+            {stepLabel}
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={onStartOver}
+            style={{ flex: 1, fontFamily: 'var(--font-heading)', background: 'transparent', color: '#54667d', fontWeight: 600, fontSize: '14px', padding: '12px 20px', borderRadius: '8px', border: '2px solid #d9d9d9', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            Start Over
+          </button>
+          <button
+            onClick={onResume}
+            style={{ flex: 1, fontFamily: 'var(--font-heading)', background: 'linear-gradient(135deg, #15263c, #1e3655)', color: 'white', fontWeight: 700, fontSize: '14px', padding: '12px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            Resume Draft
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QuotationModule() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -261,6 +389,17 @@ export default function QuotationModule() {
   const [submitted, setSubmitted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [draftPromptOpen, setDraftPromptOpen] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<QuoteDraft | null>(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [autosaveTick, setAutosaveTick] = useState(0);
+  const [externalDraftAvailable, setExternalDraftAvailable] = useState(false);
+  const [externalDraftUpdatedAt, setExternalDraftUpdatedAt] = useState<Date | null>(null);
+  const hasCheckedDraftRef = useRef(false);
+
+  const draftKeys = useMemo(() => getDraftStorageKeys(user), [user?.id, user?.email]);
+  const primaryDraftKey = draftKeys[0] ?? null;
 
   const loadReservedDates = useCallback(() => {
     api.fetchReservedDates()
@@ -386,6 +525,244 @@ export default function QuotationModule() {
     return true;
   }, [step, infoValid, category, categoryOtherValid, glassType, frameMaterial, colorChoice, widthValid, heightValid, reservationDate]);
 
+  const draftState = useMemo<QuoteDraftData>(() => ({
+    step,
+    name,
+    email: user?.email || email,
+    phone,
+    address,
+    notes,
+    category,
+    categoryOther,
+    glassType,
+    colorChoice,
+    frameMaterial,
+    measureUnit,
+    width,
+    height,
+    widthOrigUnit,
+    heightOrigUnit,
+    widthOrigVal,
+    heightOrigVal,
+    reservationDate,
+    estimatedCost,
+    areaSqFeet,
+    sqm,
+  }), [
+    step,
+    name,
+    user?.email,
+    email,
+    phone,
+    address,
+    notes,
+    category,
+    categoryOther,
+    glassType,
+    colorChoice,
+    frameMaterial,
+    measureUnit,
+    width,
+    height,
+    widthOrigUnit,
+    heightOrigUnit,
+    widthOrigVal,
+    heightOrigVal,
+    reservationDate,
+    estimatedCost,
+    areaSqFeet,
+    sqm,
+  ]);
+
+  const shouldSaveDraft = useMemo(() => {
+    const nameChanged = name.trim() && name.trim() !== (user?.fullName || '').trim();
+    const hasFields = !!(
+      phone ||
+      address ||
+      notes ||
+      category ||
+      categoryOther ||
+      glassType ||
+      colorChoice ||
+      frameMaterial ||
+      width ||
+      height ||
+      reservationDate
+    );
+    return nameChanged || hasFields || step > 0;
+  }, [
+    name,
+    user?.fullName,
+    phone,
+    address,
+    notes,
+    category,
+    categoryOther,
+    glassType,
+    colorChoice,
+    frameMaterial,
+    width,
+    height,
+    reservationDate,
+    step,
+  ]);
+
+  const clearDraft = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!draftKeys.length) return;
+    try {
+      draftKeys.forEach((key) => window.localStorage.removeItem(key));
+    } catch {
+      // Ignore storage errors
+    }
+    setLastSavedAt(null);
+    setExternalDraftAvailable(false);
+    setExternalDraftUpdatedAt(null);
+  }, [draftKeys]);
+
+  const saveDraft = useCallback(() => {
+    if (!primaryDraftKey || !autoSaveEnabled || submitted) return;
+    if (typeof window === 'undefined') return;
+    if (!shouldSaveDraft) {
+      clearDraft();
+      return;
+    }
+    const payload: QuoteDraft = {
+      version: DRAFT_VERSION,
+      updatedAt: new Date().toISOString(),
+      userKey: user?.id || user?.email || '',
+      data: draftState,
+    };
+    try {
+      window.localStorage.setItem(primaryDraftKey, JSON.stringify(payload));
+      draftKeys.slice(1).forEach((key) => window.localStorage.removeItem(key));
+      setLastSavedAt(new Date(payload.updatedAt));
+      setExternalDraftAvailable(false);
+      setExternalDraftUpdatedAt(null);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [primaryDraftKey, autoSaveEnabled, submitted, shouldSaveDraft, clearDraft, user?.id, user?.email, draftState, draftKeys]);
+
+  const loadDraft = useCallback((): QuoteDraft | null => {
+    if (typeof window === 'undefined') return null;
+    for (const key of draftKeys) {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = parseDraft(raw);
+      if (!parsed || parsed.version !== DRAFT_VERSION || isDraftExpired(parsed.updatedAt)) {
+        try {
+          window.localStorage.removeItem(key);
+        } catch {
+          // Ignore storage errors
+        }
+        continue;
+      }
+      return parsed;
+    }
+    return null;
+  }, [draftKeys]);
+
+  const applyDraft = useCallback((draft: QuoteDraft) => {
+    const data = draft.data || ({} as QuoteDraftData);
+    const safeStep = clampStep(Number(data.step));
+    const safeUnit: MeasurementUnit = data.measureUnit && UNIT_LABELS[data.measureUnit]
+      ? data.measureUnit
+      : 'cm';
+
+    setStep(safeStep);
+    setName(data.name || user?.fullName || '');
+    setEmail(user?.email || data.email || '');
+    setPhone(data.phone || '');
+    setAddress(data.address || '');
+    setNotes(data.notes || '');
+    setCategory(data.category ?? null);
+    setCategoryOther(data.categoryOther || '');
+    setGlassType(data.glassType ?? null);
+    setColorChoice(data.colorChoice ?? null);
+    setFrameMaterial(data.frameMaterial ?? null);
+    setMeasureUnit(safeUnit);
+    setWidth(data.width || '');
+    setHeight(data.height || '');
+    setWidthOrigUnit(data.widthOrigUnit || safeUnit);
+    setHeightOrigUnit(data.heightOrigUnit || safeUnit);
+    setWidthOrigVal(data.widthOrigVal || data.width || '');
+    setHeightOrigVal(data.heightOrigVal || data.height || '');
+    setReservationDate(data.reservationDate ? normalizeDateOnly(data.reservationDate) : '');
+    setSubmitted(false);
+    setShowConfirm(false);
+    setSubmitError('');
+    setReservationError('');
+    setPhoneTouched(false);
+    setAddressTouched(false);
+  }, [user?.email, user?.fullName]);
+
+  useEffect(() => {
+    if (!user || hasCheckedDraftRef.current) return;
+    const draft = loadDraft();
+    if (draft) {
+      setPendingDraft(draft);
+      setDraftPromptOpen(true);
+      setAutoSaveEnabled(false);
+      if (draft.updatedAt) setLastSavedAt(new Date(draft.updatedAt));
+    } else {
+      setAutoSaveEnabled(true);
+    }
+    hasCheckedDraftRef.current = true;
+  }, [user, loadDraft]);
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const timer = window.setInterval(() => {
+      setAutosaveTick((tick) => tick + 1);
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, [lastSavedAt]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled || submitted || !primaryDraftKey) return;
+    const timer = window.setTimeout(() => {
+      saveDraft();
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [autoSaveEnabled, submitted, primaryDraftKey, saveDraft, draftState]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled || submitted || !primaryDraftKey) return;
+    saveDraft();
+  }, [step, autoSaveEnabled, submitted, primaryDraftKey, saveDraft]);
+
+  useEffect(() => {
+    if (!primaryDraftKey) return;
+    const handler = (e: StorageEvent) => {
+      if (e.key !== primaryDraftKey) return;
+      if (!e.newValue) {
+        setExternalDraftAvailable(false);
+        setExternalDraftUpdatedAt(null);
+        return;
+      }
+      const parsed = parseDraft(e.newValue);
+      if (!parsed || parsed.version !== DRAFT_VERSION || isDraftExpired(parsed.updatedAt)) {
+        try {
+          window.localStorage.removeItem(primaryDraftKey);
+        } catch {
+          // Ignore storage errors
+        }
+        setExternalDraftAvailable(false);
+        setExternalDraftUpdatedAt(null);
+        return;
+      }
+      const updatedAt = new Date(parsed.updatedAt);
+      if (!lastSavedAt || updatedAt.getTime() > lastSavedAt.getTime()) {
+        setPendingDraft(parsed);
+        setExternalDraftUpdatedAt(updatedAt);
+        setExternalDraftAvailable(true);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [primaryDraftKey, lastSavedAt]);
+
   const handleUnitChange = (newUnit: MeasurementUnit) => {
     if (newUnit === measureUnit) return;
 
@@ -505,6 +882,7 @@ export default function QuotationModule() {
     }
 
     setSubmitted(true);
+    clearDraft();
   };
 
   const resetForm = () => {
@@ -528,8 +906,35 @@ export default function QuotationModule() {
     setAddressTouched(false);
     setSubmitError('');
     setReservationError('');
+    setLastSavedAt(null);
+    setExternalDraftAvailable(false);
+    setExternalDraftUpdatedAt(null);
     if (user?.fullName) setName(user.fullName);
     if (user?.email) setEmail(user.email);
+  };
+
+  const resumeDraft = () => {
+    if (!pendingDraft) return;
+    applyDraft(pendingDraft);
+    setDraftPromptOpen(false);
+    setAutoSaveEnabled(true);
+    setPendingDraft(null);
+    setExternalDraftAvailable(false);
+    setExternalDraftUpdatedAt(null);
+    if (pendingDraft.updatedAt) setLastSavedAt(new Date(pendingDraft.updatedAt));
+  };
+
+  const startOverDraft = () => {
+    clearDraft();
+    setDraftPromptOpen(false);
+    setPendingDraft(null);
+    setAutoSaveEnabled(true);
+    resetForm();
+  };
+
+  const dismissExternalDraft = () => {
+    setExternalDraftAvailable(false);
+    setExternalDraftUpdatedAt(null);
   };
 
   const confirmationRows = [
@@ -593,6 +998,28 @@ export default function QuotationModule() {
 
   const stepProgress = ((step + 1) / STEPS.length) * 100;
 
+  const lastSavedLabel = useMemo(() => {
+    if (!lastSavedAt) return '';
+    return `Auto-saved ${formatTimeAgo(lastSavedAt)}`;
+  }, [lastSavedAt, autosaveTick]);
+
+  const pendingDraftStepLabel = useMemo(() => {
+    if (!pendingDraft) return STEPS[0];
+    return STEPS[clampStep(Number(pendingDraft.data?.step ?? 0))];
+  }, [pendingDraft]);
+
+  const pendingDraftTimeLabel = useMemo(() => {
+    if (!pendingDraft?.updatedAt) return 'recently';
+    const parsed = new Date(pendingDraft.updatedAt);
+    if (Number.isNaN(parsed.getTime())) return 'recently';
+    return parsed.toLocaleString();
+  }, [pendingDraft]);
+
+  const externalDraftLabel = useMemo(() => {
+    if (!externalDraftUpdatedAt) return 'just now';
+    return formatTimeAgo(externalDraftUpdatedAt);
+  }, [externalDraftUpdatedAt, autosaveTick]);
+
   return (
     <div className="min-h-screen px-4 pb-16" style={{ backgroundColor: '#fafafa', paddingTop: '96px', fontFamily: 'var(--font-body)' }}>
       <div className="max-w-6xl mx-auto">
@@ -633,6 +1060,39 @@ export default function QuotationModule() {
             <div style={{ width: `${stepProgress}%`, height: '100%', background: 'linear-gradient(90deg, #15263c, #7a0000)', transition: 'width 0.25s ease' }} />
           </div>
         </div>
+
+        {lastSavedAt && (
+          <div className="text-center mb-6" style={{ fontFamily: 'var(--font-heading)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#54667d' }}>
+            {lastSavedLabel}
+          </div>
+        )}
+
+        {externalDraftAvailable && !draftPromptOpen && (
+          <div className="max-w-4xl mx-auto mb-6 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ backgroundColor: '#eef7ff', border: '1px solid #bfd8ee' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
+                Draft updated in another tab
+              </div>
+              <div style={{ fontSize: '12px', color: '#35506d', fontFamily: 'var(--font-body)' }}>
+                New changes were saved {externalDraftLabel}. Reload to sync your progress.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={resumeDraft}
+                style={{ fontFamily: 'var(--font-heading)', background: 'linear-gradient(135deg, #15263c, #1e3655)', color: 'white', fontWeight: 700, fontSize: '12px', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+              >
+                Reload Draft
+              </button>
+              <button
+                onClick={dismissExternalDraft}
+                style={{ fontFamily: 'var(--font-heading)', background: 'transparent', color: '#54667d', fontWeight: 600, fontSize: '12px', padding: '10px 16px', borderRadius: '8px', border: '2px solid #bfd8ee', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="max-w-5xl mx-auto">
           {step === 0 && (
@@ -1162,6 +1622,13 @@ export default function QuotationModule() {
       </div>
 
       <ConfirmationModal open={showConfirm} onCancel={() => setShowConfirm(false)} onConfirm={() => { setShowConfirm(false); handleSubmit(); }} rows={confirmationRows} />
+      <DraftRestoreModal
+        open={draftPromptOpen}
+        stepLabel={pendingDraftStepLabel}
+        lastSavedLabel={pendingDraftTimeLabel}
+        onResume={resumeDraft}
+        onStartOver={startOverDraft}
+      />
     </div>
   );
 }
