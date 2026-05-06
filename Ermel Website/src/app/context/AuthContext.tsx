@@ -148,9 +148,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Proceed even if server is unreachable
     }
+    try {
+      if (typeof window !== 'undefined' && user) {
+        const draftKeys = [] as string[];
+        if (user.id) draftKeys.push(`ermel_quote_draft_v1:${user.id}`);
+        if (user.email) draftKeys.push(`ermel_quote_draft_v1:${user.email}`);
+        draftKeys.forEach((key) => window.localStorage.removeItem(key));
+      }
+    } catch {
+      // Ignore storage errors
+    }
     clearCsrfTokenCache();
     setUser(null);
-  }, []);
+  }, [user]);
 
   const resendVerification = useCallback(async () => {
     try {
