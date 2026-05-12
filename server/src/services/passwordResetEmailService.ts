@@ -1,15 +1,7 @@
 // ============================================================
 // Password reset email service — Gmail SMTP via Nodemailer
 // ============================================================
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS,
-  },
-});
+import { createGmailTransporter, getGmailFromAddress } from './smtpClient';
 
 export async function sendPasswordResetEmail(
   to: string,
@@ -45,8 +37,9 @@ export async function sendPasswordResetEmail(
     </div>
   `;
 
+  const transporter = createGmailTransporter();
   await transporter.sendMail({
-    from: `"Ermel Glass & Aluminum" <${process.env.GMAIL_USER}>`,
+    from: getGmailFromAddress(),
     to,
     subject: 'Password reset instructions for your Ermel account',
     html,

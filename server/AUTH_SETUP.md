@@ -56,7 +56,8 @@ Edit `.env` with your values:
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SESSION_SECRET` | Random secret for session signing (use 64+ chars) |
 | `GMAIL_USER` | Gmail address for sending verification emails |
-| `GMAIL_PASS` | Gmail App Password (NOT your regular password) |
+| `GMAIL_APP_PASSWORD` | Gmail App Password (NOT your regular password) |
+| `GMAIL_PASS` | Backward-compatible Gmail App Password (optional) |
 | `BASE_URL` | Frontend URL for email links (e.g., `http://localhost:5173`) |
 
 #### Getting a Gmail App Password
@@ -65,7 +66,7 @@ Edit `.env` with your values:
 2. Sign in with your Google account
 3. Select "Mail" and your device
 4. Click "Generate"
-5. Copy the 16-character password into `GMAIL_PASS`
+5. Copy the 16-character password into `GMAIL_APP_PASSWORD` (remove spaces or wrap in quotes)
 
 ### 4. Install Dependencies
 

@@ -1,15 +1,7 @@
 // ============================================================
 // Email service — Gmail SMTP via Nodemailer
 // ============================================================
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+import { createGmailTransporter, getGmailFromAddress } from './smtpClient';
 
 export async function sendVerificationEmail(
   to: string,
@@ -49,8 +41,9 @@ export async function sendVerificationEmail(
     </div>
   `;
 
+  const transporter = createGmailTransporter();
   await transporter.sendMail({
-    from: `"Ermel Glass & Aluminum" <${process.env.GMAIL_USER}>`,
+    from: getGmailFromAddress(),
     to,
     subject: '🛡️ Action Required: Verify your Ermel Glass & Aluminum account',
     html,
