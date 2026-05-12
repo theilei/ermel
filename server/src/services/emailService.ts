@@ -1,7 +1,7 @@
 // ============================================================
-// Email Service — Resend API with SMTP fallback
+// Email Service — Brevo/Resend API with SMTP fallback
 // ============================================================
-// Configure Resend via environment variables. If not configured,
+// Configure Brevo/Resend via environment variables. If not configured,
 // falls back to Gmail SMTP or dev console logs.
 
 import { Quote } from '../models/QuoteDB';
@@ -20,13 +20,14 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const { to, subject, html } = options;
+  const hasBrevo = Boolean((process.env.BREVO_API_KEY || '').trim());
   const hasResend = Boolean((process.env.RESEND_API_KEY || '').trim());
   const hasSmtp = Boolean(
     (process.env.GMAIL_USER || '').trim()
     && (process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || '').trim()
   );
 
-  if (!hasResend && !hasSmtp) {
+  if (!hasBrevo && !hasResend && !hasSmtp) {
     // Development fallback — log to console
     console.log(`[EMAIL-DEV] Would send to: ${to}`);
     console.log(`[EMAIL-DEV] Subject: ${subject}`);
