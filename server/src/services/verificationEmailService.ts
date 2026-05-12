@@ -1,7 +1,7 @@
 // ============================================================
-// Email service — Gmail SMTP via Nodemailer
+// Email service — Resend API with SMTP fallback
 // ============================================================
-import { createGmailTransporter, getGmailFromAddress } from './smtpClient';
+import { sendTransactionalEmail } from './smtpClient';
 
 export async function sendVerificationEmail(
   to: string,
@@ -41,9 +41,7 @@ export async function sendVerificationEmail(
     </div>
   `;
 
-  const transporter = createGmailTransporter();
-  await transporter.sendMail({
-    from: getGmailFromAddress(),
+  await sendTransactionalEmail({
     to,
     subject: '🛡️ Action Required: Verify your Ermel Glass & Aluminum account',
     html,

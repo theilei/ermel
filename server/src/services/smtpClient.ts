@@ -1,12 +1,26 @@
 // ============================================================
-// SMTP helper — Gmail transport + credential normalization
+// Email helper — Resend API + Gmail SMTP fallback
 // ============================================================
 import nodemailer from 'nodemailer';
+
+type EmailAttachment = {
+  filename: string;
+  content: string;
+  contentType?: string;
+};
+
+type EmailSendOptions = {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: EmailAttachment[];
+};
 
 type GmailAuth = {
   user: string;
   pass: string;
 };
+
 
 function normalizeSmtpPass(value?: string): string {
   if (!value) return '';
@@ -34,7 +48,70 @@ export function createGmailTransporter() {
   });
 }
 
-export function getGmailFromAddress(): string {
-  const user = (process.env.GMAIL_USER || '').trim();
+export function getGmailFromAddress(userOverride?: string): string {
+  const user = (userOverride || process.env.GMAIL_USER || '').trim();
   return user ? `"Ermel Glass & Aluminum" <${user}>` : '"Ermel Glass & Aluminum"';
+}
+async function sendWithResend(options: EmailSendOptions): Promise<void> {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  const from = (process.env.EMAIL_FROM || '').trim();
+
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured for email delivery.');
+  }
+
+  if (!from) {
+    throw new Error('EMAIL_FROM is required when RESEND_API_KEY is set.');
+  }
+
+  const payload: Record<string, unknown> = {
+    from,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  };
+
+  if (options.attachments && options.attachments.length > 0) {
+    payload.attachments = options.attachments.map((attachment) => ({
+      filename: attachment.filename,
+      content: Buffer.from(attachment.content).toString('base64'),
+      content_type: attachment.contentType,
+    }));
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Resend API error: ${res.status} ${errorText}`);
+  }
+}
+
+export async function sendTransactionalEmail(options: EmailSendOptions): Promise<void> {
+  if ((process.env.RESEND_API_KEY || '').trim()) {
+    await sendWithResend(options);
+    return;
+  }
+
+  const transporter = createGmailTransporter();
+  await transporter.sendMail({
+    from: getGmailFromAddress(),
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    attachments: options.attachments?.length
+      ? options.attachments.map((attachment) => ({
+          filename: attachment.filename,
+          content: attachment.content,
+          contentType: attachment.contentType,
+        }))
+      : undefined,
+  });
 }

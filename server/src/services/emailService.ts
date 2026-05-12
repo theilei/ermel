@@ -1,13 +1,11 @@
 // ============================================================
-// Email Service — Gmail SMTP integration
+// Email Service — Resend API with SMTP fallback
 // ============================================================
-// Uses nodemailer with Gmail SMTP. Configure via environment variables:
-//   GMAIL_USER=your-email@gmail.com
-//   GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
-//
-// For development, emails are logged to console instead of actually sent.
+// Configure Resend via environment variables. If not configured,
+// falls back to Gmail SMTP or dev console logs.
 
 import { Quote } from '../models/QuoteDB';
+import { sendTransactionalEmail } from './smtpClient';
 
 interface EmailOptions {
   to: string;
@@ -22,58 +20,41 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const { to, subject, html } = options;
+  const hasResend = Boolean((process.env.RESEND_API_KEY || '').trim());
+  const hasSmtp = Boolean(
+    (process.env.GMAIL_USER || '').trim()
+    && (process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || '').trim()
+  );
 
-  // Check if nodemailer + SMTP credentials are configured
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS;
-
-  if (gmailUser && gmailPass) {
-    try {
-      // Dynamic import to avoid requiring nodemailer in dev
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: gmailUser,
-          pass: gmailPass,
-        },
-      });
-
-      const mailOptions: any = {
-        from: `"ERMEL Glass & Aluminum" <${gmailUser}>`,
-        to,
-        subject,
-        html,
-      };
-
-      // Attach PDF HTML as file if provided
-      if (options.attachmentHtml) {
-        mailOptions.attachments = [
-          {
-            filename: 'quotation.html',
-            content: options.attachmentHtml,
-            contentType: 'text/html',
-          },
-        ];
-      }
-
-      await transporter.sendMail(mailOptions);
-      console.log(`[EMAIL] Sent to ${to}: ${subject}`);
-      return true;
-    } catch (err: any) {
-      console.error(`[EMAIL ERROR] Failed to send to ${to}:`, err.message);
-      return false;
+  if (!hasResend && !hasSmtp) {
+    // Development fallback — log to console
+    console.log(`[EMAIL-DEV] Would send to: ${to}`);
+    console.log(`[EMAIL-DEV] Subject: ${subject}`);
+    console.log(`[EMAIL-DEV] Body length: ${html.length} chars`);
+    if (options.attachmentHtml) {
+      console.log(`[EMAIL-DEV] PDF attachment: ${options.attachmentHtml.length} chars`);
     }
+    return true;
   }
 
-  // Development fallback — log to console
-  console.log(`[EMAIL-DEV] Would send to: ${to}`);
-  console.log(`[EMAIL-DEV] Subject: ${subject}`);
-  console.log(`[EMAIL-DEV] Body length: ${html.length} chars`);
-  if (options.attachmentHtml) {
-    console.log(`[EMAIL-DEV] PDF attachment: ${options.attachmentHtml.length} chars`);
+  try {
+    const attachments = options.attachmentHtml
+      ? [{ filename: 'quotation.html', content: options.attachmentHtml, contentType: 'text/html' }]
+      : undefined;
+
+    await sendTransactionalEmail({
+      to,
+      subject,
+      html,
+      attachments,
+    });
+
+    console.log(`[EMAIL] Sent to ${to}: ${subject}`);
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL ERROR] Failed to send to ${to}:`, err.message);
+    return false;
   }
-  return true;
 }
 
 /**

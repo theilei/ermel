@@ -25,7 +25,8 @@ A starter `render.yaml` is included at repo root.
    - `FRONTEND_URL` = deployed frontend URL
    - `CORS_ORIGIN` = deployed frontend URL (or comma-separated list)
    - `SESSION_SAME_SITE` = `none` (required when frontend and backend are on different origins)
-   - `GMAIL_USER` / `GMAIL_APP_PASSWORD` (preferred) if email sending is required
+   - `RESEND_API_KEY` + `EMAIL_FROM` (recommended on Render; SMTP is blocked)
+   - `GMAIL_USER` / `GMAIL_APP_PASSWORD` (SMTP; may be blocked on Render)
    - `GMAIL_PASS` (fallback, optional)
 
 ## 3) Run Database Migrations
@@ -64,8 +65,10 @@ Backend:
 - `BASE_URL`
 - `FRONTEND_URL`
 - `CORS_ORIGIN`
-- `GMAIL_USER` (optional depending on feature usage)
-- `GMAIL_APP_PASSWORD` (optional depending on feature usage)
+- `RESEND_API_KEY` (recommended for Render email)
+- `EMAIL_FROM` (verified sender for Resend)
+- `GMAIL_USER` (optional; SMTP)
+- `GMAIL_APP_PASSWORD` (optional; SMTP)
 - `GMAIL_PASS` (fallback, optional)
 - `PORT` (Render injects this automatically)
 
