@@ -1,7 +1,7 @@
 // ============================================================
-// Password reset email service — Gmail SMTP via Nodemailer
+// Password reset email service — Resend API with SMTP fallback
 // ============================================================
-import { createGmailTransporter, getGmailFromAddress } from './smtpClient';
+import { sendTransactionalEmail } from './smtpClient';
 
 export async function sendPasswordResetEmail(
   to: string,
@@ -37,9 +37,7 @@ export async function sendPasswordResetEmail(
     </div>
   `;
 
-  const transporter = createGmailTransporter();
-  await transporter.sendMail({
-    from: getGmailFromAddress(),
+  await sendTransactionalEmail({
     to,
     subject: 'Password reset instructions for your Ermel account',
     html,
