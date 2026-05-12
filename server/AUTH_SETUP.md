@@ -7,7 +7,7 @@ This document covers the authentication and email verification system for the Er
 **Stack:** React (TypeScript) + Node.js/Express + PostgreSQL  
 **Auth method:** Session-based (express-session + connect-pg-simple)  
 **Password hashing:** bcrypt (salt rounds: 10)  
-**Email:** Resend API (HTTP) or Gmail SMTP via Nodemailer
+**Email:** Brevo API (HTTP), Resend API (HTTP), or Gmail SMTP via Nodemailer
 
 ---
 
@@ -58,8 +58,9 @@ Edit `.env` with your values:
 | `GMAIL_USER` | Gmail address for sending verification emails |
 | `GMAIL_APP_PASSWORD` | Gmail App Password (NOT your regular password) |
 | `GMAIL_PASS` | Backward-compatible Gmail App Password (optional) |
-| `RESEND_API_KEY` | Resend API key (recommended on Render) |
-| `EMAIL_FROM` | Verified sender address for Resend |
+| `BREVO_API_KEY` | Brevo API key (free tier, single-sender verification) |
+| `RESEND_API_KEY` | Resend API key (requires verified domain for non-test recipients) |
+| `EMAIL_FROM` | Verified sender address for Brevo/Resend |
 | `BASE_URL` | Frontend URL for email links (e.g., `http://localhost:5173`) |
 
 #### Getting a Gmail App Password
@@ -70,7 +71,14 @@ Edit `.env` with your values:
 4. Click "Generate"
 5. Copy the 16-character password into `GMAIL_APP_PASSWORD` (remove spaces or wrap in quotes)
 
-#### Resend API (HTTP) setup (recommended on Render)
+#### Brevo API (HTTP) setup (free, no domain required)
+
+1. Go to https://www.brevo.com and create an account.
+2. Verify a single sender email address.
+3. Create an API key in Brevo.
+4. Set `BREVO_API_KEY` and `EMAIL_FROM` in your backend service.
+
+#### Resend API (HTTP) setup
 
 1. Go to https://resend.com and create an account.
 2. Verify a sender domain or address.

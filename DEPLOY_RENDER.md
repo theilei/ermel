@@ -25,7 +25,8 @@ A starter `render.yaml` is included at repo root.
    - `FRONTEND_URL` = deployed frontend URL
    - `CORS_ORIGIN` = deployed frontend URL (or comma-separated list)
    - `SESSION_SAME_SITE` = `none` (required when frontend and backend are on different origins)
-   - `RESEND_API_KEY` + `EMAIL_FROM` (recommended on Render; SMTP is blocked)
+   - `BREVO_API_KEY` + `EMAIL_FROM` (recommended free option on Render)
+   - `RESEND_API_KEY` + `EMAIL_FROM` (requires verified domain for non-test recipients)
    - `GMAIL_USER` / `GMAIL_APP_PASSWORD` (SMTP; may be blocked on Render)
    - `GMAIL_PASS` (fallback, optional)
 
@@ -65,8 +66,9 @@ Backend:
 - `BASE_URL`
 - `FRONTEND_URL`
 - `CORS_ORIGIN`
-- `RESEND_API_KEY` (recommended for Render email)
-- `EMAIL_FROM` (verified sender for Resend)
+- `BREVO_API_KEY` (recommended free option)
+- `RESEND_API_KEY` (requires verified domain for non-test recipients)
+- `EMAIL_FROM` (verified sender for Brevo/Resend)
 - `GMAIL_USER` (optional; SMTP)
 - `GMAIL_APP_PASSWORD` (optional; SMTP)
 - `GMAIL_PASS` (fallback, optional)
