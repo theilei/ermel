@@ -70,6 +70,28 @@ function MetricCard({ label, value, icon: Icon, color, bg, trend }: MetricCardPr
   );
 }
 
+function linearRegression(values: number[]) {
+  const n = values.length;
+  if (n === 0) return { slope: 0, intercept: 0, predictNext: 0 };
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = values[i] || 0;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+  const denom = n * sumXX - sumX * sumX;
+  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+  const intercept = (sumY - slope * sumX) / n;
+  const predictNext = slope * n + intercept;
+  return { slope, intercept, predictNext };
+}
+
 function SalesForecastChart({
   forecastData,
   trendLabel,
@@ -319,10 +341,13 @@ export default function AdminDashboard() {
     const scheduledRevenueNextMonth = byMonthRevenue.get(nextMonthKey) || 0;
 
     const sortedTrends = [...monthlyTrends].sort((a, b) => a.month.localeCompare(b.month));
-    const recentTrends = sortedTrends.slice(-4);
-    const latestTotal = recentTrends[recentTrends.length - 1]?.total || 0;
-    const previousTotal = recentTrends[recentTrends.length - 2]?.total || latestTotal || 1;
-    const rawGrowth = previousTotal > 0 ? (latestTotal - previousTotal) / previousTotal : 0;
+    const recentWindow = 6;
+    const recentTrends = sortedTrends.slice(-recentWindow);
+    const totals = recentTrends.map((t) => Number(t.total || 0));
+    const regression = linearRegression(totals);
+    const predictedNextTotal = Math.max(0, regression.predictNext || 0);
+    const latestTotal = totals.length ? totals[totals.length - 1] : 0;
+    const rawGrowth = latestTotal > 0 ? (predictedNextTotal - latestTotal) / latestTotal : 0;
     const clampedGrowth = Math.max(-0.25, Math.min(0.35, rawGrowth));
 
     const approvalRate = totalQuotes > 0 ? approvedQuotes / totalQuotes : 0.55;
