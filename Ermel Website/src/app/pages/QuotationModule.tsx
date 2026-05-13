@@ -500,6 +500,8 @@ export default function QuotationModule() {
   const widthFeet = wMeters * FEET_PER_METER;
   const heightFeet = hMeters * FEET_PER_METER;
   const areaSqFeet = widthFeet * heightFeet;
+  const areaUnitLabel = `${UNIT_LABELS[measureUnit]}^2`;
+  const areaInChosenUnit = fromMeters(wMeters, measureUnit) * fromMeters(hMeters, measureUnit);
 
   const estimatedCost = Math.round(areaSqFeet * PRICE_PER_SQ_FOOT * 100) / 100 || 0;
 
@@ -1540,8 +1542,7 @@ export default function QuotationModule() {
                       { label: 'Color', value: selectedColor?.label },
                       { label: 'Frame Material', value: selectedFrame?.label },
                       { label: 'Dimensions', value: width && height ? `${width} ${UNIT_LABELS[measureUnit]} \u00d7 ${height} ${UNIT_LABELS[measureUnit]}` : 'Not set' },
-                      { label: 'Area', value: sqm > 0 ? `${fmt2(sqm)} m\u00b2` : 'Not computed' },
-                      { label: 'Area (ft²)', value: areaSqFeet > 0 ? `${fmt2(areaSqFeet)} ft²` : 'Not computed' },
+                      { label: `Area (${areaUnitLabel})`, value: widthValid && heightValid ? `${fmt2(areaInChosenUnit)} ${areaUnitLabel}` : 'Not computed' },
                       { label: 'Reservation Date', value: reservationDate || '—' },
                       { label: 'Notes', value: sanitizeTextInput(notes) || '—' },
                     ].map((s) => (
