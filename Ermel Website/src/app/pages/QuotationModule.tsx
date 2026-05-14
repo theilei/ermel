@@ -953,6 +953,38 @@ export default function QuotationModule() {
     { label: 'Notes', value: sanitizeTextInput(notes) || '—' },
   ];
 
+  const inputStyle = (hasError = false) => ({
+    border: hasError ? '2px solid #d32f2f' : '2px solid #d9d9d9',
+    borderRadius: '8px' as const,
+    fontSize: '15px',
+    fontFamily: 'var(--font-body)',
+    backgroundColor: hasError ? '#fff5f5' : 'white',
+  });
+
+  const stepProgress = ((step + 1) / STEPS.length) * 100;
+
+  const lastSavedLabel = useMemo(() => {
+    if (!lastSavedAt) return '';
+    return `Auto-saved ${formatTimeAgo(lastSavedAt)}`;
+  }, [lastSavedAt, autosaveTick]);
+
+  const pendingDraftStepLabel = useMemo(() => {
+    if (!pendingDraft) return STEPS[0];
+    return STEPS[clampStep(Number(pendingDraft.data?.step ?? 0))];
+  }, [pendingDraft]);
+
+  const pendingDraftTimeLabel = useMemo(() => {
+    if (!pendingDraft?.updatedAt) return 'recently';
+    const parsed = new Date(pendingDraft.updatedAt);
+    if (Number.isNaN(parsed.getTime())) return 'recently';
+    return parsed.toLocaleString();
+  }, [pendingDraft]);
+
+  const externalDraftLabel = useMemo(() => {
+    if (!externalDraftUpdatedAt) return 'just now';
+    return formatTimeAgo(externalDraftUpdatedAt);
+  }, [externalDraftUpdatedAt, autosaveTick]);
+
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#fafafa', paddingTop: '100px', paddingBottom: '60px' }}>
@@ -989,38 +1021,6 @@ export default function QuotationModule() {
       </div>
     );
   }
-
-  const inputStyle = (hasError = false) => ({
-    border: hasError ? '2px solid #d32f2f' : '2px solid #d9d9d9',
-    borderRadius: '8px' as const,
-    fontSize: '15px',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: hasError ? '#fff5f5' : 'white',
-  });
-
-  const stepProgress = ((step + 1) / STEPS.length) * 100;
-
-  const lastSavedLabel = useMemo(() => {
-    if (!lastSavedAt) return '';
-    return `Auto-saved ${formatTimeAgo(lastSavedAt)}`;
-  }, [lastSavedAt, autosaveTick]);
-
-  const pendingDraftStepLabel = useMemo(() => {
-    if (!pendingDraft) return STEPS[0];
-    return STEPS[clampStep(Number(pendingDraft.data?.step ?? 0))];
-  }, [pendingDraft]);
-
-  const pendingDraftTimeLabel = useMemo(() => {
-    if (!pendingDraft?.updatedAt) return 'recently';
-    const parsed = new Date(pendingDraft.updatedAt);
-    if (Number.isNaN(parsed.getTime())) return 'recently';
-    return parsed.toLocaleString();
-  }, [pendingDraft]);
-
-  const externalDraftLabel = useMemo(() => {
-    if (!externalDraftUpdatedAt) return 'just now';
-    return formatTimeAgo(externalDraftUpdatedAt);
-  }, [externalDraftUpdatedAt, autosaveTick]);
 
   return (
     <div className="min-h-screen px-4 pb-16" style={{ backgroundColor: '#fafafa', paddingTop: '96px', fontFamily: 'var(--font-body)' }}>
