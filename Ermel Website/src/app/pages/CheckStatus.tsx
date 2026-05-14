@@ -503,7 +503,7 @@ export default function CheckStatus() {
       />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
         <div
-          className="relative overflow-hidden"
+          className="relative"
           style={{
             background: 'linear-gradient(135deg, #15263c, #1e3655)',
             borderRadius: '14px',
@@ -514,15 +514,25 @@ export default function CheckStatus() {
           <div
             style={{
               position: 'absolute',
-              top: '-120px',
-              right: '-80px',
-              width: '280px',
-              height: '280px',
-              borderRadius: '999px',
-              opacity: 0.15,
-              background: 'radial-gradient(circle, #7a0000, transparent)',
+              inset: 0,
+              overflow: 'hidden',
+              borderRadius: '14px',
+              pointerEvents: 'none',
             }}
-          />
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '-120px',
+                right: '-80px',
+                width: '280px',
+                height: '280px',
+                borderRadius: '999px',
+                opacity: 0.15,
+                background: 'radial-gradient(circle, #7a0000, transparent)',
+              }}
+            />
+          </div>
           <div className="relative p-6 sm:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div>
