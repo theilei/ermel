@@ -97,6 +97,8 @@ export default function CheckStatus() {
   const [selectedProofFile, setSelectedProofFile] = useState<File | null>(null);
   const [proofValidationError, setProofValidationError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
+  const [cashConfirmOpen, setCashConfirmOpen] = useState(false);
+  const [cashConfirmBusy, setCashConfirmBusy] = useState(false);
   const [successPopupMessage, setSuccessPopupMessage] = useState('');
   const [localProofPreviewUrl, setLocalProofPreviewUrl] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -312,11 +314,14 @@ export default function CheckStatus() {
   const isPreviewImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(lowerProofName);
   const canModifyPayment = !isPaymentExpired && !isPaymentPaid;
   const hasPaymentProof = Boolean(effectivePayment?.proofFile) || Boolean(selectedProofFile);
-  const canChangePaymentMethod = !isPaymentExpired && !isPaymentPaid && !hasPaymentProof;
+  const isCashLocked = effectivePayment?.paymentMethod === 'cash' && !isPaymentExpired && !isPaymentPaid;
+  const canChangePaymentMethod = !isPaymentExpired && !isPaymentPaid && !hasPaymentProof && !isCashLocked;
   const canSubmitSelectedProof = Boolean(selectedProofFile) && !proofValidationError && canModifyPayment;
   const paymentStatusLabel = effectivePayment?.status === 'waiting_approval'
-    ? (effectivePayment?.proofFile ? 'Waiting for approval' : 'No submission yet')
-    : (effectivePayment?.status || 'No submission yet');
+    ? (effectivePayment?.paymentMethod === 'cash'
+      ? 'cash_payment_pending'
+      : (effectivePayment?.proofFile ? 'waiting_approval' : 'no_submission_yet'))
+    : (effectivePayment?.status || 'no_submission_yet');
   const showProofSubmittedSuccess = effectivePayment?.status === 'waiting_approval'
     && Boolean(effectivePayment?.proofFile)
     && !effectivePayment?.adminRejectionReason;
@@ -405,16 +410,40 @@ export default function CheckStatus() {
     }
   };
 
+  const persistPaymentMethod = async (method: 'qrph' | 'cash') => {
+    if (!selectedQuote) return;
+    await setCustomerPaymentMethod(selectedQuote.id, method);
+    await reloadAll();
+    await loadPaymentMeta(selectedQuote.id);
+  };
+
   const handleSelectPaymentMethod = async (method: 'qrph' | 'cash') => {
     if (!selectedQuote || !canChangePaymentMethod) return;
 
     setPaymentMessage('');
     try {
-      await setCustomerPaymentMethod(selectedQuote.id, method);
-      await reloadAll();
-      await loadPaymentMeta(selectedQuote.id);
+      await persistPaymentMethod(method);
     } catch (err: any) {
       setPaymentMessage(err?.message || 'Failed to set payment method. Please try again.');
+    }
+  };
+
+  const handleConfirmCashMethod = async () => {
+    if (!selectedQuote || !canChangePaymentMethod) {
+      setCashConfirmOpen(false);
+      return;
+    }
+
+    setCashConfirmBusy(true);
+    setPaymentMessage('');
+    try {
+      await persistPaymentMethod('cash');
+      showSuccessPopup('Cash payment selected. Please bring your receipt to the shop.');
+    } catch (err: any) {
+      setPaymentMessage(err?.message || 'Failed to set cash payment. Please try again.');
+    } finally {
+      setCashConfirmBusy(false);
+      setCashConfirmOpen(false);
     }
   };
 
@@ -863,7 +892,8 @@ export default function CheckStatus() {
                               value="cash"
                               checked={effectivePayment?.paymentMethod === 'cash'}
                               onChange={() => {
-                                void handleSelectPaymentMethod('cash');
+                                  if (!canChangePaymentMethod) return;
+                                  setCashConfirmOpen(true);
                               }}
                               disabled={!canChangePaymentMethod}
                             />
@@ -871,6 +901,12 @@ export default function CheckStatus() {
                           </label>
                         </div>
                       </fieldset>
+
+                      {isCashLocked && (
+                        <div style={{ marginBottom: '10px', color: '#7a5200', fontSize: '12px' }}>
+                          Cash payment confirmed. This choice is locked and cannot be changed.
+                        </div>
+                      )}
 
                       {effectivePayment?.paymentMethod === 'qrph' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -1043,14 +1079,55 @@ export default function CheckStatus() {
                       )}
 
                       {effectivePayment?.paymentMethod === 'cash' && (
-                        <a
-                          href={getCustomerCashReceiptUrl(selectedQuote.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ display: 'inline-block', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', color: '#15263c', textDecoration: 'none' }}
-                        >
-                          Generate Receipt PDF
-                        </a>
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                          <div className="lg:col-span-8" style={{ border: '1px dashed #d9dce3', borderRadius: '8px', padding: '12px', backgroundColor: '#fcfdff' }}>
+                            <div style={{ color: '#15263c', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+                              Cash payment selected
+                            </div>
+                            <div style={{ color: '#54667d', fontSize: '12px', marginBottom: '10px' }}>
+                              Download your receipt and present it at the shop to complete payment.
+                            </div>
+                            <a
+                              href={getCustomerCashReceiptUrl(selectedQuote.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', color: '#15263c', textDecoration: 'none' }}
+                            >
+                              <FileDown size={16} /> Download Cash Receipt PDF
+                            </a>
+                            <div style={{ marginTop: '10px', color: '#7a5200', fontSize: '12px' }}>
+                              Once confirmed, cash payments cannot be switched to online payment.
+                            </div>
+                          </div>
+
+                          <aside
+                            className="lg:col-span-4"
+                            style={{ border: '1px solid #e0e4ea', borderRadius: '10px', overflow: 'hidden', backgroundColor: 'white', alignSelf: 'start' }}
+                          >
+                            <div
+                              style={{
+                                padding: '10px 12px',
+                                background: 'linear-gradient(135deg, #15263c, #1e3655)',
+                                color: 'white',
+                                fontFamily: 'var(--font-heading)',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.07em',
+                                fontSize: '11px',
+                              }}
+                            >
+                              Cash Payment Guide
+                            </div>
+                            <div style={{ padding: '12px', color: '#54667d', fontSize: '12px', lineHeight: 1.6 }}>
+                              <ol style={{ paddingLeft: '16px', margin: 0 }}>
+                                <li>Download or print your receipt PDF.</li>
+                                <li>Visit the ERMEL shop and pay in cash.</li>
+                                <li>Complete payment within 3 days to avoid expiration.</li>
+                                <li>Wait for admin approval and track status here.</li>
+                              </ol>
+                            </div>
+                          </aside>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1090,6 +1167,49 @@ export default function CheckStatus() {
           </div>
         )}
       </div>
+
+      {cashConfirmOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 55,
+            padding: '16px',
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: '520px', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #e0e4ea', padding: '16px' }}>
+            <div style={{ color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '13px', marginBottom: '8px' }}>
+              Confirm Cash Payment
+            </div>
+            <div style={{ color: '#54667d', fontSize: '13px', marginBottom: '10px' }}>
+              Are you sure you want to proceed with cash payment? You will need to pay in person using your receipt PDF.
+            </div>
+            <div style={{ backgroundColor: '#fff8e1', border: '1px solid #f0c04066', borderRadius: '8px', padding: '10px', color: '#7a5200', fontSize: '12px' }}>
+              Once confirmed, you cannot switch to online payment for this quote.
+            </div>
+            <div className="flex items-center justify-end gap-2" style={{ marginTop: '14px' }}>
+              <button
+                onClick={() => setCashConfirmOpen(false)}
+                disabled={cashConfirmBusy}
+                style={{ border: '1px solid #e0e4ea', borderRadius: '8px', padding: '8px 12px', backgroundColor: 'white', color: '#15263c', cursor: cashConfirmBusy ? 'not-allowed' : 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmCashMethod}
+                disabled={cashConfirmBusy}
+                style={{ border: 'none', borderRadius: '8px', padding: '8px 12px', backgroundColor: '#7a0000', color: 'white', cursor: cashConfirmBusy ? 'not-allowed' : 'pointer', opacity: cashConfirmBusy ? 0.6 : 1 }}
+              >
+                {cashConfirmBusy ? 'Confirming...' : 'Confirm Cash Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {successPopupMessage && (
         <div

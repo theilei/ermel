@@ -302,10 +302,10 @@ export async function adminApprovePayment(req: Request, res: Response) {
 
     const payment = await PaymentModel.getPaymentByQuoteId(quote.id);
     if (!payment) return res.status(404).json({ success: false, message: 'Payment not found.' });
-    if (payment.paymentMethod !== 'qrph') {
-      return res.status(400).json({ success: false, message: 'Only QRPH payments can be approved from this panel.' });
+    if (payment.paymentMethod !== 'qrph' && payment.paymentMethod !== 'cash') {
+      return res.status(400).json({ success: false, message: 'Unsupported payment method for approval.' });
     }
-    if (!payment.proofFile) {
+    if (payment.paymentMethod === 'qrph' && !payment.proofFile) {
       return res.status(400).json({ success: false, message: 'Payment proof is required before approval.' });
     }
     if (payment.status === 'expired') {

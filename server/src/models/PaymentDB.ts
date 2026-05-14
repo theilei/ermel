@@ -288,9 +288,11 @@ export async function listPaymentsForAdmin(): Promise<Payment[]> {
      FROM payments p
      JOIN qq_quotes q ON q.id = p.quote_id
      LEFT JOIN reservations r ON r.quote_id = q.id
-     WHERE p.payment_method = 'qrph'
-       AND q.deleted_at IS NULL
-       AND p.proof_file IS NOT NULL
+     WHERE q.deleted_at IS NULL
+       AND (
+         (p.payment_method = 'qrph' AND p.proof_file IS NOT NULL)
+         OR p.payment_method = 'cash'
+       )
      ORDER BY p.created_at DESC`
   );
 
