@@ -13,6 +13,7 @@ type AdminPayment = {
   customerName?: string;
   projectType?: string;
   amountDue?: number;
+  paymentMethod?: 'qrph' | 'cash' | string;
   proofFile?: string;
   status: 'waiting_approval' | 'paid' | 'expired' | string;
   createdAt: string;
@@ -128,8 +129,8 @@ export default function PaymentApproval() {
     [normalizedPayments, toDisplayStatus]
   );
 
-  const noPaymentProofCount = useMemo(
-    () => normalizedPayments.filter((p) => !toProofUrl(p.proofFile)).length,
+  const cashPaymentCount = useMemo(
+    () => normalizedPayments.filter((p) => p.paymentMethod === 'cash').length,
     [normalizedPayments]
   );
 
@@ -193,7 +194,7 @@ export default function PaymentApproval() {
           Payment Approval
         </h1>
         <p style={{ color: '#54667d', fontSize: '14px', fontFamily: 'var(--font-body)', marginTop: '4px' }}>
-          Review QRPH payment submissions and monitor verification progress in real time.
+          Review QRPH submissions and cash payments awaiting in-person confirmation.
         </p>
       </div>
 
@@ -234,9 +235,9 @@ export default function PaymentApproval() {
               <CreditCard size={18} color="#005c7a" />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '26px', fontWeight: 800 }}>{noPaymentProofCount}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '26px', fontWeight: 800 }}>{cashPaymentCount}</div>
           <div style={{ fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            No Payment Proof
+            Cash Payments
           </div>
         </div>
 
@@ -334,19 +335,21 @@ export default function PaymentApproval() {
               {!loading && filteredPayments.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#54667d', fontFamily: 'var(--font-body)' }}>
-                    No QRPH payment records found.
+                    No payment approval records found.
                   </td>
                 </tr>
               ) : (
                 filteredPayments.map((payment) => {
                   const proofUrl = toProofUrl(payment.proofFile);
+                  const isCashPayment = payment.paymentMethod === 'cash';
                   const liveQuoteStatus = String(payment.quoteStatus || '').toLowerCase();
                   const displayStatus = toDisplayStatus(payment);
                   const isQuoteRejected = liveQuoteStatus === 'rejected';
                   const isExpired = displayStatus === 'expired';
                   const canProceedToQueue = displayStatus === 'paid' && liveQuoteStatus === 'approved';
                   const isBusy = activeActionQuote === payment.quoteId;
-                  const canTakeAction = displayStatus === 'waiting_approval' && Boolean(proofUrl);
+                  const canTakeAction = displayStatus === 'waiting_approval' && (isCashPayment || Boolean(proofUrl));
+                  const canReject = canTakeAction && !isCashPayment;
                   return (
                     <tr key={payment.id} style={{ borderBottom: '1px solid #f0f2f5' }}>
                       <td style={{ padding: '12px 16px', color: '#15263c', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{payment.quoteNumber || payment.quoteId}</td>
@@ -356,7 +359,24 @@ export default function PaymentApproval() {
                         ₱{Number(payment.amountDue || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        {proofUrl ? (
+                        {isCashPayment ? (
+                          <span
+                            style={{
+                              color: '#005c7a',
+                              backgroundColor: '#e6f4f8',
+                              border: '1px solid #005c7a44',
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            Cash Payment
+                          </span>
+                        ) : proofUrl ? (
                           <a
                             href={proofUrl}
                             target="_blank"
@@ -476,6 +496,16 @@ export default function PaymentApproval() {
                           >
                             Expired Quote
                           </span>
+                        ) : isCashPayment ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => submitApprove(payment.quoteId)}
+                              disabled={!canTakeAction || isBusy}
+                              style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#1a5c1a', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
+                            >
+                              Approve
+                            </button>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-2">
                             <button
@@ -491,8 +521,8 @@ export default function PaymentApproval() {
                                 setRejectingQuoteId(payment.quoteId);
                                 setRejectReason('');
                               }}
-                              disabled={!canTakeAction || isBusy}
-                              style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#7a0000', color: 'white', cursor: !canTakeAction || isBusy ? 'not-allowed' : 'pointer', opacity: !canTakeAction || isBusy ? 0.6 : 1 }}
+                              disabled={!canReject || isBusy}
+                              style={{ border: 'none', borderRadius: '8px', padding: '7px 10px', backgroundColor: '#7a0000', color: 'white', cursor: !canReject || isBusy ? 'not-allowed' : 'pointer', opacity: !canReject || isBusy ? 0.6 : 1 }}
                             >
                               Reject
                             </button>
