@@ -53,6 +53,7 @@ router.get('/dashboard/metrics', quoteCtrl.getDashboardMetrics);
 
 // ---- Analytics ----
 router.get('/analytics/summary', analyticsCtrl.getAdminAnalytics);
+router.get('/analytics/material-demand', analyticsCtrl.getMaterialDemand);
 
 // ---- User role management ----
 router.patch('/users/:id/role', adminUserCtrl.updateUserRole);

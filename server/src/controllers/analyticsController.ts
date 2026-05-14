@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAdminAnalyticsSummary, trackEvent, type AnalyticsEventType } from '../services/analyticsService';
+import { getAdminAnalyticsSummary, getMaterialDemandTrends, trackEvent, type AnalyticsEventType } from '../services/analyticsService';
 
 const ALLOWED_EVENTS: AnalyticsEventType[] = [
   'quote_started',
@@ -25,6 +25,16 @@ export async function getAdminAnalytics(req: Request, res: Response) {
     return res.json({ success: true, data: summary });
   } catch (err: any) {
     console.error('[ANALYTICS CTRL] getAdminAnalytics error:', err.message);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+}
+
+export async function getMaterialDemand(req: Request, res: Response) {
+  try {
+    const trends = await getMaterialDemandTrends();
+    return res.json({ success: true, data: trends });
+  } catch (err: any) {
+    console.error('[ANALYTICS CTRL] getMaterialDemand error:', err.message);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 }

@@ -48,6 +48,11 @@ export interface PopularMaterialsSummary {
   sampleSize: number;
 }
 
+export interface MaterialDemandTrends {
+  glassMonthly: Array<{ month: string; total: number }>;
+  frameMonthly: Array<{ month: string; total: number }>;
+}
+
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
 async function getAccessToken(): Promise<string | null> {
@@ -204,6 +209,11 @@ export async function fetchActivityLogs(params?: { quoteId?: string; orderId?: s
 export async function fetchAdminDashboardMetrics() {
   const res = await adminFetch(`${API_BASE}/admin/dashboard/metrics`);
   return handleResponse<AdminDashboardMetrics>(res);
+}
+
+export async function fetchAdminMaterialDemandTrends() {
+  const res = await adminFetch(`${API_BASE}/admin/analytics/material-demand`);
+  return handleResponse<MaterialDemandTrends>(res);
 }
 
 // ---- Reservation API ----

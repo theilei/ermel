@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Package, Search, AlertTriangle, CheckCircle2,
   TrendingUp, Edit2, Save, X, Filter,
@@ -6,6 +6,7 @@ import {
   Info, Layers, Wrench, Droplets, Box, Zap,
   BarChart2, AlertCircle, ShieldCheck, Clock,
 } from 'lucide-react';
+import { fetchAdminMaterialDemandTrends, type MaterialDemandTrends } from '../../services/api';
 
 type ProcurementStatus = 'in_stock' | 'low_stock' | 'out_of_stock';
 type Category = 'Glass' | 'Aluminum' | 'Hardware' | 'Sealant' | 'Accessories';
@@ -108,20 +109,65 @@ const CATEGORY_FILTERS = [
 
 const ITEMS_PER_PAGE = 10;
 
-// DSS Helper: compute priority & suggested restock 
-function getDSSItems(materials: Material[]) {
+function linearRegression(values: number[]) {
+  const n = values.length;
+  if (n === 0) return { slope: 0, intercept: 0, predictNext: 0 };
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = values[i] || 0;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+  const denom = n * sumXX - sumX * sumX;
+  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+  const intercept = (sumY - slope * sumX) / n;
+  const predictNext = slope * n + intercept;
+  return { slope, intercept, predictNext };
+}
+
+function getForecastTotal(series?: Array<{ month: string; total: number }>) {
+  if (!series || series.length < 2) return null;
+  const sorted = [...series].sort((a, b) => a.month.localeCompare(b.month));
+  const windowed = sorted.slice(-6);
+  const totals = windowed.map((entry) => Number(entry.total || 0));
+  const regression = linearRegression(totals);
+  return Math.max(0, regression.predictNext || 0);
+}
+
+// DSS Helper: compute priority & suggested restock using linear regression forecasts.
+function getDSSItems(materials: Material[], categoryForecasts: Partial<Record<Category, number>>) {
+  const categoryTotals = materials.reduce<Record<Category, number>>((acc, m) => {
+    acc[m.category] = (acc[m.category] || 0) + (m.minStock || 0);
+    return acc;
+  }, { Glass: 0, Aluminum: 0, Hardware: 0, Sealant: 0, Accessories: 0 });
+
   return materials
-    .filter(m => m.status === 'out_of_stock' || m.status === 'low_stock')
     .map(m => {
-      const deficit = m.minStock - m.stockQty;
-      const suggestedQty = Math.max(deficit, m.minStock);
+      const categoryTotal = categoryTotals[m.category] || 0;
+      const forecastTotal = categoryForecasts[m.category] ?? categoryTotal;
+      const share = categoryTotal > 0 ? (m.minStock / categoryTotal) : 0;
+      const predictedMonthly = Math.max(0, forecastTotal * share);
+
+      const forecastGap = Math.max(0, Math.round(predictedMonthly - m.stockQty));
+      const suggestedQty = forecastGap;
       const estimatedCost = suggestedQty * m.unitCost;
+
       const urgency: 'critical' | 'high' | 'medium' =
-        m.status === 'out_of_stock' ? 'critical' :
-        m.stockQty <= Math.floor(m.minStock * 0.5) ? 'high' : 'medium';
+        m.stockQty <= 0 && suggestedQty > 0 ? 'critical' :
+        suggestedQty > 0 && m.stockQty <= Math.max(1, Math.round(predictedMonthly * 0.5)) ? 'high' :
+        'medium';
+
       const stockPct = m.minStock > 0 ? Math.round((m.stockQty / m.minStock) * 100) : 0;
-      return { ...m, deficit, suggestedQty, estimatedCost, urgency, stockPct };
+
+      return { ...m, forecastGap, predictedMonthly, suggestedQty, estimatedCost, urgency, stockPct };
     })
+    .filter(m => m.suggestedQty > 0)
     .sort((a, b) => {
       const order = { critical: 0, high: 1, medium: 2 };
       return order[a.urgency] - order[b.urgency];
@@ -145,6 +191,30 @@ export default function MaterialProcurement() {
   const [materials, setMaterials]       = useState<Material[]>(INITIAL_MATERIALS);
   const [activeTab, setActiveTab]       = useState<'inventory' | 'dss'>('inventory');
   const [dssCategory, setDssCategory]   = useState<string>('all');
+  const [materialDemandTrends, setMaterialDemandTrends] = useState<MaterialDemandTrends | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchAdminMaterialDemandTrends()
+      .then((data) => {
+        if (isMounted) setMaterialDemandTrends(data);
+      })
+      .catch((err) => {
+        console.error('[MaterialProcurement] Failed to load demand trends:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categoryForecasts = useMemo(() => {
+    const glassForecast = getForecastTotal(materialDemandTrends?.glassMonthly);
+    const frameForecast = getForecastTotal(materialDemandTrends?.frameMonthly);
+    return {
+      Glass: glassForecast ?? undefined,
+      Aluminum: frameForecast ?? undefined,
+    };
+  }, [materialDemandTrends]);
 
   // Inventory filtering
   const filtered = useMemo(() => {
@@ -167,9 +237,9 @@ export default function MaterialProcurement() {
 
   // DSS data
   const dssItems = useMemo(() => {
-    const all = getDSSItems(materials);
+    const all = getDSSItems(materials, categoryForecasts);
     return dssCategory === 'all' ? all : all.filter(m => m.category === dssCategory);
-  }, [materials, dssCategory]);
+  }, [materials, dssCategory, categoryForecasts]);
 
   const totalRestockCost    = dssItems.reduce((s, m) => s + m.estimatedCost, 0);
   const criticalCount       = dssItems.filter(m => m.urgency === 'critical').length;
@@ -543,7 +613,7 @@ export default function MaterialProcurement() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f8f9fb' }}>
-                      {['Priority', 'Material', 'Category', 'Current Stock', 'Minimum', 'Deficit', 'Suggested Order', 'Est. Cost', 'Supplier', 'Lead Time'].map(h => (
+                      {['Priority', 'Material', 'Category', 'Current Stock', 'Minimum', 'Forecast Gap', 'Suggested Order', 'Est. Cost', 'Supplier', 'Lead Time'].map(h => (
                         <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontFamily: 'var(--font-heading)', color: '#54667d', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap', borderBottom: '1px solid #e0e4ea' }}>
                           {h}
                         </th>
@@ -595,7 +665,7 @@ export default function MaterialProcurement() {
 
                           <td style={{ padding: '14px 14px' }}>
                             <span style={{ fontFamily: 'var(--font-heading)', color: '#7a0000', fontSize: '13px', fontWeight: 700 }}>
-                              −{item.deficit} {item.unit}
+                              −{item.forecastGap} {item.unit}
                             </span>
                           </td>
 
@@ -665,7 +735,7 @@ export default function MaterialProcurement() {
                       <span style={{ fontFamily: 'var(--font-heading)', color: cfg.color, fontSize: '12px', fontWeight: 700 }}>{cfg.label}</span>
                       <div style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '11px', marginTop: 1 }}>
                         {key === 'critical' && 'Stock fully depleted — operations at risk.'}
-                        {key === 'high'     && 'Stock ≤ 50% of minimum — reorder soon.'}
+                        {key === 'high'     && 'Stock is at or below reorder point — reorder soon.'}
                         {key === 'medium'   && 'Stock below minimum — schedule reorder.'}
                       </div>
                     </div>
@@ -679,7 +749,29 @@ export default function MaterialProcurement() {
                 <div>
                   <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '12px', fontWeight: 700 }}>SUGGESTED QTY</span>
                   <div style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '11px', marginTop: 1 }}>
-                    max(deficit, minStock) — replenishes to 2× buffer.
+                    Suggested qty = max(0, forecast monthly demand − current stock).
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div style={{ marginTop: 2, width: 20, height: 20, backgroundColor: '#e6f4f8', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <BarChart2 size={11} color="#005c7a" />
+                </div>
+                <div>
+                  <span style={{ fontFamily: 'var(--font-heading)', color: '#005c7a', fontSize: '12px', fontWeight: 700 }}>DEMAND BASIS</span>
+                  <div style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '11px', marginTop: 1 }}>
+                    Forecast demand from linear regression on monthly approved quotes.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <div style={{ marginTop: 2, width: 20, height: 20, backgroundColor: '#e8ecf1', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <TrendingUp size={11} color="#15263c" />
+                </div>
+                <div>
+                  <span style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '12px', fontWeight: 700 }}>TREND FACTOR</span>
+                  <div style={{ fontFamily: 'var(--font-body)', color: '#54667d', fontSize: '11px', marginTop: 1 }}>
+                    Forecasted totals split by each item's share of category minimum stock.
                   </div>
                 </div>
               </div>

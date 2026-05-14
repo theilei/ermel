@@ -1,4 +1,5 @@
 import pool from '../config/database';
+import type { QuoteStatus } from '../models/QuoteDB';
 
 export type AnalyticsEventType =
   | 'quote_started'
@@ -61,5 +62,31 @@ export async function getAdminAnalyticsSummary() {
     approvalRate: approvalBase > 0 ? Number(((approved / approvalBase) * 100).toFixed(2)) : 0,
     conversionRate: conversionBase > 0 ? Number(((accepted / conversionBase) * 100).toFixed(2)) : 0,
     monthlyTrends: monthly.rows.map((row) => ({ month: row.month, total: row.total })),
+  };
+}
+
+const MATERIAL_DEMAND_STATUSES: QuoteStatus[] = [
+  'approved',
+  'customer_accepted',
+  'converted_to_order',
+];
+
+export async function getMaterialDemandTrends() {
+  const result = await pool.query(
+    `SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
+            COUNT(*) FILTER (WHERE COALESCE(TRIM(glass_type), '') <> '')::int AS glass_total,
+            COUNT(*) FILTER (WHERE COALESCE(TRIM(frame_material), '') <> '')::int AS frame_total
+     FROM qq_quotes
+     WHERE deleted_at IS NULL
+       AND status = ANY($1::text[])
+     GROUP BY DATE_TRUNC('month', created_at)
+     ORDER BY DATE_TRUNC('month', created_at) DESC
+     LIMIT 12`,
+    [MATERIAL_DEMAND_STATUSES],
+  );
+
+  return {
+    glassMonthly: result.rows.map((row) => ({ month: row.month, total: row.glass_total })),
+    frameMonthly: result.rows.map((row) => ({ month: row.month, total: row.frame_total })),
   };
 }
