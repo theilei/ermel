@@ -3,8 +3,12 @@
 // ============================================================
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({
+  path: path.resolve(__dirname, '../../.env'),
+  override: true,
+});
 
 const isProduction = process.env.NODE_ENV === 'production';
 const localFallback = 'postgresql://postgres:postgres@localhost:5432/ermel';
@@ -38,11 +42,18 @@ const normalizedConnectionString = (() => {
   if (!isSupabaseConnection && !isRenderConnection) return connectionString;
 
   if (connectionString.match(/[?&]sslmode=/i)) {
+    if (isSupabaseConnection && /pooler\.supabase\.com/i.test(connectionString) && !connectionString.match(/[?&]uselibpqcompat=/i)) {
+      return `${connectionString}${connectionString.includes('?') ? '&' : '?'}uselibpqcompat=true`;
+    }
     return connectionString;
   }
 
   const desiredMode = isSupabaseConnection ? 'no-verify' : 'verify-full';
-  return `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=${desiredMode}`;
+  const withSslMode = `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=${desiredMode}`;
+  if (isSupabaseConnection && /pooler\.supabase\.com/i.test(connectionString) && !withSslMode.match(/[?&]uselibpqcompat=/i)) {
+    return `${withSslMode}&uselibpqcompat=true`;
+  }
+  return withSslMode;
 })();
 
 const effectiveConnectionString = sslMode && sslMode !== 'disable'
