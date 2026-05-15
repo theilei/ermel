@@ -35,6 +35,10 @@ function toProofUrl(proofFile?: string): string | null {
   return `${API_ORIGIN}${proofFile.startsWith('/') ? '' : '/'}${proofFile}`;
 }
 
+function isPdfProof(proofFile?: string): boolean {
+  return Boolean(proofFile && /\.pdf(?:$|[?#])/i.test(proofFile));
+}
+
 export default function PaymentApproval() {
   const navigate = useNavigate();
   const { quotes, refreshQuotes } = useQuotes();
@@ -46,6 +50,11 @@ export default function PaymentApproval() {
   const [activeActionQuote, setActiveActionQuote] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [previewingProof, setPreviewingProof] = useState<{
+    url: string;
+    label: string;
+    isPdf: boolean;
+  } | null>(null);
 
   const loadPayments = useCallback(async () => {
     try {
@@ -377,10 +386,9 @@ export default function PaymentApproval() {
                             Cash Payment
                           </span>
                         ) : proofUrl ? (
-                          <a
-                            href={proofUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => setPreviewingProof({ url: proofUrl, label: payment.proofFile || 'Payment proof', isPdf: isPdfProof(payment.proofFile) })}
                             style={{
                               color: '#1a5c1a',
                               backgroundColor: '#e8f5e9',
@@ -392,11 +400,11 @@ export default function PaymentApproval() {
                               fontWeight: 700,
                               textTransform: 'uppercase',
                               letterSpacing: '0.04em',
-                              textDecoration: 'none',
+                              cursor: 'pointer',
                             }}
                           >
                             View Proof
-                          </a>
+                          </button>
                         ) : (
                           <span
                             style={{
@@ -582,6 +590,79 @@ export default function PaymentApproval() {
               >
                 {activeActionQuote === rejectingQuoteId ? 'Rejecting...' : 'Reject Payment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewingProof && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Payment proof preview"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+            padding: '16px',
+          }}
+          onClick={() => setPreviewingProof(null)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '920px',
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              border: '1px solid #e0e4ea',
+              overflow: 'hidden',
+              boxShadow: '0 18px 40px rgba(21, 38, 60, 0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #15263c, #1e3655)', color: 'white', fontFamily: 'var(--font-heading)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <span>Payment Proof Preview</span>
+              <button
+                type="button"
+                onClick={() => setPreviewingProof(null)}
+                style={{
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  borderRadius: '999px',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <div style={{ padding: '16px' }}>
+              <div style={{ color: '#54667d', fontSize: '13px', marginBottom: '12px' }}>
+                {previewingProof.label}
+              </div>
+              <div style={{ border: '1px solid #e0e4ea', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f5f7fa', minHeight: '420px' }}>
+                {previewingProof.isPdf ? (
+                  <iframe
+                    src={previewingProof.url}
+                    title={previewingProof.label}
+                    style={{ width: '100%', height: '70vh', border: 'none', display: 'block' }}
+                  />
+                ) : (
+                  <img
+                    src={previewingProof.url}
+                    alt={previewingProof.label}
+                    style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '70vh', objectFit: 'contain' }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
