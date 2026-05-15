@@ -16,22 +16,59 @@ if (!connectionString) {
 
 const isLocalConnection = /localhost|127\.0\.0\.1/i.test(connectionString);
 
-// Supabase connection strings often use pooler hosts under supabase.com.
+// Managed providers often require sslmode. Normalize for known hosts.
 // In local dev, allow self-signed/intermediate cert chains from managed providers.
 const isSupabaseConnection = /supabase\.(co|com)/i.test(connectionString);
-const normalizedConnectionString = isSupabaseConnection
-  ? connectionString.match(/[?&]sslmode=/i)
-    ? connectionString.replace(/([?&]sslmode=)[^&]*/i, '$1no-verify')
-    : `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=no-verify`
-  : connectionString;
+const isRenderConnection = /render\.com/i.test(connectionString);
+const sslModeMatch = connectionString.match(/[?&]sslmode=([^&]+)/i);
+const sslMode = sslModeMatch?.[1]?.toLowerCase();
+
+function stripSslMode(value: string): string {
+  try {
+    const url = new URL(value);
+    url.searchParams.delete('sslmode');
+    return url.toString();
+  } catch {
+    return value.replace(/([?&])sslmode=[^&]*(&?)/i, (_match, sep, tail) => (tail ? sep : ''))
+      .replace(/[?&]$/, '');
+  }
+}
+
+const normalizedConnectionString = (() => {
+  if (!isSupabaseConnection && !isRenderConnection) return connectionString;
+
+  if (connectionString.match(/[?&]sslmode=/i)) {
+    return connectionString;
+  }
+
+  const desiredMode = isSupabaseConnection ? 'no-verify' : 'verify-full';
+  return `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=${desiredMode}`;
+})();
+
+const effectiveConnectionString = sslMode && sslMode !== 'disable'
+  ? stripSslMode(normalizedConnectionString)
+  : normalizedConnectionString;
 
 const pool = new Pool({
-  connectionString: normalizedConnectionString,
-  ssl: isLocalConnection
+  connectionString: effectiveConnectionString,
+  ssl: isLocalConnection || sslMode === 'disable'
     ? undefined
     : {
         rejectUnauthorized: false,
       },
+  connectionTimeoutMillis: 8000,
+  ...(isSupabaseConnection && /pooler\.supabase\.com/i.test(connectionString)
+    ? { queryMode: 'simple' as const }
+    : {}),
+});
+
+pool.on('error', (err) => {
+  console.error('[DB] Pool error:', {
+    message: err.message,
+    code: (err as any).code,
+    detail: (err as any).detail,
+    cause: (err as any).cause,
+  });
 });
 
 export default pool;

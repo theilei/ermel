@@ -2,7 +2,7 @@
 // Authentication controller — register, login, logout, me
 // ============================================================
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import pool from '../config/database';
 import { sendVerificationEmail } from '../services/verificationEmailService';

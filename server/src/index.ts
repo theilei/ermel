@@ -316,6 +316,7 @@ app.get('/api/health', async (_req, res) => {
       time: new Date().toISOString(),
       database: 'disconnected',
       error: err.message,
+      code: err.code,
     });
   }
 });
@@ -351,7 +352,13 @@ async function startServer() {
     await pool.query('SELECT 1');
     console.log('[DB] Connection successful.');
   } catch (err: any) {
-    console.error('[DB] Connection failed:', err.message);
+    console.error('[DB] Connection failed:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      hint: err.hint,
+      cause: err.cause,
+    });
     process.exit(1);
   }
 
