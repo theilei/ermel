@@ -4,7 +4,6 @@ import { Search, CreditCard, CheckCircle2, Clock3, AlertTriangle, Filter } from 
 import { useQuotes } from '../../context/QuoteContext';
 import { adminApprovePayment, adminRejectPayment, fetchAdminPayments } from '../../services/api';
 import { supabase } from '../../services/supabaseClient';
-import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 
 type AdminPayment = {
   id: string;
@@ -47,8 +46,6 @@ export default function PaymentApproval() {
   const [activeActionQuote, setActiveActionQuote] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
-  const [proofModalLabel, setProofModalLabel] = useState<string>('');
 
   const loadPayments = useCallback(async () => {
     try {
@@ -186,18 +183,6 @@ export default function PaymentApproval() {
       setActiveActionQuote(null);
     }
   };
-
-  const closeProofModal = () => {
-    setProofModalUrl(null);
-    setProofModalLabel('');
-  };
-
-  const openProofModal = (url: string, label: string) => {
-    setProofModalUrl(url);
-    setProofModalLabel(label);
-  };
-
-  const isProofPdf = Boolean(proofModalUrl && proofModalLabel.toLowerCase().endsWith('.pdf'));
 
   return (
     <div className="p-6">
@@ -392,9 +377,10 @@ export default function PaymentApproval() {
                             Cash Payment
                           </span>
                         ) : proofUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => openProofModal(proofUrl, payment.proofFile || 'Payment proof')}
+                          <a
+                            href={proofUrl}
+                            target="_blank"
+                            rel="noreferrer"
                             style={{
                               color: '#1a5c1a',
                               backgroundColor: '#e8f5e9',
@@ -406,11 +392,11 @@ export default function PaymentApproval() {
                               fontWeight: 700,
                               textTransform: 'uppercase',
                               letterSpacing: '0.04em',
-                              cursor: 'pointer',
+                              textDecoration: 'none',
                             }}
                           >
                             View Proof
-                          </button>
+                          </a>
                         ) : (
                           <span
                             style={{
@@ -598,100 +584,6 @@ export default function PaymentApproval() {
               </button>
             </div>
           </div>
-
-          {proofModalUrl && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Payment proof preview"
-              onClick={closeProofModal}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(10, 16, 28, 0.55)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 50,
-                padding: '24px',
-              }}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  width: 'min(960px, 92vw)',
-                  maxHeight: '86vh',
-                  overflow: 'hidden',
-                  border: '1px solid #e0e4ea',
-                  boxShadow: '0 20px 60px rgba(15, 23, 42, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '16px 20px',
-                    borderBottom: '1px solid #e0e4ea',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ color: '#15263c', fontFamily: 'var(--font-heading)', fontSize: '13px', fontWeight: 700 }}>
-                    Payment Proof
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeProofModal}
-                    style={{
-                      border: '1px solid #e0e4ea',
-                      backgroundColor: '#f5f7fa',
-                      color: '#15263c',
-                      fontFamily: 'var(--font-heading)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '6px 10px',
-                      borderRadius: '999px',
-                      cursor: 'pointer',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    padding: '18px',
-                    overflow: 'auto',
-                    backgroundColor: '#f7f9fc',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '240px',
-                  }}
-                >
-                  {isProofPdf ? (
-                    <iframe
-                      title="Payment proof PDF"
-                      src={proofModalUrl}
-                      style={{ width: '100%', height: '70vh', border: 'none', backgroundColor: '#ffffff' }}
-                    />
-                  ) : (
-                    <ImageWithFallback
-                      src={proofModalUrl}
-                      alt={proofModalLabel || 'Payment proof image'}
-                      style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '10px', border: '1px solid #e0e4ea', backgroundColor: '#ffffff' }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router';
 import {
   CheckCircle, Clock, Package, Hammer, Truck, Upload, QrCode,
@@ -9,7 +9,6 @@ import { useApp, type Order, type OrderStatus } from '../context/AppContext';
 import { useQuotes } from '../context/QuoteContext';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS } from '../types/quotation';
 import type { Quote } from '../types/quotation';
-import { uploadCustomerPaymentProof } from '../services/api';
 
 const STAGE_CONFIG: { status: OrderStatus; label: string; icon: any; desc: string }[] = [
   { status: 'inquiry', label: 'Inquiry Received', icon: Clock, desc: 'Your quote request has been submitted and is awaiting admin review.' },
@@ -440,7 +439,6 @@ export default function CustomerDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(orders[0]?.id || null);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
   const [showQR, setShowQR] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'quotes'>('orders');
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
@@ -458,33 +456,20 @@ export default function CustomerDashboard() {
   const canPay = selectedOrder && !!selectedOrder.approvedCost && !selectedOrder.paid;
   const isPaid = selectedOrder?.paid || selectedOrder?.paymentUploaded;
 
-  useEffect(() => {
-    if (!selectedQuoteId && customerQuotes.length > 0) {
-      setSelectedQuoteId(customerQuotes[0].id);
-    }
-  }, [customerQuotes, selectedQuoteId]);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const targetQuoteId = selectedQuote?.id || selectedQuoteId;
     setUploading(true);
-    setUploadError('');
-    if (!targetQuoteId) {
-      setUploading(false);
-      setUploadError('Select a quote before uploading payment proof.');
-      return;
-    }
-
-    try {
-      await uploadCustomerPaymentProof(targetQuoteId, file);
-      setUploadedFile(URL.createObjectURL(file));
-      if (selectedId) markPaymentUploaded(selectedId);
-    } catch (err: any) {
-      setUploadError(err?.message || 'Failed to upload payment proof. Please try again.');
-    } finally {
-      setUploading(false);
-    }
+    // Simulate upload
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setTimeout(() => {
+        setUploadedFile(ev.target?.result as string);
+        setUploading(false);
+        if (selectedId) markPaymentUploaded(selectedId);
+      }, 1200);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -949,12 +934,6 @@ export default function CustomerDashboard() {
                       <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
                         UPLOAD TRANSACTION SCREENSHOT
                       </div>
-
-                      {uploadError && (
-                        <div className="mb-3" style={{ color: '#7a0000', fontSize: '12px', fontFamily: 'var(--font-body)' }}>
-                          {uploadError}
-                        </div>
-                      )}
 
                       <input
                         ref={fileRef}
