@@ -62,7 +62,7 @@ const FRAME_MATERIALS = [
 
 const UNIT_LABELS: Record<MeasurementUnit, string> = { cm: 'cm', m: 'm', ft: 'ft', in: 'in' };
 const API_ROOT = (import.meta as any).env?.VITE_API_URL || '/api';
-const FEET_PER_METER = 3.280839895;
+const FEET_PER_METER = 3.28083989501312;
 const PRICE_PER_SQ_FOOT = 350;
 const STEPS = ['Info', 'Category', 'Materials', 'Dimensions', 'Reservation', 'Summary'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -497,9 +497,10 @@ export default function QuotationModule() {
   const wMeters = toMeters(w, measureUnit);
   const hMeters = toMeters(h, measureUnit);
   const sqm = wMeters * hMeters;
-  const widthFeet = wMeters * FEET_PER_METER;
-  const heightFeet = hMeters * FEET_PER_METER;
-  const areaSqFeet = widthFeet * heightFeet;
+  const sqmRounded = Math.round(sqm * 100) / 100;           // what's displayed (e.g. 5.58)
+  const areaSqFeet = sqmRounded * 10.7639104;               // consistent with displayed m²
+  const widthFeet = wMeters * FEET_PER_METER;               // still needed for per-dim validation
+  const heightFeet = hMeters * FEET_PER_METER;              // still needed for per-dim validation
   const areaUnitLabel = `${UNIT_LABELS[measureUnit]}^2`;
   const areaInChosenUnit = fromMeters(wMeters, measureUnit) * fromMeters(hMeters, measureUnit);
 
