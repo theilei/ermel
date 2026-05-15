@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { TrendingUp, Package, Calendar, ClipboardCheck, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, Calendar, ClipboardCheck, FileText } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { fetchAdminDashboardMetrics, fetchAdminAnalyticsSummary } from '../services/api';
 import type { DashboardActiveInstallation } from '../services/api';
@@ -92,6 +92,90 @@ function linearRegression(values: number[]) {
   return { slope, intercept, predictNext };
 }
 
+function niceMax(rawMax: number): number {
+  if (rawMax <= 0) return 100000;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const normalized = rawMax / magnitude;
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude * 1.1;
+}
+
+function yTicks(max: number, steps = 4): number[] {
+  const step = max / steps;
+  return Array.from({ length: steps + 1 }, (_, i) => Math.round(step * i));
+}
+
+function formatPeso(value: number): string {
+  if (value >= 1000000) return `₱${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `₱${Math.round(value / 1000)}k`;
+  return `₱${value}`;
+}
+
+function Tooltip({
+  data,
+  barHeightPct,
+}: {
+  data: ForecastPoint;
+  barHeightPct: number;
+}) {
+  const bottom = Math.min(barHeightPct + 6, 88);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '50%',
+        bottom: `${bottom}%`,
+        transform: 'translateX(-50%)',
+        backgroundColor: '#15263c',
+        color: 'white',
+        borderRadius: '6px',
+        padding: '8px 12px',
+        fontSize: '12px',
+        fontFamily: 'var(--font-heading)',
+        whiteSpace: 'nowrap',
+        zIndex: 20,
+        pointerEvents: 'none',
+        minWidth: '148px',
+        boxShadow: '0 4px 16px rgba(21,38,60,0.28)',
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '11px', color: '#9ab0c4', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {data.month}
+      </div>
+      <div style={{ color: 'white', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
+        {formatPeso(data.revenue)}
+      </div>
+      {!data.isForecast && (
+        <>
+          <div style={{ color: '#4ade80', fontSize: '11px' }}>
+            Confirmed  {formatPeso(data.confirmed)}
+          </div>
+          <div style={{ color: '#fbbf24', fontSize: '11px' }}>
+            Pending    {formatPeso(data.pending)}
+          </div>
+        </>
+      )}
+      {data.isForecast && (
+        <div style={{ color: '#f09595', fontSize: '11px' }}>Model estimate</div>
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-5px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderTop: '5px solid #15263c',
+        }}
+      />
+    </div>
+  );
+}
+
 function SalesForecastChart({
   forecastData,
   trendLabel,
@@ -102,7 +186,7 @@ function SalesForecastChart({
   confidenceLabel: 'Low' | 'Medium' | 'High';
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const normalizedData = useMemo(
+  const normalized = useMemo(
     () =>
       forecastData.map((d) => ({
         ...d,
@@ -112,112 +196,249 @@ function SalesForecastChart({
       })),
     [forecastData]
   );
-  const maxValue = Math.max(1, ...normalizedData.map((d) => d.revenue));
+
+  const rawMax = Math.max(1, ...normalized.map((d) => d.revenue));
+  const yMax = niceMax(rawMax);
+  const ticks = yTicks(yMax, 4);
+  const isPositiveTrend = !trendLabel.startsWith('-');
+
+  const confidenceColor: Record<string, string> = {
+    Low: '#7a5200',
+    Medium: '#005c7a',
+    High: '#1a5c1a',
+  };
+  const confidenceBg: Record<string, string> = {
+    Low: '#fff8e1',
+    Medium: '#e0f4ff',
+    High: '#e8f5e9',
+  };
 
   if (forecastData.length === 0) {
     return (
-      <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
-        <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Projected Income for Next Month
-        </div>
-        <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '8px' }}>
-          Waiting for enough data to generate forecast.
-        </div>
+      <div
+        style={{
+          padding: '24px',
+          backgroundColor: 'white',
+          border: '1px solid #e0e4ea',
+          borderRadius: '10px',
+        }}
+      >
+        <p style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '16px', fontWeight: 700, margin: 0 }}>
+          Projected Income — Next Month
+        </p>
+        <p style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '8px' }}>
+          Waiting for enough data to generate a forecast.
+        </p>
       </div>
     );
   }
 
+  const CHART_H = 240;
+  const Y_AXIS_W = 64;
+
   return (
-    <div className="p-6" style={{ backgroundColor: 'white', border: '1px solid #e0e4ea', borderRadius: '8px' }}>
-      <div className="flex items-center justify-between mb-6">
+    <div
+      style={{
+        backgroundColor: 'white',
+        border: '1px solid #e0e4ea',
+        borderRadius: '10px',
+        padding: '24px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '4px' }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '20px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Projected Income for Next Month
-          </div>
-          <div style={{ color: '#54667d', fontSize: '13px', fontFamily: 'var(--font-body)', marginTop: '4px' }}>
+          <p style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+            Projected Income — Next Month
+          </p>
+          <p style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)', marginTop: '4px', marginBottom: 0 }}>
             DSS estimate based on reservation pipeline, average project cost, and recent trend
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '5px 12px',
+              backgroundColor: isPositiveTrend ? '#e8f5e9' : '#fff0f0',
+              border: `1px solid ${isPositiveTrend ? '#1a5c1a44' : '#7a000044'}`,
+              borderRadius: '8px',
+            }}
+          >
+            {isPositiveTrend ? (
+              <TrendingUp size={14} color="#1a5c1a" />
+            ) : (
+              <TrendingDown size={14} color="#7a0000" />
+            )}
+            <span style={{ fontFamily: 'var(--font-heading)', color: isPositiveTrend ? '#1a5c1a' : '#7a0000', fontSize: '12px', fontWeight: 700 }}>
+              {trendLabel}
+            </span>
+          </div>
+
+          <div
+            style={{
+              padding: '5px 12px',
+              backgroundColor: confidenceBg[confidenceLabel],
+              border: `1px solid ${confidenceColor[confidenceLabel]}44`,
+              borderRadius: '8px',
+              fontFamily: 'var(--font-heading)',
+              color: confidenceColor[confidenceLabel],
+              fontSize: '12px',
+              fontWeight: 700,
+            }}
+          >
+            {confidenceLabel} confidence
           </div>
         </div>
-        <div className="px-4 py-2 flex items-center gap-2" style={{ backgroundColor: '#e8f5e9', border: '1px solid #1a5c1a44', borderRadius: '8px' }}>
-          <TrendingUp size={16} color="#1a5c1a" />
-          <span style={{ fontFamily: 'var(--font-heading)', color: '#1a5c1a', fontSize: '13px', fontWeight: 700 }}>
-            {trendLabel}
-          </span>
-        </div>
       </div>
 
-      <div className="mb-4" style={{ color: '#54667d', fontSize: '12px', fontFamily: 'var(--font-body)' }}>
-        Confidence: <strong style={{ color: '#15263c' }}>{confidenceLabel}</strong>
-        {' '}| Use as planning guidance, not a fixed financial commitment.
+      <p style={{ color: '#54667d', fontSize: '11px', fontFamily: 'var(--font-body)', marginBottom: '20px', marginTop: '6px' }}>
+        Use as planning guidance, not a fixed financial commitment.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#54667d', fontFamily: 'var(--font-body)' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '2px', backgroundColor: '#54667d', display: 'inline-block' }} />
+          Historical
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#7a0000', fontFamily: 'var(--font-body)' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '2px',
+            display: 'inline-block',
+            border: '2px dashed #7a0000',
+            backgroundImage: 'repeating-linear-gradient(135deg, #fff0f0 0, #fff0f0 3px, #f09595 3px, #f09595 6px)',
+          }} />
+          Forecast
+        </span>
       </div>
 
-      <div className="relative" style={{ height: '280px' }}>
-        <div className="absolute inset-0 flex items-end justify-between gap-4 px-2">
-          {normalizedData.map((data, idx) => {
-            const heightPercent = (data.revenue / maxValue) * 100;
-            const barHeightPercent = data.revenue > 0 ? Math.max(8, Math.min(100, heightPercent)) : 2;
-            const isHovered = hoveredIndex === idx;
-            const isForecast = data.isForecast;
-
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+        <div style={{ width: `${Y_AXIS_W}px`, height: `${CHART_H}px`, position: 'relative', flexShrink: 0 }}>
+          {ticks.map((tick) => {
+            const pct = (tick / yMax) * 100;
             return (
               <div
-                key={data.month}
-                className="flex-1 flex flex-col items-center gap-2 relative"
-                onMouseEnter={() => setHoveredIndex(idx)}
-                onMouseLeave={() => setHoveredIndex(null)}
+                key={tick}
+                style={{
+                  position: 'absolute',
+                  bottom: `${pct}%`,
+                  right: '8px',
+                  transform: 'translateY(50%)',
+                  fontSize: '10px',
+                  color: '#54667d',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
               >
-                {isHovered && (
-                  <div
-                    className="absolute px-3 py-2 rounded shadow-lg z-10"
-                    style={{
-                      backgroundColor: '#15263c',
-                      bottom: `${Math.min(96, barHeightPercent + 5)}%`,
-                      transform: 'translateX(-50%)',
-                      left: '50%',
-                      minWidth: '160px',
-                    }}
-                  >
-                    <div style={{ color: 'white', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700, marginBottom: '4px' }}>
-                      {data.month}
-                    </div>
-                    <div style={{ color: '#9ab0c4', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
-                      Total: ₱{(data.revenue / 1000).toFixed(0)}k
-                    </div>
-                    {!isForecast && (
-                      <>
-                        <div style={{ color: '#4ade80', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
-                          Confirmed: ₱{(data.confirmed / 1000).toFixed(0)}k
-                        </div>
-                        <div style={{ color: '#fbbf24', fontSize: '10px', fontFamily: 'var(--font-body)' }}>
-                          Pending: ₱{(data.pending / 1000).toFixed(0)}k
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                <div
-                  className="w-full rounded-t transition-all duration-200"
-                  style={{
-                    height: `${barHeightPercent}%`,
-                    backgroundColor: isForecast ? '#7a0000' : (isHovered ? '#15263c' : '#54667d'),
-                    opacity: isForecast ? 0.72 : 1,
-                    border: isForecast ? '2px dashed #7a0000' : 'none',
-                    cursor: 'pointer',
-                  }}
-                />
-
-                <div className="text-center mt-2">
-                  <div style={{ color: '#54667d', fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {data.month}
-                  </div>
-                  <div style={{ color: isForecast ? '#7a0000' : '#15263c', fontSize: '12px', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
-                    ₱{(data.revenue / 1000).toFixed(0)}k
-                  </div>
-                </div>
+                {formatPeso(tick)}
               </div>
             );
           })}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ position: 'relative', height: `${CHART_H}px` }}>
+            {ticks.map((tick) => {
+              const pct = (tick / yMax) * 100;
+              return (
+                <div
+                  key={tick}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: `${pct}%`,
+                    borderTop: '1px dashed #e0e4ea',
+                    pointerEvents: 'none',
+                  }}
+                />
+              );
+            })}
+
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'stretch', gap: '6px', padding: '0 4px' }}>
+              {normalized.map((data, idx) => {
+                const barPct = data.revenue > 0 ? Math.max(4, (data.revenue / yMax) * 100) : 1;
+                const isHovered = hoveredIndex === idx;
+
+                return (
+                  <div
+                    key={data.month}
+                    style={{ flex: 1, position: 'relative', cursor: 'pointer' }}
+                    onMouseEnter={() => setHoveredIndex(idx)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  >
+                    {isHovered && (
+                      <Tooltip data={data} barHeightPct={barPct} />
+                    )}
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: '4px',
+                        right: '4px',
+                        height: `${barPct}%`,
+                        borderRadius: '4px 4px 0 0',
+                        backgroundColor: data.isForecast ? 'transparent' : (isHovered ? '#15263c' : '#54667d'),
+                        backgroundImage: data.isForecast
+                          ? 'repeating-linear-gradient(135deg, #fff0f0 0, #fff0f0 4px, #f09595 4px, #f09595 8px)'
+                          : undefined,
+                        border: data.isForecast ? '2px dashed #7a0000' : 'none',
+                        borderBottom: 'none',
+                        transition: 'background-color 0.15s',
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '6px', padding: '8px 4px 0', alignItems: 'flex-start' }}>
+            {normalized.map((data) => {
+              const label = data.isForecast
+                ? data.month.replace(' (Forecast)', '')
+                : data.month;
+              return (
+                <div key={data.month} style={{ flex: 1, textAlign: 'center' }}>
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color: data.isForecast ? '#7a0000' : '#54667d',
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: data.isForecast ? '#7a0000' : '#15263c',
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 700,
+                      marginTop: '2px',
+                    }}
+                  >
+                    {formatPeso(data.revenue)}
+                  </div>
+                  {data.isForecast && (
+                    <div style={{ fontSize: '9px', color: '#7a0000', fontFamily: 'var(--font-body)', marginTop: '1px' }}>
+                      est.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

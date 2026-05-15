@@ -164,7 +164,6 @@ function BusinessSection() {
     taxId: '123-456-789-000',
     currency: 'PHP',
     vatRate: '12',
-    depositRate: '50',
     warranty: '1 year',
   });
   const f = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
@@ -213,10 +212,9 @@ function BusinessSection() {
       {/* Pricing Rules */}
       <div className="p-5 mb-6" style={{ border: '1px solid #e0e4ea', borderRadius: '8px', backgroundColor: '#f8f9fb' }}>
         <div style={{ fontFamily: 'var(--font-heading)', color: '#15263c', fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>Pricing & Terms</div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {[
             { label: 'VAT Rate (%)', key: 'vatRate', disabled: true  },
-            { label: 'Deposit Required (%)', key: 'depositRate', disabled: true  },
             { label: 'Warranty Period', key: 'warranty', disabled: true  },
           ].map(({ label, key, disabled }) => (
             <div key={key}>
