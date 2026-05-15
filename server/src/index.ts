@@ -348,6 +348,8 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
 
 // ---- Start ----
 async function startServer() {
+  let server: import('http').Server | undefined;
+
   try {
     await pool.query('SELECT 1');
     console.log('[DB] Connection successful.');
@@ -362,8 +364,17 @@ async function startServer() {
     process.exit(1);
   }
 
-  app.listen(PORT, () => {
+  server = app.listen(PORT, () => {
     console.log(`[SERVER] Ermel Quote API running on port ${PORT}`);
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[SERVER] Port ${PORT} is already in use. Stop the existing process or set PORT to a free port.`);
+    } else {
+      console.error('[SERVER] Failed to start:', err.message);
+    }
+    process.exit(1);
   });
 }
 
